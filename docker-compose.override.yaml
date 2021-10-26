@@ -1,0 +1,13 @@
+version: "3.3"
+
+services:
+    deepy:
+        build:
+            dockerfile: Dockerfile.dev
+        container_name: deepy_dev
+        ports:
+            - "8000:8000"
+        env_file: 
+            - ./.env.dev
+        command: >
+            sh -c "python ./api/manage.py runserver 0.0.0.0:8000"
