@@ -84,11 +84,11 @@ DATABASES = {
     # }
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'deepy',
-        'USER': 'deepy',
-        'PASSWORD': 'deepyadmin1!',
-        'HOST': 'deepy-development-db.ckspbikcbhm4.ap-northeast-2.rds.amazonaws.com',
-        'PORT': '3306',
+        'NAME': '',
+        'USER': '',
+        'PASSWORD': '',
+        'HOST': '',
+        'PORT': '',
     }
 }
 
