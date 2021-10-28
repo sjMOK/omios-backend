@@ -86,8 +86,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'deepy',
         'USER': 'deepy',
-        'PASSWORD': 'deepyadmin1!',
-        'HOST': 'deepy-development-db.ckspbikcbhm4.ap-northeast-2.rds.amazonaws.com',
+        'PASSWORD': '',
+        'HOST': '',
         'PORT': '3306',
     }
 }
