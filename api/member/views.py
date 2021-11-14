@@ -1,16 +1,14 @@
-from django.views import View
-from django.views.generic import TemplateView
-from rest_framework import serializers
-
 from rest_framework.views import APIView
-from rest_framework.generics import DestroyAPIView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from member.serializers import MemberSerializer, ShopperSerializer, WholesalerSerializer
+from . import models, serializers
+class UserAccessTokenView(TokenObtainPairView):
+    serializer_class = serializers.UserAccessTokenSerializer
 
-from .models import Member
+class UserRefreshTokenView(TokenRefreshView):
+    serializer_class = serializers.UserRefreshTokenSerializer
 
 @api_view(['POST'])
 def shopper_signup(request):
@@ -24,7 +22,7 @@ def shopper_signup(request):
         }
     }
     '''
-    serializer = ShopperSerializer(data=request.data)
+    serializer = serializers.ShopperSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     shopper = serializer.save()
 
@@ -41,7 +39,7 @@ def wholesaler_signup(request):
         }
     }
     '''
-    serializer = WholesalerSerializer(data=request.data)
+    serializer = serializers.WholesalerSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     wholesaler = serializer.save()
 
@@ -49,14 +47,14 @@ def wholesaler_signup(request):
 
 @api_view(['GET', 'DELETE'])
 def shopper(request, pk):
-    member = Member.objects.get(id=pk)
+    member = models.Member.objects.get(id=pk)
     shopper = member.shopper
     
     if request.method == 'DELETE':
         shopper.delete()
         return Response('username <{0}> user deleted'.format(member.username))
 
-    serializer = ShopperSerializer(instance=shopper)
+    serializer = serializers.ShopperSerializer(instance=shopper)
     shopper_data = serializer.data
     shopper_data.pop('member')
 
@@ -72,7 +70,7 @@ class ShopperDetailView(APIView):
         # serializer = ShopperSerializer(instance=shopper)
         # return Response(serializer.data)
 
-        member = Member.objects.get(id=pk)
+        member = models.Member.objects.get(id=pk)
         return Response(member.username)
 
 
@@ -88,13 +86,17 @@ class ShopperDetailView(APIView):
             }
         }
         '''
-        serializer = ShopperSerializer(data=request.data)
+        serializer = serializers.ShopperSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         member = serializer.save()
         return Response('username: {0}, name: {1} created'.format(member.username, member.shopper.name))
 
     def delete(self, request, format=None):
         username = request.query_params.get('username')
-        member = Member.objects.get(username=username)
+        member = models.Member.objects.get(username=username)
         member.delete()
         return Response('username <{0}> user deleted'.format(username))
+
+
+
+
