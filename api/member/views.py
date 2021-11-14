@@ -48,28 +48,33 @@ def wholesaler_signup(request):
     return Response('<<company name: {0}, username: {1} wholesaler>> created'.format(wholesaler.name, wholesaler.member.username ))
 
 @api_view(['GET', 'DELETE'])
-def shopper(request):
-    print(type(request))
-    username = request.query_params.get('username')
-    member = Member.objects.get(username=username)
+def shopper(request, pk):
+    member = Member.objects.get(id=pk)
     shopper = member.shopper
     
     if request.method == 'DELETE':
         shopper.delete()
-        return Response('username <{0}> user deleted'.format(username))
+        return Response('username <{0}> user deleted'.format(member.username))
 
     serializer = ShopperSerializer(instance=shopper)
-    return Response(serializer.data)
+    shopper_data = serializer.data
+    shopper_data.pop('member')
+
+    return Response(shopper_data)
 
 
 class ShopperDetailView(APIView):
-    def get(self, request, format=None):
-        username = request.query_params.get('username')
-        member = Member.objects.get(username=username)
+    def get(self, request, pk, format=None):
+        # username = request.query_params.get('username')
+        # member = Member.objects.get(username=username)
 
-        shopper = member.shopper
-        serializer = ShopperSerializer(instance=shopper)
-        return Response(serializer.data)
+        # shopper = member.shopper
+        # serializer = ShopperSerializer(instance=shopper)
+        # return Response(serializer.data)
+
+        member = Member.objects.get(id=pk)
+        return Response(member.username)
+
 
     def post(self, request, format=None):
         # sign-up
