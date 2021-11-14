@@ -3,12 +3,16 @@ from . import views
 
 
 urlpatterns = [
-    path('', views.index),
-    path('create_user/', views.create_user),
-    path('jwt_test/', views.jwt_test, name='jwt_test'),
-    path('token/', views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', views.TokenRefreshView.as_view(), name='token_refresh'),
-    path('custom_token/', views.UserAccessTokenView.as_view(), name='token_obtain_pair'),
-    path('custom_token/refresh/', views.UserRefreshTokenView.as_view(), name='token_refresh'),
-    path('test/', views.jwt_test2),
+    # path('', views.index),
+    # path('create_user/', views.create_user),
+    # path('jwt_test/', views.jwt_test, name='jwt_test'),
+    # path('token2/', views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # path('token/refresh/', views.TokenRefreshView.as_view(), name='token_refresh'),
+    # path('custom_token/', views.UserAccessTokenView.as_view(), name='token_obtain_pair'),
+    # path('custom_token/refresh/', views.UserRefreshTokenView.as_view(), name='token_refresh'),
+    # path('test/', views.jwt_test2),
+
+    path('token/', views.UserAccessTokenView.as_view(), name='access_token'),
+    path('token/refresh/', views.UserRefreshTokenView.as_view(), name='refresh_token'),
+    path('token/blacklist/', views.TokenBlacklistView.as_view(), name='token_blacklist'),
 ]

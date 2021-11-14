@@ -3,8 +3,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, Toke
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
-from datetime import datetime
-
+from rest_framework_simplejwt.utils import datetime_from_epoch
 class UserAccessTokenSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, member):
@@ -29,7 +28,7 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
             jti=refresh['jti'],
             token=str(refresh),
             created_at=refresh.current_time,
-            expires_at=datetime.utcfromtimestamp(refresh['exp']),
+            expires_at=datetime_from_epoch(refresh['exp']),
         )
         
         return token
