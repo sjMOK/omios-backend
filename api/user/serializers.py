@@ -1,51 +1,53 @@
-from .models import Shopper, Member, Wholesaler
-from django.contrib.auth.models import User
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
-class MemberSerializer(serializers.ModelSerializer):
+
+from . import models
+
+
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Member
+        model = models.User
         fields = ['username', 'password']
 
 
 class ShopperSerializer(serializers.ModelSerializer):
-    member = MemberSerializer()
+    user = UserSerializer()
 
     class Meta:
-        model = Shopper
+        model = models.Shopper
         fields = '__all__'
 
     def create(self, validated_data):
-        member_data = validated_data.pop('member')
-        member = Member.objects.create_user(**member_data)
-        shopper = Shopper.objects.create(member=member, **validated_data)
+        user_data = validated_data.pop('user')
+        user = models.User.objects.create_user(**user_data)
+        shopper = models.Shopper.objects.create(user=user, **validated_data)
         return shopper
 
 
 class WholesalerSerializer(serializers.ModelSerializer):
-    member = MemberSerializer()
+    user = UserSerializer()
 
     class Meta:
-        model = Wholesaler
+        model = models.Wholesaler
         fields = '__all__'
 
     def create(self, validated_data):
-        member_data = validated_data.pop('member')
-        member = Member.objects.create_user(**member_data)
-        wholesaler = Wholesaler.objects.create(member=member, **validated_data)
+        user_data = validated_data.pop('user')
+        user = models.User.objects.create_user(**user_data)
+        wholesaler = models.Wholesaler.objects.create(user=user, **validated_data)
         return wholesaler
 
 
 class UserAccessTokenSerializer(TokenObtainPairSerializer):
     @classmethod
-    def get_token(cls, member):
-        token = super().get_token(member)
+    def get_token(cls, user):
+        token = super().get_token(user)
         
         # todo : user 객체의 속성을 선택적으로 payload에 저장 (shopper_id or wholesaler_id)
-        token['additional_data1'] = member.email
+        token['additional_data1'] = user.shopper.age
 
         OutstandingToken.objects.filter(jti=token['jti']).update(
             token = token,
@@ -59,7 +61,7 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
         refresh = RefreshToken(token['refresh'])
     
         OutstandingToken.objects.create(
-            user=User.objects.get(id=refresh['user_id']),
+            user=models.User.objects.get(id=refresh['user_id']),
             jti=refresh['jti'],
             token=str(refresh),
             created_at=refresh.current_time,
@@ -67,9 +69,3 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
         )
         
         return token
-
-        
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ("id", "password", "username", "email")

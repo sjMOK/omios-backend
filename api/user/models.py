@@ -4,47 +4,44 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
 
 
-class CustomMemberManager(BaseUserManager):
+class CustomUserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
-        # if not username:
-        #     raise ValueError("Members must have an username")
-        
-        member = self.model(
+        user = self.model(
             username=username,
             last_login=timezone.now(),
             **extra_fields
         )
 
-        member.set_password(password)
-        member.save(using=self._db)
-        return member
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
     def create_superuser(self, username, password=None):
-        member = self.create_user(
+        user = self.create_user(
             username,
             password=password,
         )
-        member.is_admin = True
-        member.save(using=self._db)
-        return member
+        user.is_admin = True
+        user.save(using=self._db)
+        return user
 
 
 # custom auth_user_model
-class Member(AbstractBaseUser):
+class User(AbstractBaseUser):
     id = models.BigAutoField(primary_key=True)
     username = models.CharField(max_length=50, unique=True)
     is_admin = models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'member'
+        db_table = 'user'
 
-    objects = CustomMemberManager()
+    objects = CustomUserManager()
 
     USERNAME_FIELD = 'username'
 
 
 class Shopper(models.Model):
-    member = models.OneToOneField('Member', on_delete=models.CASCADE, primary_key=True)
+    user = models.OneToOneField('User', on_delete=models.CASCADE, primary_key=True)
     name = models.CharField(max_length=30)
     age = models.IntegerField()
     
@@ -56,7 +53,7 @@ class Shopper(models.Model):
 
 
 class Wholesaler(models.Model):
-    member = models.OneToOneField('Member', on_delete=models.CASCADE, primary_key=True)
+    user = models.OneToOneField('User', on_delete=models.CASCADE, primary_key=True)
     name = models.CharField(max_length=50)
 
     class Meta:
