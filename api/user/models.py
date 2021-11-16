@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
 
 
-class CustomUserManager(BaseUserManager):
+class UserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
         user = self.model(
             username=username,
@@ -31,33 +31,51 @@ class User(AbstractBaseUser):
     id = models.BigAutoField(primary_key=True)
     username = models.CharField(max_length=50, unique=True)
     is_admin = models.BooleanField(default=False)
+    email = models.EmailField(max_length=100)
+    phone = models.CharField(max_length=20)
 
     class Meta:
         db_table = 'user'
 
-    objects = CustomUserManager()
+    objects = UserManager()
 
     USERNAME_FIELD = 'username'
 
 
-class Shopper(models.Model):
-    user = models.OneToOneField('User', on_delete=models.CASCADE, primary_key=True)
-    name = models.CharField(max_length=30)
-    age = models.IntegerField()
-    
+class Membership(models.Model):
+    name = models.CharField(unique=True, max_length=20)
+
     class Meta:
+        managed = False
+        db_table = 'membership'
+
+
+class Shopper(models.Model):
+    name = models.CharField(max_length=20)
+    nickname = models.CharField(max_length=20, blank=True, null=True)
+    gender = models.IntegerField()
+    birthday = models.DateField()
+    height = models.IntegerField(blank=True, null=True)
+    weight = models.IntegerField(blank=True, null=True)
+    membership = models.ForeignKey(Membership, models.DO_NOTHING)
+    user = models.OneToOneField('User', models.CASCADE, primary_key=True)
+
+    class Meta:
+        managed = False
         db_table = 'shopper'
 
     def __str__(self):
         return self.name
 
-
 class Wholesaler(models.Model):
-    user = models.OneToOneField('User', on_delete=models.CASCADE, primary_key=True)
-    name = models.CharField(max_length=50)
+    user = models.OneToOneField(User, models.CASCADE, primary_key=True)
+    name = models.CharField(max_length=60)
 
     class Meta:
+        managed = False
         db_table = 'wholesaler'
 
     def __str__(self):
         return self.name
+
+
