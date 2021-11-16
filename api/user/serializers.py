@@ -46,8 +46,10 @@ class UserAccessTokenSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         
-        # todo : user 객체의 속성을 선택적으로 payload에 저장 (shopper_id or wholesaler_id)
-        token['additional_data1'] = user.shopper.age
+        if hasattr(user, 'shopper'):
+            token['user_type'] = 'shopper'
+        elif hasattr(user, 'wholesaler'):
+            token['user_type'] = 'wholesaler'
 
         OutstandingToken.objects.filter(jti=token['jti']).update(
             token = token,
