@@ -6,6 +6,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import models, serializers, permissions
 
+from django.forms.models import model_to_dict
+
 result = {
     'code': 200,
     'id': '',
@@ -42,6 +44,7 @@ class UserRefreshTokenView(TokenRefreshView):
 
 
 @api_view(['POST'])
+@permission_classes([permissions.AllowAny])
 def user_signup(request):
     from datetime import date
     request.data['birthday'] = date.today()
@@ -69,8 +72,7 @@ class ShopperDetailView(APIView):
         return shopper
 
     def get(self, request, id):
-        # shopper = models.Shopper.objects.get(user_id=id)
-        shopper = self.get_object(user_id=pk) 
+        shopper = self.get_object(user_id=id) 
         serializer = serializers.ShopperSerializer(instance=shopper)
 
         data = pop_user(serializer.data)
@@ -80,7 +82,7 @@ class ShopperDetailView(APIView):
 
     def patch(self, request, id):
         data = push_user(request.data)
-        shopper = models.Shopper.objects.get(user_id=id)
+        shopper = self.get_object(user_id=id)
         serializer = serializers.ShopperSerializer(instance=shopper, data=data, partial=True)
         
         if serializer.is_valid():
@@ -95,7 +97,7 @@ class ShopperDetailView(APIView):
         return Response(result)
 
     def delete(self, request, id):
-        user = models.User.objects.get(id=id)
+        user = self.get_object(user_id=id).user
         user.is_active = False
         user.save()
-        return Response('username <{0}> user deleted'.format(user.username))
+        return Response('username {0} user deleted'.format(user.username))
