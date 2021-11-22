@@ -1,96 +1,96 @@
+from datetime import date
+
+from django.forms import model_to_dict
+
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
 
 from . import models, serializers
+
+result = {
+    'code': 200,
+    'id': '',
+    'message': 'success', 
+}
+
+def pop_user(data):
+    user_data = data.pop('user')
+    for key, value in user_data.items():
+        data[key] = value
+
+    return data
+
+def push_user(data):
+    user_keys = [field.name for field in models.User._meta.get_fields()]
+    user_data = {}
+
+    for key in user_keys:
+        if key not in data.keys():
+            continue
+
+        value = data.pop(key)
+        user_data[key] = value
+
+    data['user'] = user_data
+    return data
+
+
 class UserAccessTokenView(TokenObtainPairView):
     serializer_class = serializers.UserAccessTokenSerializer
 
 class UserRefreshTokenView(TokenRefreshView):
     serializer_class = serializers.UserRefreshTokenSerializer
 
-@api_view(['POST'])
-def shopper_signup(request):
-    '''
-    {
-        "name": "권형석",
-        "age": 25,
-        "user": {
-            "username": "kwon",
-            "password": "kwon"
-        }
-    }
-    '''
-    serializer = serializers.ShopperSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    shopper = serializer.save()
-
-    return Response('<<name: {0}, username: {1}>> shopper created'.format(shopper.name, shopper.user.username))
 
 @api_view(['POST'])
-def wholesaler_signup(request):
-    '''
-    {
-        "name": "나는도매",
-        "user": {
-            "username": "im-domae",
-            "password": "im_domae"
-        }
-    }
-    '''
-    serializer = serializers.WholesalerSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    wholesaler = serializer.save()
+def user_signup(request):
+    request.data['birthday'] = date.today()
 
-    return Response('<<name: {0}, username: {1}>> wholesaler created'.format(wholesaler.name, wholesaler.user.username))
-
-
-@api_view(['GET', 'DELETE'])
-def shopper(request, pk):
-    user = models.User.objects.get(id=pk)
-    shopper = user.shopper
+    data = push_user(request.data)
+    serializer = serializers.ShopperSerializer(data=data)
     
-    if request.method == 'DELETE':
-        shopper.delete()
-        return Response('username <{0}> user deleted'.format(user.username))
-
-    serializer = serializers.ShopperSerializer(instance=shopper)
-    shopper_data = serializer.data
-    shopper_data.pop('user')
-
-    return Response(shopper_data)
-
+    if serializer.is_valid():
+        shopper = serializer.save()
+        result['id']= shopper.user_id
+    else:
+        result['code'] = 400
+        result['message'] = pop_user(serializer.errors)
+        
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response(result)
 
 class ShopperDetailView(APIView):
-    def get(self, request, pk, format=None):
-        user = models.User.objects.get(id=pk)
-        return Response(user.username)
+    def get(self, request, id):
+        shopper = models.Shopper.objects.get(user_id=id)
+        serializer = serializers.ShopperSerializer(instance=shopper)
 
+        data = pop_user(serializer.data)
+        data.pop('password')
 
-    def post(self, request, format=None):
-        # sign-up
-        '''
-        {
-            "name": "권형석",
-            "age": 25,
-            "user": {
-                "username": "kwon",
-                "password": "kwon"
-            }
-        }
-        '''
-        serializer = serializers.ShopperSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response('username: {0}, name: {1} created'.format(user.username, user.shopper.name))
+        return Response(data)
 
-    def delete(self, request, format=None):
-        username = request.query_params.get('username')
-        user = models.User.objects.get(username=username)
-        user.delete()
-        return Response('username <{0}> user deleted'.format(username))
+    def patch(self, request, id):
+        data = push_user(request.data)
+        shopper = models.Shopper.objects.get(user_id=id)
+        serializer = serializers.ShopperSerializer(instance=shopper, data=data, partial=True)
+        
+        if serializer.is_valid():
+            shopper = serializer.save()
+            result['id']= shopper.user_id   
+        else:
+            result['code'] = 400
+            result['message'] = pop_user(serializer.errors)
 
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(result)
 
-
-
+    def delete(self, request, id):
+        user = models.User.objects.get(id=id)
+        user.is_active = False
+        user.save()
+        return Response('username <{0}> user deleted'.format(user.username))

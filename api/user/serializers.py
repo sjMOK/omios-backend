@@ -1,3 +1,5 @@
+from django.db.models import fields
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -10,7 +12,7 @@ from . import models
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.User
-        fields = ['username', 'password']
+        fields = '__all__'
 
 
 class ShopperSerializer(serializers.ModelSerializer):
@@ -26,6 +28,21 @@ class ShopperSerializer(serializers.ModelSerializer):
         shopper = models.Shopper.objects.create(user=user, **validated_data)
         return shopper
 
+    def update(self, instance, validated_data):
+        user = instance.user
+        user_data = validated_data.pop('user')
+
+        for key, value in user_data.items():
+            setattr(user, key, value)
+        user.save()
+
+        for key ,value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+
+
+        return instance
+
 
 class WholesalerSerializer(serializers.ModelSerializer):
     user = UserSerializer()
@@ -40,6 +57,10 @@ class WholesalerSerializer(serializers.ModelSerializer):
         wholesaler = models.Wholesaler.objects.create(user=user, **validated_data)
         return wholesaler
 
+class MembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Membership
+        fields = '__all__'
 
 class UserAccessTokenSerializer(TokenObtainPairSerializer):
     @classmethod
