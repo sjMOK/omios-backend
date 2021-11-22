@@ -2,8 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
-
-from . import models, serializers
+from . import models, serializers, permissions
 class UserAccessTokenView(TokenObtainPairView):
     serializer_class = serializers.UserAccessTokenSerializer
 
@@ -63,12 +62,19 @@ def shopper(request, pk):
 
 
 class ShopperDetailView(APIView):
+    permission_classes = [permissions.IsOwnerInDetailView]
+
+    def get_object(self, **kwargs):
+        shopper = models.Shopper.objects.get(**kwargs)
+        self.check_object_permissions(self.request, shopper)
+        return shopper
+
     def get(self, request, pk, format=None):
-        user = models.User.objects.get(id=pk)
-        return Response(user.username)
+        shopper = self.get_object(user_id=pk)  
+        return Response(shopper.name)
 
 
-    def post(self, request, format=None):
+    def post(self, request, id, format=None):
         # sign-up
         '''
         {
@@ -87,7 +93,7 @@ class ShopperDetailView(APIView):
 
     def delete(self, request, format=None):
         username = request.query_params.get('username')
-        user = models.User.objects.get(username=username)
+        user = self.get_object(username=username)
         user.delete()
         return Response('username <{0}> user deleted'.format(username))
 
