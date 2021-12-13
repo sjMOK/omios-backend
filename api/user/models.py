@@ -53,11 +53,11 @@ class Membership(models.Model):
 
 class Shopper(models.Model):
     name = models.CharField(max_length=20)
-    nickname = models.CharField(max_length=20, blank=True, null=True)
-    gender = models.IntegerField()
+    nickname = models.CharField(max_length=20, null=True)
+    gender = models.BooleanField()
     birthday = models.DateField()
-    height = models.IntegerField(blank=True, null=True)
-    weight = models.IntegerField(blank=True, null=True)
+    height = models.IntegerField(null=True)
+    weight = models.IntegerField(null=True)
     membership = models.ForeignKey(Membership, models.DO_NOTHING)
     user = models.OneToOneField('User', models.CASCADE, primary_key=True)
 

@@ -10,4 +10,5 @@ urlpatterns = [
     path('shopper/', views.user_signup),
     path('shopper/<int:id>/', views.ShopperDetailView.as_view()),
     path('wholesaler/', views.user_signup),
+    path('password/<int:id>/', views.change_password)
 ]

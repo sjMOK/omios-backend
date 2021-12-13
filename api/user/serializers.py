@@ -33,6 +33,10 @@ class ShopperSerializer(serializers.ModelSerializer):
         user_data = validated_data.pop('user')
 
         for key, value in user_data.items():
+            if key == 'password':
+                user.set_password(value)
+                continue
+            
             setattr(user, key, value)
         user.save()
 
@@ -57,10 +61,12 @@ class WholesalerSerializer(serializers.ModelSerializer):
         wholesaler = models.Wholesaler.objects.create(user=user, **validated_data)
         return wholesaler
 
+
 class MembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Membership
         fields = '__all__'
+
 
 class UserAccessTokenSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -92,3 +98,7 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
         )
         
         return token
+
+class UserPasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(max_length=128)
+    new_password = serializers.CharField(max_length=128)
