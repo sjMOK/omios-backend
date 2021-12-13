@@ -92,3 +92,7 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
         )
         
         return token
+
+class UserPasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(max_length=128)
+    new_password = serializers.CharField(max_length=128)
