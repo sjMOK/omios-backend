@@ -1,13 +1,16 @@
-import re
+import time
 from django.http.response import Http404
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
 
 from . import models, serializers, permissions
+
 
 from django.forms.models import model_to_dict
 
@@ -28,17 +31,12 @@ def pop_user(data):
 def push_user(data):
     user_keys = [field.name for field in models.User._meta.get_fields()]
     user_data = {}
-
     for key in user_keys:
-        if key not in data.keys():
-            continue
-
-        value = data.pop(key)
-        user_data[key] = value
-
+        if key in data.keys():
+            user_data[key] = data.pop(key)
     data['user'] = user_data
-    return data
 
+    return data
 
 class UserAccessTokenView(TokenObtainPairView):
     serializer_class = serializers.UserAccessTokenSerializer
@@ -48,43 +46,45 @@ class UserRefreshTokenView(TokenRefreshView):
     serializer_class = serializers.UserRefreshTokenSerializer
 
 
-@api_view(['PATCH'])
-@permission_classes([permissions.IsOwnerInDetailView])
-def change_password(request, id):
-    try:
-        user = get_object_or_404(models.User, id=id)
-    except Http404:
-        result = get_result_message(status=404, message='object not found')
-        return Response(result, status=status.HTTP_404_NOT_FOUND)
+class UserPasswordView(APIView):
+    permission_classes = [permissions.IsOwnerInDetailView]
+
+    def discard_refresh_token_by_user_id(self, user_id):
+        all_tokens = models.OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now()).all()
+
+        discarding_tokens = []
+        for token in all_tokens:
+            if not hasattr(token, 'blacklistedtoken'):
+                discarding_tokens.append(models.BlacklistedToken(token=token))
     
-    serializer = serializers.UserPasswordSerializer(data=request.data)
+        models.BlacklistedToken.objects.bulk_create(discarding_tokens)
 
-    if serializer.is_valid():
-        pass
-    else:
-        result = get_result_message(status=400, message=serializer.errors)
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request):
+        user = request.user
+        serializer = serializers.UserPasswordSerializer(data=request.data)
 
-    current_password = serializer.validated_data['current_password']
-    new_password = serializer.validated_data['new_password']
+        result = {}
+        if not serializer.is_valid():
+            result = get_result_message(400, message=serializer.errors)
+        elif request.auth['iat'] < time.mktime(request.user.last_update_password.timetuple()):
+            result = get_result_message(400, 'The password has been changed.')
+        elif serializer.validated_data['current_password'] == serializer.validated_data['new_password']:
+            result = get_result_message(400, 'new password is same as the current password.')
+        elif not user.check_password(serializer.validated_data['current_password']):
+            result = get_result_message(400, 'current password does not correct.')
 
-    if current_password == new_password:
-        result = get_result_message(status=400, 
-                                    message='new password is same as the current password')
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        if result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
-    if not user.check_password(current_password):
-        result = get_result_message(status=400, 
-                                    message='current password does not correct')
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        self.discard_refresh_token_by_user_id(user.id)
 
-    user.set_password(new_password)
-    user.save()
+        result = get_result_message(200)
+        result['id'] = user.id
 
-    result = get_result_message(status=200)
-    result['id'] = id
+        return Response(result, status=status.HTTP_200_OK)
 
-    return Response(result, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

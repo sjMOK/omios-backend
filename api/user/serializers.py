@@ -3,7 +3,6 @@ from django.db.models import fields
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from . import models
@@ -78,18 +77,19 @@ class UserAccessTokenSerializer(TokenObtainPairSerializer):
         elif hasattr(user, 'wholesaler'):
             token['user_type'] = 'wholesaler'
 
-        OutstandingToken.objects.filter(jti=token['jti']).update(
+        models.OutstandingToken.objects.filter(jti=token['jti']).update(
             token = token,
         )
         
         return token
+
 
 class UserRefreshTokenSerializer(TokenRefreshSerializer):
     def validate(self, attrs):
         token = super().validate(attrs)
         refresh = RefreshToken(token['refresh'])
     
-        OutstandingToken.objects.create(
+        models.OutstandingToken.objects.create(
             user=models.User.objects.get(id=refresh['user_id']),
             jti=refresh['jti'],
             token=str(refresh),
@@ -98,6 +98,7 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
         )
         
         return token
+
 
 class UserPasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(max_length=128)

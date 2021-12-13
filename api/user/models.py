@@ -2,7 +2,7 @@ from django.contrib.auth import validators
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
-
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
 class UserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
