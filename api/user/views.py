@@ -90,9 +90,6 @@ def change_password(request, id):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def user_signup(request):
-    from datetime import date
-    request.data['birthday'] = date.today()
-
     data = push_user(request.data)
     serializer = serializers.ShopperSerializer(data=data)
     
