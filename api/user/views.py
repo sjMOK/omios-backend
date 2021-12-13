@@ -39,8 +39,48 @@ def push_user(data):
 class UserAccessTokenView(TokenObtainPairView):
     serializer_class = serializers.UserAccessTokenSerializer
 
+
 class UserRefreshTokenView(TokenRefreshView):
     serializer_class = serializers.UserRefreshTokenSerializer
+
+
+@api_view(['PATCH'])
+@permission_classes([permissions.IsOwnerInDetailView])
+def change_password(request, id):
+    try:
+        user = get_object_or_404(models.User, id=id)
+    except Http404:
+        result = get_result_message(status=404, message='object not found')
+        return Response(result, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = serializers.UserPasswordSerializer(data=request.data)
+
+    if serializer.is_valid():
+        pass
+    else:
+        result = get_result_message(status=400, message=serializer.errors)
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    current_password = serializer.validated_data['current_password']
+    new_password = serializer.validated_data['new_password']
+
+    if current_password == new_password:
+        result = get_result_message(status=400, 
+                                    message='new password is same as the current password')
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(current_password):
+        result = get_result_message(status=400, 
+                                    message='current password does not correct')
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.save()
+
+    result = get_result_message(status=200)
+    result['id'] = id
+
+    return Response(result, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
