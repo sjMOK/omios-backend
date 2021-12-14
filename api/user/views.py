@@ -14,11 +14,15 @@ from . import models, serializers, permissions
 
 from django.forms.models import model_to_dict
 
-def get_result_message(status=200, message='success'):
+def get_result_message(status=200, message='success', id=0):
     result = {
         'code': status,
         'message': message, 
     }
+
+    if id:
+        result['id'] = id
+
     return result
 
 def pop_user(data):
@@ -49,7 +53,7 @@ class UserRefreshTokenView(TokenRefreshView):
 class UserPasswordView(APIView):
     permission_classes = [permissions.IsOwnerInDetailView]
 
-    def discard_refresh_token_by_user_id(self, user_id):
+    def __discard_refresh_token_by_user_id(self, user_id):
         all_tokens = models.OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now()).all()
 
         discarding_tokens = []
@@ -78,33 +82,26 @@ class UserPasswordView(APIView):
 
         user.set_password(serializer.validated_data['new_password'])
         user.save()
-        self.discard_refresh_token_by_user_id(user.id)
+        self.__discard_refresh_token_by_user_id(user.id)
 
-        result = get_result_message(200)
-        result['id'] = user.id
-
+        result = get_result_message(200, id=user.id)
         return Response(result, status=status.HTTP_200_OK)
 
 
+class UserSignUpView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def user_signup(request):
-    from datetime import date
-    request.data['birthday'] = date.today()
+    def post(self, request):
+        data = push_user(request.data)
+        serializer = self._serializer(data=data)
 
-    data = push_user(request.data)
-    serializer = serializers.ShopperSerializer(data=data)
-    
-    if serializer.is_valid():
-        shopper = serializer.save()
-        result = get_result_message(status=200)
-        result['id']= shopper.user_id
-    else:
-        result = get_result_message(status=400, message=serializer.errors)
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
-    
-    return Response(result)
+        if not serializer.is_valid():
+            return Response(get_result_message(400, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+
+        result = get_result_message(200, id=user.user_id)
+        return Response(result)
 
 class ShopperDetailView(APIView):
     permission_classes = [permissions.IsOwnerInDetailView]
