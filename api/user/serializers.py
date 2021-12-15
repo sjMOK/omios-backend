@@ -8,6 +8,44 @@ from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from . import models
 
+class UserAccessTokenSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        if hasattr(user, 'shopper'):
+            token['user_type'] = 'shopper'
+        elif hasattr(user, 'wholesaler'):
+            token['user_type'] = 'wholesaler'
+
+        models.OutstandingToken.objects.filter(jti=token['jti']).update(
+            token = token,
+        )
+        
+        return token
+
+
+class UserRefreshTokenSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        token = super().validate(attrs)
+        refresh = RefreshToken(token['refresh'])
+    
+        models.OutstandingToken.objects.create(
+            user=models.User.objects.get(id=refresh['user_id']),
+            jti=refresh['jti'],
+            token=str(refresh),
+            created_at=refresh.current_time,
+            expires_at=datetime_from_epoch(refresh['exp']),
+        )
+        
+        return token
+
+
+class MembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Membership
+        fields = '__all__'
+
 
 class UserSerializer(serializers.ModelSerializer):
     username = RegexField(r'^[a-zA-Z0-9]*$', max_length=50)
@@ -72,45 +110,6 @@ class WholesalerSerializer(serializers.ModelSerializer):
         user = models.User.objects.create_user(**user_data)
         wholesaler = models.Wholesaler.objects.create(user=user, **validated_data)
         return wholesaler
-
-
-class MembershipSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Membership
-        fields = '__all__'
-
-
-class UserAccessTokenSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        
-        if hasattr(user, 'shopper'):
-            token['user_type'] = 'shopper'
-        elif hasattr(user, 'wholesaler'):
-            token['user_type'] = 'wholesaler'
-
-        models.OutstandingToken.objects.filter(jti=token['jti']).update(
-            token = token,
-        )
-        
-        return token
-
-
-class UserRefreshTokenSerializer(TokenRefreshSerializer):
-    def validate(self, attrs):
-        token = super().validate(attrs)
-        refresh = RefreshToken(token['refresh'])
-    
-        models.OutstandingToken.objects.create(
-            user=models.User.objects.get(id=refresh['user_id']),
-            jti=refresh['jti'],
-            token=str(refresh),
-            created_at=refresh.current_time,
-            expires_at=datetime_from_epoch(refresh['exp']),
-        )
-        
-        return token
 
 
 class UserPasswordSerializer(serializers.Serializer):

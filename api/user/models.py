@@ -25,7 +25,14 @@ class UserManager(BaseUserManager):
         return user
 
 
-# custom auth_user_model
+class Membership(models.Model):
+    name = models.CharField(unique=True, max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'membership'
+
+
 class User(AbstractBaseUser):
     id = models.BigAutoField(primary_key=True)
     username = models.CharField(max_length=50, unique=True)
@@ -41,14 +48,6 @@ class User(AbstractBaseUser):
     objects = UserManager()
 
     USERNAME_FIELD = 'username'
-
-
-class Membership(models.Model):
-    name = models.CharField(unique=True, max_length=20)
-
-    class Meta:
-        managed = False
-        db_table = 'membership'
 
 
 class Shopper(models.Model):
@@ -67,6 +66,7 @@ class Shopper(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Wholesaler(models.Model):
     user = models.OneToOneField(User, models.CASCADE, primary_key=True)
