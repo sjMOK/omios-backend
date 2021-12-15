@@ -1,6 +1,7 @@
 from django.db.models import fields
-
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework.fields import CharField, RegexField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
@@ -10,9 +11,17 @@ from . import models
 
 
 class UserSerializer(serializers.ModelSerializer):
+    username = RegexField(r'^[a-zA-Z0-9]*$', max_length=50)
+    password = CharField(max_length=128, min_length=10)
+    phone = RegexField(r'^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$')
+
     class Meta:
         model = models.User
         fields = '__all__'
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
 
 
 class ShopperSerializer(serializers.ModelSerializer):
@@ -21,6 +30,10 @@ class ShopperSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Shopper
         fields = '__all__'
+        extra_kwargs = {            
+            'height': {'min_value': 100, 'max_value': 250},
+            'weight': {'min_value': 30, 'max_value': 200}
+        }
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
