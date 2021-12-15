@@ -8,8 +8,8 @@ urlpatterns = [
     path('token/refresh/', views.UserRefreshTokenView.as_view()),
     path('token/blacklist/', views.TokenBlacklistView.as_view()),
     path('shopper/signup/', views.ShopperSignUpView.as_view()),
-    path('shopper/<int:id>/', views.ShopperDetailView.as_view()),
     path('wholesaler/signup/', views.WholesalerSignUpView.as_view()),
+    path('shopper/', views.ShopperDetailView.as_view()),
+    path('wholesaler/', views.WholesalerDetailView.as_view()),
     path('password/', views.UserPasswordView.as_view()),
-    path('shopper2/<int:id>/', views.ShopperDetailView2.as_view()),
 ]

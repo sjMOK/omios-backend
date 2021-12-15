@@ -8,7 +8,6 @@ class UserManager(BaseUserManager):
     def create_user(self, username, password, **extra_fields):
         user = self.model(
             username=username,
-            last_login=timezone.now(),
             **extra_fields
         )
 
@@ -34,7 +33,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(max_length=100)
     phone = models.CharField(max_length=20)
     is_active = models.BooleanField(default=True)
-    last_update_password = models.DateTimeField(default=timezone.now())
+    last_update_password = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'user'

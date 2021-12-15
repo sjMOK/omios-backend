@@ -11,7 +11,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import models, serializers, permissions
 
-
 from django.forms.models import model_to_dict
 
 def get_result_message(status=200, message='success', id=0):
@@ -50,9 +49,77 @@ class UserRefreshTokenView(TokenRefreshView):
     serializer_class = serializers.UserRefreshTokenSerializer
 
 
-class UserPasswordView(APIView):
-    permission_classes = [permissions.IsOwnerInDetailView]
+class UserSignUpView(APIView):
+    permission_classes = [permissions.AllowAny]
 
+    def post(self, request):
+        data = push_user(request.data)
+        serializer = self._serializer(data=data)
+
+        if not serializer.is_valid():
+            return Response(get_result_message(400, pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+
+        return Response(get_result_message(id=user.user_id))
+
+
+class ShopperSignUpView(UserSignUpView):
+    _serializer = serializers.ShopperSerializer
+
+
+class WholesalerSignUpView(UserSignUpView):
+    _serializer = serializers.WholesalerSerializer
+
+
+class UserDetailView(APIView):
+    def _get_model_instance(self, user):
+        return user
+
+    def get(self, request):
+        serializer = self._serializer(instance=self._get_model_instance(request.user))
+
+        data = pop_user(serializer.data)
+        data.pop('password')
+
+        return Response(data)
+
+    def patch(self, request):
+        if 'password' in request.data:
+            return Response(get_result_message(400, 'password modification is not allowed in PATCH method'), status=status.HTTP_400_BAD_REQUEST)
+        
+        data = push_user(request.data)
+        serializer = self._serializer(instance=self._get_model_instance(request.user), data=data, partial=True)
+
+        if not serializer.is_valid():
+            return Response(get_result_message(400, pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+
+        return Response(get_result_message(id=user.user_id))
+
+    def delete(self, request):
+        request.user.is_active = False
+        request.user.save()
+
+        return Response(get_result_message(id=request.user.id), status=status.HTTP_200_OK)
+
+
+class ShopperDetailView(UserDetailView):
+    _serializer = serializers.ShopperSerializer
+
+    def _get_model_instance(self, user):
+        return user.shopper
+
+
+class WholesalerDetailView(UserDetailView):
+    _serializer = serializers.WholesalerSerializer
+
+    def _get_model_instance(self, user):
+        return user.wholesaler
+
+
+class UserPasswordView(APIView):
     def __discard_refresh_token_by_user_id(self, user_id):
         all_tokens = models.OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now()).all()
 
@@ -67,98 +134,18 @@ class UserPasswordView(APIView):
         user = request.user
         serializer = serializers.UserPasswordSerializer(data=request.data)
 
-        result = {}
         if not serializer.is_valid():
-            result = get_result_message(400, message=serializer.errors)
+            return Response(get_result_message(400, message=serializer.errors), status=status.HTTP_400_BAD_REQUEST)
         elif request.auth['iat'] < time.mktime(request.user.last_update_password.timetuple()):
-            result = get_result_message(400, 'The password has been changed.')
+            return Response(get_result_message(400, 'The password has been changed.'), status=status.HTTP_400_BAD_REQUEST)
         elif serializer.validated_data['current_password'] == serializer.validated_data['new_password']:
-            result = get_result_message(400, 'new password is same as the current password.')
+            return Response(get_result_message(400, 'new password is same as the current password.'), status=status.HTTP_400_BAD_REQUEST)
         elif not user.check_password(serializer.validated_data['current_password']):
-            result = get_result_message(400, 'current password does not correct.')
-
-        if result:
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response(get_result_message(400, 'current password does not correct.'), status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.validated_data['new_password'])
+        user.last_update_password = timezone.now()
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        result = get_result_message(200, id=user.id)
-        return Response(result, status=status.HTTP_200_OK)
-
-
-class UserSignUpView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        data = push_user(request.data)
-        serializer = self._serializer(data=data)
-
-        if not serializer.is_valid():
-            return Response(get_result_message(400, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
-
-        user = serializer.save()
-
-        result = get_result_message(200, id=user.user_id)
-        return Response(result)
-
-class ShopperDetailView(APIView):
-    permission_classes = [permissions.IsOwnerInDetailView]
-    
-    def get_object(self, **kwargs):
-        shopper = get_object_or_404(models.Shopper, **kwargs)
-        self.check_object_permissions(self.request, shopper)
-        return shopper
-
-    def get(self, request, id):
-        try:
-            shopper = self.get_object(user_id=id)
-        except Http404:
-            result = get_result_message(status=404, message='object not found')
-            return Response(result, status=status.HTTP_404_NOT_FOUND)
-            
-        serializer = serializers.ShopperSerializer(instance=shopper)
-
-        data = pop_user(serializer.data)
-        data.pop('password')
-
-        return Response(data)
-
-    def patch(self, request, id):
-        if 'password' in request.data:
-            result = get_result_message(status=400, message='password modification is not allowed in PATCH method')
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            shopper = self.get_object(user_id=id)
-        except Http404:
-            result = get_result_message(status=404, message='object not found')
-            return Response(result, status=status.HTTP_404_NOT_FOUND)
-
-        data = push_user(request.data)
-        serializer = serializers.ShopperSerializer(instance=shopper, data=data, partial=True)
-        
-        if serializer.is_valid():
-            shopper = serializer.save()
-            result = get_result_message(status=200)
-            result['id']= shopper.user_id
-        else:
-            result = get_result_message(status=400, message=pop_user(serializer.errors))
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response(result)
-
-    def delete(self, request, id):
-        try:
-            user = self.get_object(user_id=id).user
-        except Http404:
-            result = get_result_message(status=404, message='object not found')
-            return Response(result, status=status.HTTP_404_NOT_FOUND)
-
-        user.is_active = False
-        user.save()
-
-        result = get_result_message(status=200)
-        result['id'] = id
-        return Response(result, status=status.HTTP_200_OK)
+        return Response(get_result_message(id=user.id), status=status.HTTP_200_OK)
