@@ -10,7 +10,7 @@ class UserManager(BaseUserManager):
             username=username,
             **extra_fields
         )
-
+        
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -35,10 +35,10 @@ class Membership(models.Model):
 
 class User(AbstractBaseUser):
     id = models.BigAutoField(primary_key=True)
-    username = models.CharField(max_length=50, unique=True)
+    username = models.CharField(max_length=20, unique=True)
     is_admin = models.BooleanField(default=False)
-    email = models.EmailField(max_length=100)
-    phone = models.CharField(max_length=20)
+    email = models.EmailField(max_length=50)
+    phone = models.CharField(max_length=15)
     is_active = models.BooleanField(default=True)
     last_update_password = models.DateTimeField(default=timezone.now)
 
@@ -52,13 +52,14 @@ class User(AbstractBaseUser):
 
 class Shopper(models.Model):
     name = models.CharField(max_length=20)
-    nickname = models.CharField(max_length=20, null=True)
+    nickname = models.CharField(max_length=20, unique=True)
     gender = models.BooleanField()
     birthday = models.DateField()
     height = models.IntegerField(null=True)
     weight = models.IntegerField(null=True)
     membership = models.ForeignKey(Membership, models.DO_NOTHING)
     user = models.OneToOneField('User', models.CASCADE, primary_key=True)
+    zipcode = models.CharField(max_length=5)
 
     class Meta:
         managed = False
@@ -78,5 +79,3 @@ class Wholesaler(models.Model):
 
     def __str__(self):
         return self.name
-
-

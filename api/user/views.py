@@ -1,11 +1,10 @@
-import time
-from django.http.response import Http404
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework import generics, mixins
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
 
@@ -25,6 +24,9 @@ def get_result_message(status=200, message='success', id=0):
     return result
 
 def pop_user(data):
+    if 'user' not in data.keys():
+        return data
+        
     user_data = data.pop('user')
     for key, value in user_data.items():
         data[key] = value
@@ -60,7 +62,7 @@ class UserSignUpView(APIView):
             return Response(get_result_message(400, pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
-
+        
         return Response(get_result_message(id=user.user_id))
 
 
@@ -132,16 +134,11 @@ class UserPasswordView(APIView):
 
     def patch(self, request):
         user = request.user
+        request.data['id'] = user.id
         serializer = serializers.UserPasswordSerializer(data=request.data)
 
         if not serializer.is_valid():
             return Response(get_result_message(400, message=serializer.errors), status=status.HTTP_400_BAD_REQUEST)
-        elif request.auth['iat'] < time.mktime(request.user.last_update_password.timetuple()):
-            return Response(get_result_message(400, 'The password has been changed.'), status=status.HTTP_400_BAD_REQUEST)
-        elif serializer.validated_data['current_password'] == serializer.validated_data['new_password']:
-            return Response(get_result_message(400, 'new password is same as the current password.'), status=status.HTTP_400_BAD_REQUEST)
-        elif not user.check_password(serializer.validated_data['current_password']):
-            return Response(get_result_message(400, 'current password does not correct.'), status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.validated_data['new_password'])
         user.last_update_password = timezone.now()
