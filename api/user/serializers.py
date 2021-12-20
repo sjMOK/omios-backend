@@ -1,5 +1,4 @@
 from random import randint
-from difflib import SequenceMatcher
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.fields import RegexField
@@ -9,6 +8,7 @@ from rest_framework_simplejwt.utils import datetime_from_epoch
 from rest_framework.validators import UniqueValidator
 
 from . import models
+from . import validators
 
 class UserAccessTokenSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -63,10 +63,8 @@ class UserSerializer(serializers.ModelSerializer):
         self.max_similarity = max_similarity
 
     def validate(self, data):
-        if SequenceMatcher(a=data['password'], b=data['username']).quick_ratio() >= self.max_similarity:
-            raise serializers.ValidationError('The similarity between password and username is too large.')
-        elif SequenceMatcher(a=data['password'], b=data['email']).quick_ratio() >= self.max_similarity:
-            raise serializers.ValidationError('The similarity between password and email is too large.')
+        if 'password' in data.keys():
+            validators.PasswordSimilarityValidator().validate(data['password'], data['username'], data['email'])
 
         return data
 
@@ -94,8 +92,10 @@ class ShopperSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user_data = validated_data.pop('user')
         user = models.User.objects.create_user(**user_data)
-        nickname = self.__get_random_nickname()
-        shopper = models.Shopper.objects.create(user=user, nickname=nickname, **validated_data)
+        
+        if 'nickname' not in validated_data.keys():
+            validated_data['nickname'] = self.__get_random_nickname()
+        shopper = models.Shopper.objects.create(user=user, **validated_data)
         
         return shopper
 
@@ -103,11 +103,7 @@ class ShopperSerializer(serializers.ModelSerializer):
         user = instance.user
         user_data = validated_data.pop('user')
 
-        for key, value in user_data.items():
-            if key == 'password':
-                user.set_password(value)
-                continue
-            
+        for key, value in user_data.items():            
             setattr(user, key, value)
         user.save()
 
@@ -138,19 +134,12 @@ class UserPasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(min_length=10, max_length=128)
     new_password = serializers.RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
 
-    def __init__(self, max_similarity=0.5):
-        super().__init__()
-        self.max_similarity = max_similarity
-
     def validate(self, data):
         user = models.User.objects.get(id=data['id'])
         if data['current_password'] == data['new_password']:
             raise serializers.ValidationError('new password is same as the current password.')
         elif not user.check_password(data['current_password']):
             raise serializers.ValidationError('current password does not correct.')
-        elif SequenceMatcher(a=data['new_password'], b=user.username).quick_ratio() >= self.max_similarity:
-            raise serializers.ValidationError('The similarity between password and username is too large.')
-        elif SequenceMatcher(a=data['new_password'], b=user.email).quick_ratio() >= self.max_similarity:
-            raise serializers.ValidationError('The similarity between password and email is too large.')
-
+        validators.PasswordSimilarityValidator().validate(data['new_password'], user.username, user.email)
+            
         return data        
