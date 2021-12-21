@@ -1,13 +1,12 @@
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
 
 from . import models, serializers, permissions
-
-from django.forms.models import model_to_dict
 
 def get_result_message(status=200, message='success', id=0):
     result = {
@@ -68,7 +67,7 @@ class UserDetailView(APIView):
 
         if not serializer.is_valid():
             return Response(get_result_message(400, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
-
+        
         user = serializer.save()
         
         return Response(get_result_message(id=user.user_id))
@@ -135,3 +134,17 @@ class UserPasswordView(APIView):
         self.__discard_refresh_token_by_user_id(user.id)
 
         return Response(get_result_message(id=user.id), status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def is_unique_username(request, username):
+    if models.User.objects.filter(username=username).exists():
+        return Response(get_result_message(message=False), status=status.HTTP_200_OK)
+    return Response(get_result_message(message=True), status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def is_unique_nickname(request, nickname):
+    if models.Shopper.objects.filter(nickname=nickname).exists():
+        return Response(get_result_message(message=False), status=status.HTTP_200_OK)
+    return Response(get_result_message(message=True), status=status.HTTP_200_OK)
