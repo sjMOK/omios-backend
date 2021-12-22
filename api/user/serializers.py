@@ -73,7 +73,7 @@ class ShopperSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     name = RegexField(r'^[가-힣]+$', max_length=20)
     nickname = RegexField(r'^[a-z0-9._]+$', min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=models.Shopper.objects.all())])
-    zipcode = RegexField(r'^[0-9]{5}$', max_length=5)
+    # zipcode = RegexField(r'^[0-9]{5}$', max_length=5)
 
     class Meta:
         model = models.Shopper
