@@ -50,7 +50,7 @@ class MembershipSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    username = RegexField(r'^[a-zA-Z0-9]+$', min_length=4, max_length=30)
+    username = RegexField(r'^[a-zA-Z0-9]+$', min_length=4, max_length=30, validators=[UniqueValidator(queryset=models.User.objects.all())])
     password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
     phone = RegexField(r'^01[0|1|6|7|8|9][0-9]{7,8}$')
 
@@ -73,7 +73,6 @@ class ShopperSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     name = RegexField(r'^[가-힣]+$', max_length=20)
     nickname = RegexField(r'^[a-z0-9._]+$', min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=models.Shopper.objects.all())])
-    zipcode = RegexField(r'^[0-9]{5}$', max_length=5)
 
     class Meta:
         model = models.Shopper

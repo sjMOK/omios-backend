@@ -59,7 +59,6 @@ class Shopper(models.Model):
     weight = models.IntegerField(null=True)
     membership = models.ForeignKey(Membership, models.DO_NOTHING)
     user = models.OneToOneField('User', models.CASCADE, primary_key=True)
-    zipcode = models.CharField(max_length=5)
 
     class Meta:
         managed = False
