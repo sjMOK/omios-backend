@@ -1,9 +1,15 @@
+from django.conf.urls import handler403, handler404, handler500, handler400
 from django.contrib import admin
 from django.urls import path, include, re_path
 
 from rest_framework.permissions import AllowAny
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+
+handler400 = 'common.views.custom_400_view'
+handler403 = 'common.views.custom_403_view'
+handler404 = 'common.views.custom_404_view'
+handler500 = 'common.views.custom_500_view'
 
 schema_view = get_schema_view(
    openapi.Info(
