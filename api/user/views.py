@@ -65,7 +65,7 @@ class UserDetailView(APIView):
         data = self.__pop_user(serializer.data)
         data.pop('password')
 
-        return Response(data)
+        return Response(get_result_message(data=data))
 
     def post(self, request):
         data = self.__push_user(request.data)
@@ -76,7 +76,7 @@ class UserDetailView(APIView):
         
         user = serializer.save()
         
-        return Response(get_result_message(id=user.user_id))
+        return Response(get_result_message(201, data={'id': user.user_id}), status=status.HTTP_201_CREATED)
 
     def patch(self, request):
         if 'password' in request.data:
@@ -90,14 +90,14 @@ class UserDetailView(APIView):
 
         user = serializer.save()
 
-        return Response(get_result_message(id=user.user_id))
+        return Response(get_result_message(data={'id': user.user_id}))
 
     def delete(self, request):
         user = request.user
         user.is_active = False
         user.save()
 
-        return Response(get_result_message(id=user.id), status=status.HTTP_200_OK)
+        return Response(get_result_message(data={'id': user.id}), status=status.HTTP_200_OK)
 
 
 class ShopperDetailView(UserDetailView):
@@ -139,18 +139,18 @@ class UserPasswordView(APIView):
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        return Response(get_result_message(id=user.id), status=status.HTTP_200_OK)
+        return Response(get_result_message(data={'id': user.id}), status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def is_unique_username(request, username):
     if models.User.objects.filter(username=username).exists():
-        return Response(get_result_message(message=False), status=status.HTTP_200_OK)
-    return Response(get_result_message(message=True), status=status.HTTP_200_OK)
+        return Response(get_result_message(data={'is_unique_username': False}), status=status.HTTP_200_OK)
+    return Response(get_result_message(data={'is_unique_username': True}), status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def is_unique_nickname(request, nickname):
     if models.Shopper.objects.filter(nickname=nickname).exists():
-        return Response(get_result_message(message=False), status=status.HTTP_200_OK)
-    return Response(get_result_message(message=True), status=status.HTTP_200_OK)
+        return Response(get_result_message(data={'is_unique_nickname': False}), status=status.HTTP_200_OK)
+    return Response(get_result_message(data={'is_unique_nickname': True}), status=status.HTTP_200_OK)
