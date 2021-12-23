@@ -2,7 +2,7 @@ from random import randint
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.fields import RegexField
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer, TokenBlacklistSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 from rest_framework.validators import UniqueValidator

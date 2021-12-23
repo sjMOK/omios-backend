@@ -3,32 +3,38 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenBlacklistView
-
+from rest_framework_simplejwt.views import TokenViewBase
 from . import models, serializers, permissions
+from common.views import get_result_message
 
-def get_result_message(status=200, message='success', id=0):
-    result = {
-        'code': status,
-        'message': message, 
-    }
 
-    if id:
-        result['id'] = id
+class TokenView(TokenViewBase):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response.data = get_result_message(201, 'success', response.data)
+        response.status_code = status.HTTP_201_CREATED
+        return response
 
-    return result
 
-class UserAccessTokenView(TokenObtainPairView):
+class UserBlacklistTokenView(TokenView):
+    serializer_class = serializers.TokenBlacklistSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response.data = get_result_message(200, 'success')
+        return response
+
+
+class UserAccessTokenView(TokenView):
     serializer_class = serializers.UserAccessTokenSerializer
 
 
-class UserRefreshTokenView(TokenRefreshView):
+class UserRefreshTokenView(TokenView):
     serializer_class = serializers.UserRefreshTokenSerializer
 
 
 class UserDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticatedExceptCreate]    
+    permission_classes = [permissions.IsAuthenticatedExceptCreate]
 
     def __pop_user(self, data):
         if 'user' not in data.keys():
