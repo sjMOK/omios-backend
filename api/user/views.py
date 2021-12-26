@@ -131,18 +131,18 @@ class UserPasswordView(APIView):
     def patch(self, request):
         user = request.user
         data = request.data
-        data['id'] = user.id
-        serializer = serializers.UserPasswordSerializer(data=data)
-
+    
+        serializer = serializers.UserPasswordSerializer(data=data, user=user)
         if not serializer.is_valid():
-            return Response(get_result_message(400, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(get_result_message(status.HTTP_400_BAD_REQUEST, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.validated_data['new_password'])
         user.last_update_password = timezone.now()
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        return Response(get_result_message(data={'id': user.id}), status=status.HTTP_200_OK)
+        return Response(get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
