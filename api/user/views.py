@@ -1,5 +1,6 @@
 from django.utils import timezone
 from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,17 +12,19 @@ from common.views import get_result_message
 class TokenView(TokenViewBase):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data = get_result_message(201, 'success', response.data)
+        response.data = get_result_message(status.HTTP_201_CREATED, data=response.data)
         response.status_code = status.HTTP_201_CREATED
         return response
 
 
 class UserBlacklistTokenView(TokenView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = serializers.TokenBlacklistSerializer
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data = get_result_message(200, 'success')
+        response.data['data'] = {'user_id': request.user.id}
         return response
 
 
