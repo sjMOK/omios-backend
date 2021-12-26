@@ -129,16 +129,18 @@ class WholesalerSerializer(serializers.ModelSerializer):
 
 
 class UserPasswordSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
     current_password = serializers.CharField(min_length=10, max_length=128)
     new_password = serializers.RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
 
+    def __init__(self, data, user):
+        super().__init__(data=data)
+        self.user = user
+
     def validate(self, data):
-        user = models.User.objects.get(id=data['id'])
-        if data['current_password'] == data['new_password']:
-            raise serializers.ValidationError('new password is same as the current password.')
-        elif not user.check_password(data['current_password']):
+        if not self.user.check_password(data['current_password']):
             raise serializers.ValidationError('current password does not correct.')
-        validators.PasswordSimilarityValidator().validate(data['new_password'], user.username, user.email)
-            
-        return data        
+        elif data['current_password'] == data['new_password']:
+            raise serializers.ValidationError('new password is same as the current password.')
+    
+        validators.PasswordSimilarityValidator().validate(data['new_password'], self.user.username, self.user.email)            
+        return data
