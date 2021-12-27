@@ -5,14 +5,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenViewBase
+
+from common import utils
 from . import models, serializers, permissions
-from common.views import get_result_message
 
 
 class TokenView(TokenViewBase):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data = get_result_message(status.HTTP_201_CREATED, data=response.data)
+        response.data = utils.get_result_message(status.HTTP_201_CREATED, data=response.data)
         response.status_code = status.HTTP_201_CREATED
         return response
 
@@ -68,39 +69,39 @@ class UserDetailView(APIView):
         data = self.__pop_user(serializer.data)
         data.pop('password')
 
-        return Response(get_result_message(data=data))
+        return Response(utils.get_result_message(data=data))
 
     def post(self, request):
         data = self.__push_user(request.data)
         serializer = self._serializer_class(data=data)
 
         if not serializer.is_valid():
-            return Response(get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
         
         user = serializer.save()
         
-        return Response(get_result_message(status.HTTP_201_CREATED, data={'usre_id': user.user_id}), status=status.HTTP_201_CREATED)
+        return Response(utils.get_result_message(status.HTTP_201_CREATED, data={'usre_id': user.user_id}), status=status.HTTP_201_CREATED)
 
     def patch(self, request):
         if 'password' in request.data:
-            return Response(get_result_message(status.HTTP_400_BAD_REQUEST, 'password modification is not allowed in PATCH method'), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, 'password modification is not allowed in PATCH method'), status=status.HTTP_400_BAD_REQUEST)
         
         data = self.__push_user(request.data)
         serializer = self._serializer_class(instance=self._get_model_instance(request.user), data=data, partial=True)
 
         if not serializer.is_valid():
-            return Response(get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
 
-        return Response(get_result_message(data={'user_id': user.user_id}))
+        return Response(utils.get_result_message(data={'user_id': user.user_id}))
 
     def delete(self, request):
         user = request.user
         user.is_active = False
         user.save()
 
-        return Response(get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
 
 
 class ShopperDetailView(UserDetailView):
@@ -134,27 +135,27 @@ class UserPasswordView(APIView):
     
         serializer = serializers.UserPasswordSerializer(data=data, user=user)
         if not serializer.is_valid():
-            return Response(get_result_message(status.HTTP_400_BAD_REQUEST, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.validated_data['new_password'])
         user.last_update_password = timezone.now()
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        return Response(get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def is_unique_username(request, username):
     if models.User.objects.filter(username=username).exists():
-        return Response(get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
-    return Response(get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
+    return Response(utils.get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def is_unique_nickname(request, nickname):
     if models.Shopper.objects.filter(nickname=nickname).exists():
-        return Response(get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
-    return Response(get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
+    return Response(utils.get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)

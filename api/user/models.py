@@ -1,5 +1,4 @@
-from django.contrib.auth import validators
-from django.db import models
+from django.db.models import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
@@ -25,8 +24,8 @@ class UserManager(BaseUserManager):
         return user
 
 
-class Membership(models.Model):
-    name = models.CharField(unique=True, max_length=20)
+class Membership(Model):
+    name = CharField(unique=True, max_length=20)
 
     class Meta:
         managed = False
@@ -34,13 +33,13 @@ class Membership(models.Model):
 
 
 class User(AbstractBaseUser):
-    id = models.BigAutoField(primary_key=True)
-    username = models.CharField(max_length=20, unique=True)
-    is_admin = models.BooleanField(default=False)
-    email = models.EmailField(max_length=50)
-    phone = models.CharField(max_length=15)
-    is_active = models.BooleanField(default=True)
-    last_update_password = models.DateTimeField(default=timezone.now)
+    id = BigAutoField(primary_key=True)
+    username = CharField(max_length=20, unique=True)
+    is_admin = BooleanField(default=False)
+    email = EmailField(max_length=50)
+    phone = CharField(max_length=15)
+    is_active = BooleanField(default=True)
+    last_update_password = DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'user'
@@ -50,15 +49,15 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = 'username'
 
 
-class Shopper(models.Model):
-    name = models.CharField(max_length=20)
-    nickname = models.CharField(max_length=20, unique=True)
-    gender = models.BooleanField()
-    birthday = models.DateField()
-    height = models.IntegerField(null=True)
-    weight = models.IntegerField(null=True)
-    membership = models.ForeignKey(Membership, models.DO_NOTHING, default=1)
-    user = models.OneToOneField('User', models.CASCADE, primary_key=True)
+class Shopper(Model):
+    name = CharField(max_length=20)
+    nickname = CharField(max_length=20, unique=True)
+    gender = BooleanField()
+    birthday = DateField()
+    height = IntegerField(null=True)
+    weight = IntegerField(null=True)
+    membership = ForeignKey(Membership, DO_NOTHING, default=1)
+    user = OneToOneField('User', CASCADE, primary_key=True)
 
     class Meta:
         managed = False
@@ -68,9 +67,9 @@ class Shopper(models.Model):
         return self.name
 
 
-class Wholesaler(models.Model):
-    user = models.OneToOneField(User, models.CASCADE, primary_key=True)
-    name = models.CharField(max_length=60)
+class Wholesaler(Model):
+    user = OneToOneField(User, CASCADE, primary_key=True)
+    name = CharField(max_length=60)
 
     class Meta:
         managed = False
