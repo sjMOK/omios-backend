@@ -57,7 +57,7 @@ class Shopper(models.Model):
     birthday = models.DateField()
     height = models.IntegerField(null=True)
     weight = models.IntegerField(null=True)
-    membership = models.ForeignKey(Membership, models.DO_NOTHING)
+    membership = models.ForeignKey(Membership, models.DO_NOTHING, default=1)
     user = models.OneToOneField('User', models.CASCADE, primary_key=True)
 
     class Meta:
