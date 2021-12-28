@@ -159,3 +159,19 @@ def is_unique_nickname(request, nickname):
     if models.Shopper.objects.filter(nickname=nickname).exists():
         return Response(utils.get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
     return Response(utils.get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def is_unique(request):
+    if len(request.query_params) != 1:
+        return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, 'Only one parameter is allowed.'), status=status.HTTP_400_BAD_REQUEST)
+    elif 'username' in request.query_params and models.User.objects.filter(username=request.query_params['username']).exists():
+        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
+    elif 'shopper_nickname' in request.query_params and models.Shopper.objects.filter(nickname=request.query_params['shopper_nickname']).exists():
+        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
+    elif 'wholesaler_name' in request.query_params and models.Wholesaler.objects.filter(name=request.query_params['wholesaler_name']).exists():
+        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
+    elif 'wholesaler_company_registration_number' in request.query_params and models.Wholesaler.objects.filter(company_registration_number=request.query_params['company_registration_number']).exists():
+        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
+    return Response(utils.get_result_message(data={is_unique: True}, status=status.HTTP_200_OK))
