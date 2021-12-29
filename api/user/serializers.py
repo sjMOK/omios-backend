@@ -49,13 +49,41 @@ class MembershipSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class ShopperSerializer(ModelSerializer):
+class UserSerializer(ModelSerializer):
     username = RegexField(r'^[a-zA-Z0-9]+$', min_length=4, max_length=20, validators=[UniqueValidator(queryset=models.User.objects.all())])
-    password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
+    password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10, write_only=True)
+
+    class Meta:
+        model = models.User
+        fields = '__all__'
+
+    def validate(self, attrs):
+        if 'password' in attrs.keys():
+            validators.PasswordSimilarityValidator().validate(attrs['password'], attrs['username'])
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data['password'] = make_password(validated_data['password'])
+        user = self._model.objects.create(**validated_data)
+
+        return user
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():            
+            setattr(instance, key, value)
+        
+        instance.save()
+        
+        return instance
+
+
+class ShopperSerializer(UserSerializer):
     phone = RegexField(r'^01[0|1|6|7|8|9][0-9]{7,8}$', validators=[UniqueValidator(queryset=models.Shopper.objects.all())])
     name = RegexField(r'^[가-힣]+$', max_length=20)
     nickname = RegexField(r'^[a-z0-9._]+$', min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=models.Shopper.objects.all())])
     
+    _model = models.Shopper
     class Meta:
         model = models.Shopper
         fields = '__all__'
@@ -72,43 +100,18 @@ class ShopperSerializer(ModelSerializer):
 
     def create(self, validated_data):
         validated_data['nickname'] = self.__get_random_nickname()
-        validated_data['password'] = make_password(validated_data['password'])
-        shopper = models.Shopper.objects.create(**validated_data)
-        
-        return shopper
 
-    def update(self, instance, validated_data):
-        for key, value in validated_data.items():            
-            setattr(instance, key, value)
-        
-        instance.save()
-        
-        return instance
+        return super().create(validated_data)
 
 
-class WholesalerSerializer(ModelSerializer):
-    username = RegexField(r'^[a-zA-Z0-9]+$', min_length=4, max_length=30, validators=[UniqueValidator(queryset=models.User.objects.all())])
-    password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
+class WholesalerSerializer(UserSerializer):
     phone = RegexField(r'^01[0|1|6|7|8|9][0-9]{7,8}$')
     company_registration_number = CharField(max_length=12, validators=[UniqueValidator(queryset=models.Wholesaler.objects.all())])
 
+    _model = models.Wholesaler
     class Meta:
         model = models.Wholesaler
         fields = '__all__'
-
-    def create(self, validated_data):
-        validated_data['password'] = make_password(validated_data['password'])
-        wholesaler = models.Wholesaler.objects.create(**validated_data)
-
-        return wholesaler
-
-    def update(self, instance, validated_data):
-        for key, value in validated_data.items():            
-            setattr(instance, key, value)
-        
-        instance.save()
-        
-        return instance
 
 
 class UserPasswordSerializer(Serializer):
@@ -119,11 +122,12 @@ class UserPasswordSerializer(Serializer):
         super().__init__(data=data)
         self.user = user
 
-    def validate(self, data):
-        if not self.user.check_password(data['current_password']):
+    def validate(self, attrs):
+        if not self.user.check_password(attrs['current_password']):
             raise ValidationError('current password does not correct.')
-        elif data['current_password'] == data['new_password']:
+        elif attrs['current_password'] == attrs['new_password']:
             raise ValidationError('new password is same as the current password.')
     
-        validators.PasswordSimilarityValidator().validate(data['new_password'], self.user.username, self.user.email)            
-        return data
+        validators.PasswordSimilarityValidator().validate(attrs['new_password'], self.user.username)
+
+        return attrs

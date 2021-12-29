@@ -4,6 +4,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.views import TokenViewBase
 
 from common import utils
@@ -13,8 +14,8 @@ from . import models, serializers, permissions
 class TokenView(TokenViewBase):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data = utils.get_result_message(status.HTTP_201_CREATED, data=response.data)
-        response.status_code = status.HTTP_201_CREATED
+        response.data = utils.get_result_message(HTTP_201_CREATED, data=response.data)
+        response.status_code = HTTP_201_CREATED
         return response
 
 
@@ -25,7 +26,7 @@ class UserBlacklistTokenView(TokenView):
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data['data'] = {'user_id': request.user.id}
+        response.data['data'] = {'id': request.user.id}
         return response
 
 
@@ -40,68 +41,43 @@ class UserRefreshTokenView(TokenView):
 class UserDetailView(APIView):
     permission_classes = [permissions.IsAuthenticatedExceptCreate]
 
-    def __pop_user(self, data):
-        if 'user' not in data.keys():
-            return data
-
-        user_data = data.pop('user')
-        for key, value in user_data.items():
-            data[key] = value
-
-        return data
-
-    def __push_user(self, data):
-        user_keys = [field.name for field in models.User._meta.get_fields()]
-        user_data = {}
-        for key in user_keys:
-            if key in data.keys():
-                user_data[key] = data.pop(key)
-        data['user'] = user_data
-
-        return data
-
     def _get_model_instance(self, user):
         return user
 
     def get(self, request):
         serializer = self._serializer_class(instance=self._get_model_instance(request.user))
 
-        data = self.__pop_user(serializer.data)
-        data.pop('password')
-
-        return Response(utils.get_result_message(data=data))
+        return Response(utils.get_result_message(data=serializer.data))
 
     def post(self, request):
-        data = self.__push_user(request.data)
-        serializer = self._serializer_class(data=data)
+        serializer = self._serializer_class(data=request.data)
 
         if not serializer.is_valid():
-            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
         
         user = serializer.save()
         
-        return Response(utils.get_result_message(status.HTTP_201_CREATED, data={'usre_id': user.user_id}), status=status.HTTP_201_CREATED)
+        return Response(utils.get_result_message(HTTP_201_CREATED, data={'id': user.user_id}), status=HTTP_201_CREATED)
 
     def patch(self, request):
         if 'password' in request.data:
-            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, 'password modification is not allowed in PATCH method'), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'password modification is not allowed in PATCH method'), status=HTTP_400_BAD_REQUEST)
         
-        data = self.__push_user(request.data)
-        serializer = self._serializer_class(instance=self._get_model_instance(request.user), data=data, partial=True)
+        serializer = self._serializer_class(instance=self._get_model_instance(request.user), data=request.data, partial=True)
 
         if not serializer.is_valid():
-            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, self.__pop_user(serializer.errors)), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, self.serializer.errors), status=HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
 
-        return Response(utils.get_result_message(data={'user_id': user.user_id}))
+        return Response(utils.get_result_message(data={'id': user.user_id}))
 
     def delete(self, request):
         user = request.user
         user.is_active = False
         user.save()
 
-        return Response(utils.get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'id': user.id}), status=HTTP_200_OK)
 
 
 class ShopperDetailView(UserDetailView):
@@ -131,47 +107,37 @@ class UserPasswordView(APIView):
 
     def patch(self, request):
         user = request.user
-        data = request.data
     
-        serializer = serializers.UserPasswordSerializer(data=data, user=user)
+        serializer = serializers.UserPasswordSerializer(data=request.data, user=request.user)
         if not serializer.is_valid():
-            return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.validated_data['new_password'])
         user.last_update_password = timezone.now()
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        return Response(utils.get_result_message(data={'user_id': user.id}), status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def is_unique_username(request, username):
-    if models.User.objects.filter(username=username).exists():
-        return Response(utils.get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
-    return Response(utils.get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def is_unique_nickname(request, nickname):
-    if models.Shopper.objects.filter(nickname=nickname).exists():
-        return Response(utils.get_result_message(data={'is_unique': False}), status=status.HTTP_200_OK)
-    return Response(utils.get_result_message(data={'is_unique': True}), status=status.HTTP_200_OK)
+        return Response(utils.get_result_message(data={'id': user.id}), status=HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def is_unique(request):
+    mapping = {
+        'username': {'model': models.User, 'column': 'username'},
+        'shopper_nickname': {'model': models.Shopper, 'column': 'nickname'},
+        'wholesaler_name': {'model': models.Wholesaler, 'column': 'name'},
+        'wholesaler_company_registration_number': {'model': models.Wholesaler, 'column': 'company_registration_number'},
+    }
+
+    request_data = list(request.query_params.items())
     if len(request.query_params) != 1:
-        return Response(utils.get_result_message(status.HTTP_400_BAD_REQUEST, 'Only one parameter is allowed.'), status=status.HTTP_400_BAD_REQUEST)
-    elif 'username' in request.query_params and models.User.objects.filter(username=request.query_params['username']).exists():
-        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
-    elif 'shopper_nickname' in request.query_params and models.Shopper.objects.filter(nickname=request.query_params['shopper_nickname']).exists():
-        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
-    elif 'wholesaler_name' in request.query_params and models.Wholesaler.objects.filter(name=request.query_params['wholesaler_name']).exists():
-        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
-    elif 'wholesaler_company_registration_number' in request.query_params and models.Wholesaler.objects.filter(company_registration_number=request.query_params['company_registration_number']).exists():
-        return Response(utils.get_result_message(data={is_unique: False}, status=status.HTTP_200_OK))
-    return Response(utils.get_result_message(data={is_unique: True}, status=status.HTTP_200_OK))
+        return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'Only one parameter is allowed.'), status=HTTP_400_BAD_REQUEST)
+    elif request_data[0][0] not in mapping.keys():
+        return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'Invalid parameter name.'), status=HTTP_400_BAD_REQUEST)
+
+    mapping_data = mapping[request_data[0][0]]
+    if mapping_data['model'].objects.filter(**{mapping_data['column']: request_data[0][1]}).exists():
+        return Response(utils.get_result_message(data={'is_unique': False}), status=HTTP_200_OK)
+
+    return Response(utils.get_result_message(data={'is_unique': True}), status=HTTP_200_OK)
