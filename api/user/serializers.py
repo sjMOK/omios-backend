@@ -65,7 +65,7 @@ class UserSerializer(ModelSerializer):
 
     def create(self, validated_data):
         validated_data['password'] = make_password(validated_data['password'])
-        user = self._model.objects.create(**validated_data)
+        user = self.Meta.model.objects.create(**validated_data)
 
         return user
 
@@ -83,7 +83,6 @@ class ShopperSerializer(UserSerializer):
     name = RegexField(r'^[가-힣]+$', max_length=20)
     nickname = RegexField(r'^[a-z0-9._]+$', min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=models.Shopper.objects.all())])
     
-    _model = models.Shopper
     class Meta:
         model = models.Shopper
         fields = '__all__'
@@ -108,7 +107,6 @@ class WholesalerSerializer(UserSerializer):
     phone = RegexField(r'^01[0|1|6|7|8|9][0-9]{7,8}$')
     company_registration_number = CharField(max_length=12, validators=[UniqueValidator(queryset=models.Wholesaler.objects.all())])
 
-    _model = models.Wholesaler
     class Meta:
         model = models.Wholesaler
         fields = '__all__'
