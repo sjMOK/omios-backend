@@ -73,7 +73,7 @@ class UserSerializer(ModelSerializer):
         for key, value in validated_data.items():            
             setattr(instance, key, value)
         
-        instance.save()
+        instance.save(update_fields=validated_data.keys())
         
         return instance
 
