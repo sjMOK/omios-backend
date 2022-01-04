@@ -1,14 +1,18 @@
 from django.urls import path
-from. import views
+from . import documentation
+
 
 app_name = 'user'
 
+token_urlpatterns = [
+    path('', documentation.decorated_access_token_view),
+    path('refresh/', documentation.decorated_refresh_token_view),
+    path('blacklist/', documentation.decorated_blacklist_token_view),
+]
+
 urlpatterns = [
-    path('token/', views.UserAccessTokenView.as_view()),
-    path('token/refresh/', views.UserRefreshTokenView.as_view()),
-    path('token/blacklist/', views.UserBlacklistTokenView.as_view()),
-    path('shopper/', views.ShopperDetailView.as_view()),
-    path('wholesaler/', views.WholesalerDetailView.as_view()),
-    path('password/', views.UserPasswordView.as_view()),
-    path('unique/', views.is_unique),
+    path('shopper/', documentation.decorated_shopper_view),
+    path('wholesaler/', documentation.decorated_wholesaler_view),
+    path('password/', documentation.decorated_user_password_view),
+    path('unique/', documentation.decorated_is_unique_view),
 ]

@@ -172,3 +172,14 @@ SIMPLE_JWT = {
 
     'JTI_CLAIM': 'jti',
 }
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Token': {
+            'type': 'apiKey',
+            'description': 'Enter in the format "Bearer {access_token}"<br>For token issuance, refer to the token section.',
+            'name': 'Authorization',
+            'in': 'header',
+        }
+    }
+}
