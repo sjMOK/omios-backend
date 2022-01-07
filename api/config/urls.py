@@ -1,10 +1,13 @@
 from django.conf.urls import handler403, handler404, handler500, handler400
 from django.urls import path, include, re_path
+from rest_framework.routers import SimpleRouter
 from rest_framework.permissions import AllowAny
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
 from user.urls import token_urlpatterns
+from product.urls import category_urlpatterns
+from product.views import ProductViewSet
 
 handler400 = 'common.views.custom_400_view'
 handler403 = 'common.views.custom_403_view'
@@ -24,11 +27,17 @@ schema_view = get_schema_view(
    permission_classes=(AllowAny,),
 )
 
+router = SimpleRouter()
+router.register(r'product', ProductViewSet, basename='product')
+
 urlpatterns = [
    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
    re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
    re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
    path('token/', include(token_urlpatterns)),
    path('user/', include('user.urls')),
+   path('category/', include(category_urlpatterns)),
    path('product/', include('product.urls')),
 ]
+
+urlpatterns += router.urls
