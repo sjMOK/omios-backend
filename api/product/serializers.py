@@ -1,4 +1,4 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import *
 from . import models
 
 class CategorySerializer(ModelSerializer):
@@ -14,6 +14,7 @@ class SubCategorySerializer(ModelSerializer):
 
 
 class ProductSerializer(ModelSerializer):
+    subcategory_id = PrimaryKeyRelatedField(queryset=models.SubCategory.objects.all())
     class Meta:
         model = models.Product
-        fields = '__all__'
+        exclude = ['subcategory']

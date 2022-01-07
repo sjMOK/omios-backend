@@ -14,6 +14,7 @@ from common.utils import get_result_message, querydict_to_dict
 def get_categories(request):
     queryset = models.Category.objects.all()
     serializer = serializers.CategorySerializer(queryset, many=True)
+
     return Response(get_result_message(data=serializer.data))
 
 
@@ -27,6 +28,7 @@ def get_category_info(request, pk=None):
         'name': category.name,
         'subcategory': serializer.data
     }
+
     return Response(get_result_message(data=data))
 
 
@@ -39,7 +41,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     default_ordering = 'id'
 
     def get_queryset(self):
-        queryset = serializers.Product.objects.all()
+        queryset = models.Product.objects.all()
         query_params = querydict_to_dict(self.request.query_params)
 
         filterset = {}
