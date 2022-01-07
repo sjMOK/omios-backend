@@ -1,3 +1,4 @@
+from django.db import connection
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
@@ -38,7 +39,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     serializer_class = serializers.ProductSerializer
     lookup_field = 'pk'
     lookup_value_regex = r'[0-9]+'
-    default_ordering = 'id'
+    default_ordering = '-created'
 
     def get_queryset(self):
         queryset = models.Product.objects.all()
@@ -64,7 +65,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset
 
-    def order_queryset(self, queryset, order):
+    def order_queryset(self, queryset):
         order_mapping = {
             'popular': 'popular', 
             'created': '-created',
@@ -72,19 +73,16 @@ class ProductViewSet(viewsets.GenericViewSet):
             'price_dsc': '-price'
         }
 
-        if order in order_mapping.keys():
-            queryset = queryset.order_by(order_mapping[order], self.default_ordering)
-        else:
+        order = self.request.query_params.get('order', None)
+        if order is None:
             queryset = queryset.order_by(self.default_ordering)
+        elif order in order_mapping.keys():
+            queryset = queryset.order_by(order_mapping[order], self.default_ordering)
 
         return queryset
 
     def list(self, request):
-        queryset = self.get_queryset()
-        
-        order = request.query_params.get('order')
-        if order:
-            queryset = self.order_queryset(queryset, order)
+        queryset = self.order_queryset(self.get_queryset())
 
         page = self.paginate_queryset(queryset)
         if page is not None:
