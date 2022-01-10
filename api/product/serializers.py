@@ -19,3 +19,15 @@ class ProductSerializer(ModelSerializer):
     class Meta:
         model = models.Product
         exclude = ['subcategory']
+
+
+class ProductShopperListSerializer(ModelSerializer):
+    class Meta:
+        model = models.Product
+        fields = ['id', 'name', 'price']
+
+
+class ProductWholesalerListSerializer(ModelSerializer):
+    class Meta:
+        model = models.Product
+        fields = ['id', 'name', 'wholesaler_id']

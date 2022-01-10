@@ -34,6 +34,7 @@ class Product(Model):
     subcategory = ForeignKey('SubCategory', DO_NOTHING)
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
+    wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
 
     class Meta:
         managed = False

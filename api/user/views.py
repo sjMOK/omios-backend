@@ -120,7 +120,6 @@ class UserPasswordView(APIView):
 
 
 @api_view(['GET'])
-@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def is_unique(request):
     mapping = {
