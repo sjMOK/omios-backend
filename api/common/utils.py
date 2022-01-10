@@ -8,7 +8,9 @@ def get_result_message(code=200, message='success', data=None):
     }
     if data:
         result['data'] = data
+
     return result
+
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
@@ -26,3 +28,14 @@ def custom_exception_handler(exc, context):
     
     response.data = data    
     return response
+
+
+def querydict_to_dict(querydict):
+    data = {}
+    for key in querydict.keys():
+        value = querydict.getlist(key)
+        if len(value) == 1:
+            value = value[0]
+        data[key] = value
+
+    return data

@@ -11,6 +11,9 @@ class Membership(Model):
         managed = False
         db_table = 'membership'
 
+    def __str__(self):
+        return self.name
+
 
 class User(AbstractBaseUser):
     id = BigAutoField(primary_key=True)
@@ -45,7 +48,7 @@ class Shopper(User):
         db_table = 'shopper'
 
     def __str__(self):
-        return self.name
+        return '{0} {1}'.format(self.username, self.name)
 
 
 class Wholesaler(User):
@@ -60,4 +63,4 @@ class Wholesaler(User):
         db_table = 'wholesaler'
 
     def __str__(self):
-        return self.name
+        return '{0} {1}'.format(self.username, self.name)
