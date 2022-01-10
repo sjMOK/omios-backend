@@ -86,10 +86,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         return queryset
 
     def get_serializer_class(self):
-        if self.action == 'list':
-            return serializers.ProductListSerializer
-        else:
-            return serializers.ProductSerializer
+        return serializers.ProductSerializer
 
     def list(self, request):
         queryset = self.sort_queryset(
