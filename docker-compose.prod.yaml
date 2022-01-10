@@ -19,6 +19,5 @@ services:
             - "80:80/tcp"
         volumes:
             - ./nginx:/etc/nginx/conf.d
-            - ./static:/static
         depends_on:
             - deepy
