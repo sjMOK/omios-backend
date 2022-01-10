@@ -1,13 +1,13 @@
 from django.db.models import *
 from django.utils import timezone
 
-class Category(Model):
+class MainCategory(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
 
     class Meta:
         managed = False
-        db_table = 'category'
+        db_table = 'main_category'
         ordering = ['id']
 
     def __str__(self):
@@ -16,12 +16,12 @@ class Category(Model):
 
 class SubCategory(Model):
     id = AutoField(primary_key=True)
-    category = ForeignKey('Category', DO_NOTHING)
+    main_category = ForeignKey('MainCategory', DO_NOTHING)
     name = CharField(max_length=20)
 
     class Meta:
         managed = False
-        db_table = 'subcategory'
+        db_table = 'sub_category'
 
     def __str__(self):
         return self.name

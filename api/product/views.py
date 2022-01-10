@@ -12,19 +12,19 @@ from common.utils import get_result_message, querydict_to_dict
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_categories(request):
-    queryset = models.Category.objects.all()
-    serializer = serializers.CategorySerializer(queryset, many=True)
+    queryset = models.MainCategory.objects.all()
+    serializer = serializers.MainCategorySerializer(queryset, many=True)
 
     return Response(get_result_message(data=serializer.data))
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_category_info(request, pk=None):
-    category = get_object_or_404(models.Category, pk=pk)
-    serializer = serializers.SubCategorySerializer(category.subcategory_set.all(), many=True)
+def get_sub_categories(request, pk=None):
+    main_category = get_object_or_404(models.MainCategory, pk=pk)
+    serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
     data = {
-        'name': category.name,
+        'name': main_category.name,
         'subcategory': serializer.data,
     }
 
@@ -37,7 +37,6 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'pk'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
-
     def get_queryset(self):
         queryset = models.Product.objects.all()
         if hasattr(self.request.user, 'wholesaler'):
@@ -96,7 +95,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return Response(get_result_message(data=self.get_paginated_response(serializer.data).data))
         
         serializer = self.get_serializer(queryset, many=True)
 
@@ -119,17 +118,3 @@ class ProductViewSet(viewsets.GenericViewSet):
     def destroy(self, request, pk=None):
         instance = self.get_object()
         return Response('product.destroy()')
-
-    @action(detail=False, methods=['GET'])
-    def extra_action(self, request, pk=None):
-        return Response('product.extra_actions()')
-
-    @action(detail=True, methods=['GET'])
-    def extra_action(self, request, pk=None):
-        return Response('product.extra_actions_detail()')
-
-
-class TestViewSet(viewsets.GenericViewSet):
-    permission_classes = []
-    def list(self, request):
-        return Response('.list()')
