@@ -18,13 +18,16 @@ class SubCategorySerializer(ModelSerializer):
 class ProductSerializer(ModelSerializer):
     class Meta:
         model = models.Product
+        fields = '__all__'
 
 
 class ProductShopperListSerializer(ModelSerializer):
     class Meta:
         model = models.Product
+        fields = '__all__'
 
 
 class ProductWholesalerListSerializer(ModelSerializer):
     class Meta:
         model = models.Product
+        fields = '__all__'
