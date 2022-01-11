@@ -11,3 +11,6 @@ class StaticStorage(CustomS3Boto3Storage):
 class MediaStorage(CustomS3Boto3Storage):
     location = 'media'
     
+
+class ClientSVGStorage(CustomS3Boto3Storage):
+    location = 'static/client'

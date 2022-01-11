@@ -1,9 +1,11 @@
 from django.db.models import *
 from django.utils import timezone
+from common import storage
 
 class MainCategory(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
+    image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
 
     class Meta:
         managed = False
@@ -31,7 +33,7 @@ class Product(Model):
     id = BigAutoField(primary_key=True)
     name = CharField(max_length=60)
     code = CharField(max_length=12)
-    subcategory = ForeignKey('SubCategory', DO_NOTHING)
+    sub_category = ForeignKey('SubCategory', DO_NOTHING)
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
     wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
