@@ -5,7 +5,6 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
 from user.urls import token_urlpatterns
-from product.urls import category_urlpatterns
 
 handler400 = 'common.views.custom_400_view'
 handler403 = 'common.views.custom_403_view'
@@ -31,6 +30,5 @@ urlpatterns = [
    re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
    path('token/', include(token_urlpatterns)),
    path('user/', include('user.urls')),
-   path('category/', include(category_urlpatterns)),
    path('product/', include('product.urls')),
 ]
