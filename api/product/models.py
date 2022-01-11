@@ -1,5 +1,6 @@
 from django.db.models import *
 from django.utils import timezone
+
 from common import storage
 
 class MainCategory(Model):
@@ -44,6 +45,16 @@ class Product(Model):
 
     def __str__(self):
         return self.name
+
+
+class ProductImages(Model):
+    id = BigAutoField(primary_key=True)
+    product = ForeignKey('Product', DO_NOTHING)
+    url = ImageField(max_length=200, upload_to=storage.product_image_path)
+
+    class Meta:
+        managed = False
+        db_table = 'product_images'
 
 
 class Color(Model):

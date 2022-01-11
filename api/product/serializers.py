@@ -31,3 +31,9 @@ class ProductWholesalerListSerializer(ModelSerializer):
     class Meta:
         model = models.Product
         fields = '__all__'
+
+
+class ProductImagesSerializer(ModelSerializer):
+    class Meta:
+        model = models.ProductImages
+        fields = '__all__'
