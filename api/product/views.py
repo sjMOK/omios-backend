@@ -4,6 +4,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
 from common.utils import get_result_message, querydict_to_dict
@@ -25,10 +26,19 @@ def get_sub_categories(request, pk=None):
     serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
     data = {
         'name': main_category.name,
-        'subcategory': serializer.data,
+        'sub_category': serializer.data,
     }
 
     return Response(get_result_message(data=data))
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_colors(request):
+    queryset = models.Color.objects.all()
+    serializer = serializers.ColorSerializer(queryset, many=True)
+
+    return Response(get_result_message(data=serializer.data))
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -49,8 +59,8 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         filterset = {}
         filter_mapping = {
-            'category_id': 'subcategory__category_id',
-            'subcategory_id': 'subcategory_id',
+            'main_category': 'sub_category__main_category_id',
+            'sub_category': 'sub_category_id',
             'minprice': 'price__gte',
             'maxprice': 'price__lte',
         }
@@ -95,13 +105,18 @@ class ProductViewSet(viewsets.GenericViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return Response(get_result_message(data=self.get_paginated_response(serializer.data).data))
+            paginated_response = self.get_paginated_response(serializer.data)
+
+            return Response(get_result_message(data=paginated_response.data))
         
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(get_result_message(data=serializer.data))
 
     def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
 
         return Response('product.create()')
 
