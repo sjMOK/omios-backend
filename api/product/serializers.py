@@ -1,6 +1,5 @@
 from rest_framework.serializers import *
 from . import models
-from user.models import Wholesaler
 
 
 class MainCategorySerializer(ModelSerializer):
@@ -15,7 +14,14 @@ class SubCategorySerializer(ModelSerializer):
         exclude = ['main_category']
 
 
+class ColorSerializer(ModelSerializer):
+    class Meta:
+        model = models.Color
+        fields = '__all__'
+
+
 class ProductSerializer(ModelSerializer):
+    code = CharField(max_length=12, read_only=True)
     class Meta:
         model = models.Product
         fields = '__all__'

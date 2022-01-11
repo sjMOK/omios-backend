@@ -47,7 +47,9 @@ class Product(Model):
 
 
 class Color(Model):
-    name = CharField(max_length=10)
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+    image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
 
     class Meta:
         managed = False
