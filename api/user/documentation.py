@@ -53,22 +53,40 @@ class ShopperResponse(ModelSerializer):
             'is_active': {'required': True},
         }
 
+
+class DecoratedUserRefreshTokenView(views.UserRefreshTokenView):
+    def post(self, request, *args, **kwargs):
+        super().post(request, *args, **kwargs)
+
+
+class DecoreatedWholesalerDetailView(views.WholesalerDetailView):
+    def get(self, request):
+        super().get(request)
+
+    def post(self, request):
+        super().post(request)
+
+    def patch(self, request):
+        super().patch(request)
+
+    def delete(self, request):
+        super().delete(request)
+
+
 decorated_access_token_view = swagger_auto_schema(
-    method='POST', request_body=TokenRequest, **documentation.get_response(TokenResponse, 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
+    method='POST', request_body=TokenRequest, **documentation.get_response(TokenResponse(), 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
 )(views.UserAccessTokenView.as_view())
 
-decorated_refresh_token_view = method_decorator(
-    swagger_auto_schema(
-        request_body=RefreshTokenRequest, **documentation.get_response(TokenResponse, 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
-    ), 'post'
-)(views.UserRefreshTokenView).as_view()
+decorated_refresh_token_view = swagger_auto_schema(
+    method='POST', request_body=RefreshTokenRequest, **documentation.get_response(TokenResponse(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
+)(views.UserRefreshTokenView.as_view())
 
 decorated_blacklist_token_view = swagger_auto_schema(
     method='POST', request_body=RefreshTokenRequest, **documentation.get_response(code=201), operation_description='refresh 토큰 폐기 (로그아웃)'
 )(views.UserBlacklistTokenView.as_view())
 
 decorated_shopper_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(ShopperResponse), operation_description='Shopper 데이터 가져오기'
+    method='GET', **documentation.get_response(ShopperResponse()), operation_description='Shopper 데이터 가져오기'
 )(swagger_auto_schema(
     method='POST', request_body=ShopperCreateRequest, **documentation.get_response(code=201), security=[], operation_description='Shopper 회원가입'
 )(swagger_auto_schema(
@@ -77,16 +95,20 @@ decorated_shopper_view = swagger_auto_schema(
     method='DELETE', **documentation.get_response(), operation_description='Shopper 회원탈퇴'
 )(views.ShopperDetailView.as_view()))))
 
-decorated_wholesaler_view = method_decorator(
-    swagger_auto_schema(
-        **documentation.get_response(), operation_description='test'
-    ), 'get'
-)(views.WholesalerDetailView).as_view()
+decorated_wholesaler_view = swagger_auto_schema(
+    method='GET', **documentation.get_response(ShopperResponse()), operation_description='Wholesaler 데이터 가져오기'
+)(swagger_auto_schema(
+    method='POST', request_body=ShopperCreateRequest, **documentation.get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
+)(swagger_auto_schema(
+    method='PATCH', request_body=ShopperUpdateRequest, **documentation.get_response(), operation_description='Wholesaler 회원정보 수정'
+)(swagger_auto_schema(
+    method='DELETE', **documentation.get_response(), operation_description='Wholesaler 회원탈퇴'
+)(views.ShopperDetailView.as_view()))))
 
 decorated_user_password_view = swagger_auto_schema(
     method='PATCH', request_body=PasswordUpdateRequest, **documentation.get_response(), operation_description='비밀번호 수정'
 )(views.UserPasswordView.as_view())
 
 decorated_is_unique_view = swagger_auto_schema(
-    method='GET', query_serializer=UniqueRequest, **documentation.get_response(documentation.UniqueResponse), security=[], operation_description='중복검사'
+    method='GET', query_serializer=UniqueRequest, **documentation.get_response(documentation.UniqueResponse()), security=[], operation_description='중복검사'
 )(views.is_unique)

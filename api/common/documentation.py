@@ -20,9 +20,9 @@ class DefaultResponse(Serializer):
     message = CharField(max_length=7)
 
 
-def get_response(json=IdResponse, code=200):    
+def get_response(serializer=IdResponse(), code=200):    
     class Response(DefaultResponse):
-        data = json()
+        data = serializer
         class Meta:
             ref_name = None
     
