@@ -103,7 +103,7 @@ decorated_wholesaler_view = swagger_auto_schema(
     method='PATCH', request_body=ShopperUpdateRequest, **documentation.get_response(), operation_description='Wholesaler 회원정보 수정'
 )(swagger_auto_schema(
     method='DELETE', **documentation.get_response(), operation_description='Wholesaler 회원탈퇴'
-)(views.ShopperDetailView.as_view()))))
+)(views.WholesalerDetailView.as_view()))))
 
 decorated_user_password_view = swagger_auto_schema(
     method='PATCH', request_body=PasswordUpdateRequest, **documentation.get_response(), operation_description='비밀번호 수정'
