@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
-from . import views
+from . import views, documentation
 
 app_name = 'product'
 
@@ -8,9 +8,9 @@ router = SimpleRouter()
 router.register(r'', views.ProductViewSet, basename='product')
 
 urlpatterns = [
-    path('main-category/', views.get_categories),
-    path('main-category/<int:pk>/sub-category/', views.get_sub_categories),
-    path('color/', views.get_colors),
+    path('main-category/', documentation.decorated_main_category_view),
+    path('main-category/<int:pk>/sub-category/', documentation.decorated_sub_category_view),
+    path('color/', documentation.decorated_color_view),
 ]
 
 urlpatterns += router.urls

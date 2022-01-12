@@ -39,11 +39,11 @@ class UniqueRequest(Serializer):
     wholesaler_company_registration_number = CharField(required=False)
 
 
-class TokenResponse(serializers.UserRefreshTokenSerializer):
+class Token(serializers.UserRefreshTokenSerializer):
     access = CharField()
 
 
-class ShopperResponse(ModelSerializer):
+class Shopper(ModelSerializer):
     membership = serializers.MembershipSerializer()
     class Meta:
         model = models.Shopper
@@ -74,11 +74,11 @@ class DecoreatedWholesalerDetailView(views.WholesalerDetailView):
 
 
 decorated_access_token_view = swagger_auto_schema(
-    method='POST', request_body=TokenRequest, **documentation.get_response(TokenResponse(), 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
+    method='POST', request_body=TokenRequest, **documentation.get_response(Token(), 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
 )(views.UserAccessTokenView.as_view())
 
 decorated_refresh_token_view = swagger_auto_schema(
-    method='POST', request_body=RefreshTokenRequest, **documentation.get_response(TokenResponse(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
+    method='POST', request_body=RefreshTokenRequest, **documentation.get_response(Token(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
 )(views.UserRefreshTokenView.as_view())
 
 decorated_blacklist_token_view = swagger_auto_schema(
@@ -86,7 +86,7 @@ decorated_blacklist_token_view = swagger_auto_schema(
 )(views.UserBlacklistTokenView.as_view())
 
 decorated_shopper_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(ShopperResponse()), operation_description='Shopper 데이터 가져오기'
+    method='GET', **documentation.get_response(Shopper()), operation_description='Shopper 데이터 가져오기'
 )(swagger_auto_schema(
     method='POST', request_body=ShopperCreateRequest, **documentation.get_response(code=201), security=[], operation_description='Shopper 회원가입'
 )(swagger_auto_schema(
@@ -96,7 +96,7 @@ decorated_shopper_view = swagger_auto_schema(
 )(views.ShopperDetailView.as_view()))))
 
 decorated_wholesaler_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(ShopperResponse()), operation_description='Wholesaler 데이터 가져오기'
+    method='GET', **documentation.get_response(Shopper()), operation_description='Wholesaler 데이터 가져오기'
 )(swagger_auto_schema(
     method='POST', request_body=ShopperCreateRequest, **documentation.get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
 )(swagger_auto_schema(

@@ -12,7 +12,7 @@ from common.utils import get_result_message, querydict_to_dict
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_categories(request):
+def get_main_categories(request):
     queryset = models.MainCategory.objects.all()
     serializer = serializers.MainCategorySerializer(queryset, many=True)
 
@@ -25,7 +25,7 @@ def get_sub_categories(request, pk=None):
     main_category = get_object_or_404(models.MainCategory, pk=pk)
     serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
     data = {
-        'name': main_category.name,
+        'main_category_id': main_category.id,
         'sub_category': serializer.data,
     }
 
