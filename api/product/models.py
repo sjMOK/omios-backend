@@ -33,11 +33,12 @@ class SubCategory(Model):
 class Product(Model):
     id = BigAutoField(primary_key=True)
     name = CharField(max_length=60)
-    code = CharField(max_length=12)
+    code = CharField(max_length=12, default='AA')
     sub_category = ForeignKey('SubCategory', DO_NOTHING)
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
     wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
+    on_sale = IntegerField(default=True)
 
     class Meta:
         managed = False
@@ -49,7 +50,7 @@ class Product(Model):
 
 class ProductImages(Model):
     id = BigAutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING)
+    product = ForeignKey('Product', DO_NOTHING, related_name='images')
     url = ImageField(max_length=200, upload_to=storage.product_image_path)
 
     class Meta:
@@ -71,11 +72,13 @@ class Color(Model):
 
 
 class Size(Model):
-    name = CharField(max_length=10)
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=10)
 
     class Meta:
         managed = False
         db_table = 'size'
+        ordering = ['id']
 
     def __str__(self):
         return self.name
@@ -83,12 +86,11 @@ class Size(Model):
 
 class Option(Model):
     id = BigAutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING)
-    color = ForeignKey('Color', DO_NOTHING)
-    display_color_name = CharField(max_length=10)
-    price = IntegerField()
-    sequence = IntegerField()
+    product = ForeignKey('Product', DO_NOTHING, related_name='options')
     size = ForeignKey('Size', DO_NOTHING)
+    color = ForeignKey('Color', DO_NOTHING)
+    display_color_name = CharField(max_length=20)
+    price_difference = IntegerField()
 
     class Meta:
         managed = False
