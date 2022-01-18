@@ -1,12 +1,5 @@
-import base64
-
-from django.core.files.base import ContentFile
-
 from rest_framework.serializers import *
-from rest_framework.validators import UniqueValidator
 
-from user.models import Wholesaler
-from user.serializers import WholesalerSerializer
 from . import models
 
 
