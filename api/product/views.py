@@ -1,5 +1,7 @@
 from django.db import connection
+from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
+
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -7,7 +9,7 @@ from rest_framework import viewsets
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
-from common.utils import get_result_message, querydict_to_dict
+from common.utils import get_result_message, querydict_to_dict, base64_to_imgfile
 
 
 @api_view(['GET'])
@@ -47,6 +49,19 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'pk'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
+    allowed_fields = {
+        'shopper_list': ('name', 'price'),
+        'shopper_retrieve': ('id', 'name', 'code', 'created', 'price', 'sub_category', 'main_category', 'options', 'images'),
+        'wholesaler_list': ('id',),
+        'wholesaler_retrieve': ('name',),
+    }
+
+    def get_allowed_fields(self):
+        if hasattr(self.request.user, 'wholesaler'):
+            return self.allowed_fields['wholesaler_{0}'.format(self.action)]
+        
+        return self.allowed_fields['shopper_{0}'.format(self.action)]
+
     def get_queryset(self):
         queryset = models.Product.objects.all()
         if hasattr(self.request.user, 'wholesaler'):
@@ -94,42 +109,60 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset
 
-    def get_serializer_class(self):
-        return serializers.ProductSerializer
-
     def list(self, request):
         queryset = self.sort_queryset(
             self.filter_queryset(self.get_queryset())
         )
+        prefetch = Prefetch('images', to_attr='related_images')
+        queryset = queryset.prefetch_related(prefetch)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, fields=self.get_allowed_fields(), many=True)
             paginated_response = self.get_paginated_response(serializer.data)
-
+            return Response(connection.queries)
             return Response(get_result_message(data=paginated_response.data))
         
-        serializer = self.get_serializer(queryset, many=True)
-
+        serializer = self.get_serializer(queryset, fields=self.get_allowed_fields(), many=True)
+        
         return Response(get_result_message(data=serializer.data))
 
     def create(self, request):
-        serializer = self.get_serializer(data=request.data)
+        images = request.data.get('images', None)
+        for image in images:
+            image['url'] = base64_to_imgfile(image['url'])
+    
+        serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
+
         if not serializer.is_valid():
             return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
 
-        return Response('product.create()')
+        product = serializer.save()
+        
+        return Response(get_result_message(data={'id': product.id}))
 
     def retrieve(self, request, pk=None):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-
+        prefetch_options = Prefetch('options', queryset=models.Option.objects.select_related('size'), to_attr='related_options')
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = models.Product.objects.prefetch_related(prefetch_options, prefetch_images).select_related('sub_category__main_category').get(id=pk)
+        self.check_object_permissions(request, product)
+        
+        serializer = self.get_serializer(product, fields=self.get_allowed_fields())
+        serializer.data
+        return Response(connection.queries)
         return Response(get_result_message(data=serializer.data))
 
     def partial_update(self, request, pk=None):
-        instance = self.get_object()
+        product = self.get_object()
+        serializer = self.get_serializer(product, data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
         return Response('product.partial_update()')
 
     def destroy(self, request, pk=None):
-        instance = self.get_object()
-        return Response('product.destroy()')
+        product = self.get_object()
+        product.on_sale = False
+        product.save()
+
+        return Response(get_result_message(data={'id': product.id}), status=HTTP_200_OK)
