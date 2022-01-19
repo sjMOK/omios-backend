@@ -52,10 +52,12 @@ class ProductImages(Model):
     id = BigAutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='images')
     url = ImageField(max_length=200, upload_to=storage.product_image_path)
+    sequence = IntegerField()
 
     class Meta:
         managed = False
         db_table = 'product_images'
+        ordering = ['-sequence']
 
 
 class Color(Model):
