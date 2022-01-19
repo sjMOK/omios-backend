@@ -2,6 +2,7 @@ from rest_framework.serializers import *
 
 from . import models
 
+DEFAULT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/default.png'
 
 class MainCategorySerializer(ModelSerializer):
     class Meta:
@@ -57,26 +58,24 @@ class OptionSerializer(ModelSerializer):
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(read_only=True)
-    url = ImageField(max_length=200)
-
-    # class Meta:
-    #     model = models.ProductImages
-    #     fields = '__all__'
+    url = ImageField(max_length=200, use_url=False)
+    sequence = IntegerField(max_value=2147483647, min_value=-2147483648)
 
 
 class ProductSerializer(ModelSerializer):
     id = IntegerField(read_only=True)
     name = CharField(max_length=60)
     code = CharField(read_only=True, max_length=12)
-    created = DateTimeField(read_only=True, required=False)
+    created = DateTimeField(read_only=True)
     price = IntegerField(max_value=2147483647, min_value=-2147483648)
-    sub_category = PrimaryKeyRelatedField(queryset=models.SubCategory.objects.all())
+    sub_category = PrimaryKeyRelatedField(write_only=True, queryset=models.SubCategory.objects.all())
     options = OptionSerializer(many=True, source='related_options')
     images = ProductImagesSerializer(many=True, source='related_images')
+    on_sale = IntegerField(read_only=True, max_value=2147483647, min_value=-2147483648)
 
     class Meta:
         model = models.Product
-        exclude = ['wholesaler', 'on_sale']
+        exclude = ['wholesaler']
 
     def __init__(self, *args, **kwargs):
         fields = kwargs.pop('fields', None)
@@ -94,25 +93,26 @@ class ProductSerializer(ModelSerializer):
     def to_representation(self, instance):
         ret = super().to_representation(instance)
 
-        if ret.get('images') is None and instance.related_images:
-            ret['cover_image'] = instance.related_images[0].url.url
-
-        if ret.get('sub_category'):
+        if self.context['action'] == 'retrieve':
             ret['sub_category'] = SubCategorySerializer(instance.sub_category).data
             ret['main_category'] = MainCategorySerializer(instance.sub_category.main_category).data
+        elif self.context['action'] == 'list':
+            ret['main_image'] = instance.related_images[0].url.url if instance.related_images else None
+
+        ret['default_image'] = DEFAULT_IMAGE_URL
 
         return ret
 
     def create(self, validated_data):
-        options = validated_data.pop('related_options')
-        images = validated_data.pop('related_images')
+        related_options = validated_data.pop('related_options')
+        related_images = validated_data.pop('related_images')
 
         product = models.Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
 
-        options = [models.Option(product=product, **option_data) for option_data in options ]
+        options = [models.Option(product=product, **option_data) for option_data in related_options ]
         models.Option.objects.bulk_create(options)
 
-        for image_data in images:
-            models.ProductImages.objects.create(product=product, **image_data)
+        images = [models.ProductImages(product=product, **product_data) for product_data in related_images]
+        models.ProductImages.objects.bulk_create(images)
 
         return product
