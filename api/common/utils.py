@@ -46,9 +46,11 @@ def querydict_to_dict(querydict):
 
 
 def base64_to_imgfile(raw_base64):
-    format, imgstr = raw_base64.split(';base64,')
-    _name, ext = format.split('/')
-    name = '{0}.{1}'.format(_name.split(':')[-1], ext)
-    imgfile = ContentFile(base64.b64decode(imgstr), name=name)
-
-    return imgfile
+    try:
+        format, imgstr = raw_base64.split(';base64,')
+        _name, ext = format.split('/')
+        name = '{0}.{1}'.format(_name.split(':')[-1], ext)
+        imgfile = ContentFile(base64.b64decode(imgstr), name=name)
+        return imgfile
+    except:
+        return False
