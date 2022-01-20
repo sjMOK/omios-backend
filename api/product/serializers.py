@@ -43,7 +43,7 @@ class SizeSerializer(ModelSerializer):
 
 class OptionSerializer(ModelSerializer):
     color = PrimaryKeyRelatedField(write_only=True, queryset=models.Color.objects.all())
-
+    display_color_name = display_color_name = CharField(max_length=20, required=False)
     class Meta:
         model = models.Option
         exclude = ['product']
@@ -55,10 +55,17 @@ class OptionSerializer(ModelSerializer):
 
         return ret
 
+    def to_internal_value(self, data):
+        ret =  super().to_internal_value(data)
+        if ret.get('display_color_name', None) is None:
+            ret['display_color_name'] = ret['color'].name
+
+        return ret
+
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(read_only=True)
-    url = ImageField(max_length=200, use_url=False)
+    url = ImageField(max_length=200)
     sequence = IntegerField(max_value=2147483647, min_value=-2147483648)
 
 
@@ -112,7 +119,7 @@ class ProductSerializer(ModelSerializer):
         options = [models.Option(product=product, **option_data) for option_data in related_options ]
         models.Option.objects.bulk_create(options)
 
-        images = [models.ProductImages(product=product, **product_data) for product_data in related_images]
+        images = [models.ProductImages(product=product, **image_data) for image_data in related_images]
         models.ProductImages.objects.bulk_create(images)
 
         return product
