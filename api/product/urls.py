@@ -11,6 +11,7 @@ urlpatterns = [
     path('main-category/', documentation.decorated_main_category_view),
     path('main-category/<int:id>/sub-category/', documentation.decorated_sub_category_view),
     path('color/', documentation.decorated_color_view),
+    path('<int:id>/post-images/', views.post_images),
 ]
 
 urlpatterns += router.urls

@@ -1,4 +1,3 @@
-from django.db import connection
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
 from django.http import Http404
@@ -7,7 +6,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
 from common.utils import get_result_message, querydict_to_dict, base64_to_imgfile
@@ -41,17 +40,21 @@ def get_colors(request):
     return Response(get_result_message(data=serializer.data))
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 @permission_classes([AllowAny])
-def query(request):
-    names = request.data.get('names')
-    for name in names:
-        name = name.upper()
-    # for name in names:
-    #     name['name'] = name['name'].upper()
+def post_images(request, id):
+    product = models.Product.objects.get(id=id)
+    images = request.data.get('images')
+    for image in images:
+        image['url'] = base64_to_imgfile(image['url'])
 
-    return Response(request.data)
-    return Response(connection.queries)
+    serializer = serializers.ProductImagesSerializer(data=images, many=True)
+    serializer.is_valid(raise_exception=True)
+    
+    images = [models.ProductImages(product=product, **image_data) for image_data in serializer.validated_data]
+    models.ProductImages.objects.bulk_create(images)
+
+    return Response('{0} images posted to product_id:{1}'.format(len(images), id))
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -172,8 +175,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         product = serializer.save()
 
-        return Response(connection.queries)
-        return Response(get_result_message(data={'id': product.id}))
+        return Response(get_result_message(HTTP_201_CREATED, data={'id': product.id}))
 
     def partial_update(self, request, id=None):
         product = self.get_object(self.get_queryset())
@@ -188,4 +190,4 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.on_sale = False
         product.save()
 
-        return Response(get_result_message(data={'id': product.id}), status=HTTP_200_OK)
+        return Response(get_result_message(data={'id': product.id}))
