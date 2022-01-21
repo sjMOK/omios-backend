@@ -10,6 +10,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
 from common.utils import get_result_message, querydict_to_dict, base64_to_imgfile
+from common.storage import upload_images
 
 
 @api_view(['GET'])
@@ -38,6 +39,19 @@ def get_colors(request):
     queryset = models.Color.objects.all()
     serializer = serializers.ColorSerializer(queryset, many=True)
     return Response(get_result_message(data=serializer.data))
+
+
+@api_view(['POST'])
+def upload_prdocut_image(request):
+    images = request.FILES.getlist('image')
+
+    serializer = serializers.ImageSerializer(data=[{'image': image} for image in images], many=True)
+    if not serializer.is_valid():
+        return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors))
+
+    images = upload_images('product', request.user.id, images)
+
+    return Response(get_result_message(HTTP_201_CREATED, data={'images': images}), status=HTTP_201_CREATED)
 
 
 @api_view(['POST'])

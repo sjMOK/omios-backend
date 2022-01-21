@@ -25,3 +25,26 @@ def product_image_path(instance, filename):
         timezone.now().strftime("%Y%m%d_%H%M%S%f"),
         os.path.splitext(filename)[1].lower(),
     )
+
+
+def get_upload_path_prefix(type, user_id):
+    if type == 'product':
+        return 'product/wholesaler{}/product_'.format(user_id)
+    elif type == 'review':
+        return 'review/shopper{}/review_'.format(user_id)
+    else:
+        return False
+
+
+def upload_images(type, user_id, images):
+    result = []
+
+    upload_path_prefix = get_upload_path_prefix(type, user_id)
+    if upload_path_prefix:
+        storage = MediaStorage()
+        for image in images:
+            upload_path = upload_path_prefix + timezone.now().strftime("%Y%m%d_%H%M%S%f")
+            storage.save(upload_path, image)
+            result.append(storage.url(upload_path))
+
+    return result

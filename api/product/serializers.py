@@ -1,6 +1,6 @@
 from rest_framework.serializers import *
 
-from . import models
+from . import models, validators
 
 DEFAULT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/default.png'
 
@@ -123,3 +123,7 @@ class ProductSerializer(ModelSerializer):
         models.ProductImages.objects.bulk_create(images)
 
         return product
+
+
+class ImageSerializer(Serializer):
+    image = ImageField(max_length=200, validators=[validators.validate_file_size])
