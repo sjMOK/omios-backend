@@ -1,8 +1,8 @@
 from rest_framework.serializers import *
 
 from . import models, validators
+from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 
-DEFAULT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/default.png'
 
 class MainCategorySerializer(ModelSerializer):
     class Meta:
@@ -43,7 +43,7 @@ class SizeSerializer(ModelSerializer):
 
 class OptionSerializer(ModelSerializer):
     color = PrimaryKeyRelatedField(write_only=True, queryset=models.Color.objects.all())
-    display_color_name = display_color_name = CharField(max_length=20, required=False)
+    display_color_name = CharField(max_length=20, required=False)
     class Meta:
         model = models.Option
         exclude = ['product']
@@ -65,24 +65,24 @@ class OptionSerializer(ModelSerializer):
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(read_only=True)
-    url = ImageField(max_length=200)
-    sequence = IntegerField(max_value=2147483647, min_value=-2147483648)
+    url = URLField(max_length=200)
+    sequence = IntegerField(max_value=15, min_value=1)
+
+    def validate_url(self, value):
+        return validators.validate_url(value)
 
 
-class ProductSerializer(ModelSerializer):
+class ProductSerializer(Serializer):
     id = IntegerField(read_only=True)
     name = CharField(max_length=60)
-    code = CharField(read_only=True, max_length=12)
+    code = CharField(max_length=12, read_only=True)
     created = DateTimeField(read_only=True)
-    price = IntegerField(max_value=2147483647, min_value=-2147483648)
+    price = IntegerField(max_value=2147483647, min_value=0)
     sub_category = PrimaryKeyRelatedField(write_only=True, queryset=models.SubCategory.objects.all())
     options = OptionSerializer(many=True, source='related_options')
     images = ProductImagesSerializer(many=True, source='related_images')
-    on_sale = IntegerField(read_only=True, max_value=2147483647, min_value=-2147483648)
+    on_sale = BooleanField(required=False)
 
-    class Meta:
-        model = models.Product
-        exclude = ['wholesaler']
 
     def __init__(self, *args, **kwargs):
         fields = kwargs.pop('fields', None)
@@ -97,16 +97,26 @@ class ProductSerializer(ModelSerializer):
 
         return
 
+    def to_representation_retrieve(self, ret, instance):
+        ret['sub_category'] = SubCategorySerializer(instance.sub_category).data
+        ret['main_category'] = MainCategorySerializer(instance.sub_category.main_category).data
+            
+        related_images = ret.get('images', None)
+        if related_images:
+            for image in related_images:
+                image['url'] = BASE_IMAGE_URL + image['url']
+        else:
+            ret['images'] = [DEFAULT_IMAGE_URL]
+
+        return ret
+
     def to_representation(self, instance):
         ret = super().to_representation(instance)
 
         if self.context['action'] == 'retrieve':
-            ret['sub_category'] = SubCategorySerializer(instance.sub_category).data
-            ret['main_category'] = MainCategorySerializer(instance.sub_category.main_category).data
+            ret = self.to_representation_retrieve(ret, instance)
         elif self.context['action'] == 'list':
-            ret['main_image'] = instance.related_images[0].url.url if instance.related_images else None
-
-        ret['default_image'] = DEFAULT_IMAGE_URL
+            ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].url) if instance.related_images else DEFAULT_IMAGE_URL
 
         return ret
 
@@ -123,6 +133,10 @@ class ProductSerializer(ModelSerializer):
         models.ProductImages.objects.bulk_create(images)
 
         return product
+    
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)
+
 
 
 class ImageSerializer(Serializer):
