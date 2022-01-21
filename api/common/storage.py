@@ -43,7 +43,7 @@ def upload_images(type, user_id, images):
     if upload_path_prefix:
         storage = MediaStorage()
         for image in images:
-            upload_path = upload_path_prefix + timezone.now().strftime("%Y%m%d_%H%M%S%f")
+            upload_path = upload_path_prefix + timezone.now().strftime("%Y%m%d_%H%M%S%f") + os.path.splitext(image.name)[1].lower()
             storage.save(upload_path, image)
             result.append(storage.url(upload_path))
 
