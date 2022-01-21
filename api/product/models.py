@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from common import storage
 
+
 class MainCategory(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
@@ -38,7 +39,7 @@ class Product(Model):
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
     wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
-    on_sale = IntegerField(default=True)
+    on_sale = BooleanField(default=True)
 
     class Meta:
         managed = False
@@ -51,13 +52,13 @@ class Product(Model):
 class ProductImages(Model):
     id = BigAutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='images')
-    url = ImageField(max_length=200, upload_to=storage.product_image_path)
+    url = CharField(max_length=200)
     sequence = IntegerField()
 
     class Meta:
         managed = False
         db_table = 'product_images'
-        ordering = ['-sequence']
+        ordering = ['sequence']
 
 
 class Color(Model):
