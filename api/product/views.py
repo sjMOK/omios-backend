@@ -9,7 +9,7 @@ from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
-from common.utils import get_result_message, querydict_to_dict, base64_to_imgfile
+from common.utils import get_result_message, querydict_to_dict
 from common.storage import upload_images
 
 
@@ -52,23 +52,6 @@ def upload_prdocut_image(request):
     images = upload_images('product', request.user.id, images)
 
     return Response(get_result_message(HTTP_201_CREATED, data={'images': images}), status=HTTP_201_CREATED)
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def post_images(request, id):
-    product = models.Product.objects.get(id=id)
-    images = request.data.get('images')
-    for image in images:
-        image['url'] = base64_to_imgfile(image['url'])
-
-    serializer = serializers.ProductImagesSerializer(data=images, many=True)
-    serializer.is_valid(raise_exception=True)
-    
-    images = [models.ProductImages(product=product, **image_data) for image_data in serializer.validated_data]
-    models.ProductImages.objects.bulk_create(images)
-
-    return Response('{0} images posted to product_id:{1}'.format(len(images), id))
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -178,11 +161,6 @@ class ProductViewSet(viewsets.GenericViewSet):
         return Response(get_result_message(data=serializer.data))
 
     def create(self, request):
-        images = request.data.get('images', list())
-    
-        for image in images:
-            image['url'] = base64_to_imgfile(image['url'])
-        
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
         if not serializer.is_valid():
             return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
