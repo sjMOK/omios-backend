@@ -1,0 +1,31 @@
+[{
+    "model": "user.membership",
+    "pk": 1,
+    "fields": {
+        "name": "bronze"
+    }
+}, {
+    "model": "user.membership",
+    "pk": 2,
+    "fields": {
+        "name": "silver"
+    }
+}, {
+    "model": "user.membership",
+    "pk": 3,
+    "fields": {
+        "name": "gold"
+    }
+}, {
+    "model": "user.membership",
+    "pk": 4,
+    "fields": {
+        "name": "platinum"
+    }
+}, {
+    "model": "user.membership",
+    "pk": 5,
+    "fields": {
+        "name": "diamond"
+    }
+}] 
