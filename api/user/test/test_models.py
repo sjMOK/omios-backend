@@ -1,5 +1,5 @@
 from datetime import datetime
-from rest_framework.test import APITestCase, APITransactionTestCase
+from rest_framework.test import APITestCase
 from rest_framework.exceptions import APIException
 from freezegun import freeze_time
 
@@ -8,26 +8,35 @@ from ..models import Membership, User, Shopper, Wholesaler
 
 
 class MembershipTest(APITestCase):
+    __model_class = Membership
+
     def test_create(self):
         test_data = {
             'name': 'diamond',
         }
 
-        membership = Membership.objects.create(**test_data)
+        membership = self.__model_class.objects.create(**test_data)
         self.assertEqual(membership.name, test_data['name'])
 
 
-class UserTest(APITransactionTestCase):
+class UserTest(APITestCase):
+    __model_class = User
+
     def setUp(self):
         self.test_data = {
             'username': 'username',
             'password': 'password',
         }
-        self.user = User(**self.test_data)
+
+    def __get_model(self):
+        return self.__model_class(**self.test_data)
+
+    def __get_model_after_creation(self):
+        return self.__model_class.objects.create(**self.test_data)
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create(self):
-        user = User.objects.create(**self.test_data)
+        user = self.__get_model_after_creation()
 
         self.assertEqual(user.username, self.test_data['username'])
         self.assertTrue(user.check_password(self.test_data['password']))
@@ -37,11 +46,11 @@ class UserTest(APITransactionTestCase):
         self.assertEqual(user.created_at, user.last_update_password)
         
     def test_default_save(self):
-        self.assertRaises(APIException, self.user.save)
+        self.assertRaises(APIException, self.__get_model().save)
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_save_using_force_insert(self):
-        user = User(**self.test_data)
+        user = self.__get_model()
         user.save(force_insert=True)
 
         self.assertTrue(user.check_password(self.test_data['password']))
@@ -49,20 +58,20 @@ class UserTest(APITransactionTestCase):
         self.assertEqual(user.created_at, user.last_update_password)
 
     def test_save_using_update_fields(self):
-        self.user.save(force_insert=True)
+        user = self.__get_model_after_creation()
+        user.password = self.test_data['password'] = 'new_password'
+        user.save(update_fields=['password'])
 
-        self.user.password = self.test_data['password'] = 'new_password'
-        self.user.save(update_fields=['password'])
-
-        self.assertTrue(self.user.check_password(self.test_data['password']))
-        self.assertGreater(self.user.last_update_password, self.user.created_at)
+        self.assertTrue(user.check_password(self.test_data['password']))
+        self.assertGreater(user.last_update_password, user.created_at)
 
     def test_public_set_password(self):
-        self.assertRaises(APIException, self.user.set_password, self.test_data['password'])
+        self.assertRaises(APIException, self.__get_model().set_password, self.test_data['password'])
     
 
-class ShopperTest(APITransactionTestCase):
+class ShopperTest(APITestCase):
     fixtures = ['membership']
+    __model_class = Shopper
 
     def setUp(self):
         self.test_data = {
@@ -75,8 +84,11 @@ class ShopperTest(APITransactionTestCase):
             "password": "password",
         }
 
+    def __get_model_after_creation(self):
+        return self.__model_class.objects.create(**self.test_data)
+
     def test_create(self):
-        shopper = Shopper.objects.create(**self.test_data)
+        shopper = self.__get_model_after_creation()
         
         self.assertTrue(shopper.user)
         self.assertTrue(shopper.membership)
@@ -89,12 +101,12 @@ class ShopperTest(APITransactionTestCase):
 
     def test_default_nickname(self):
         self.test_data['nickname'] = 'shopper2'
-        Shopper.objects.create(**self.test_data)
+        self.__get_model_after_creation()
 
         self.test_data.pop('nickname')
         self.test_data['username'] = 'shopper2'
         self.test_data['phone'] = '01012341234'
-        shopper = Shopper.objects.create(**self.test_data)
+        shopper = self.__get_model_after_creation()
 
         self.assertTrue(shopper.nickname.startswith('omios_'))
 
