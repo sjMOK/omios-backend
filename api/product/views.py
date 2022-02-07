@@ -25,7 +25,7 @@ def get_search_box_data(request):
     sub_categories = models.SubCategory.objects.filter(name__contains=search_word)
     sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
 
-    keywords = list(models.KeywordNgram.objects.filter(name__contains=search_word).values_list('name', flat=True))
+    keywords = list(models.Keyword.objects.filter(name__contains=search_word).values_list('name', flat=True))
 
     keywords_leven_distance = [
         {'name': keyword, 'distance': levenshtein(search_word, keyword)}
