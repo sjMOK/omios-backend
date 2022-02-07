@@ -68,7 +68,7 @@ class UserTest(ModelTestCase):
 
 class ShopperTest(ModelTestCase):
     fixtures = ['membership']
-    __model_class = Shopper
+    _model_class = Shopper
 
     def setUp(self):
         self.test_data = {
@@ -96,7 +96,6 @@ class ShopperTest(ModelTestCase):
     def test_default_nickname(self):
         self.test_data['nickname'] = 'shopper2'
         self._get_model_after_creation()
-
         self.test_data.pop('nickname')
         self.test_data['username'] = 'shopper2'
         self.test_data['phone'] = '01012341234'
