@@ -40,6 +40,7 @@ class Product(Model):
     price = IntegerField()
     wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
     on_sale = BooleanField(default=True)
+    tags = ManyToManyField('Tag', through='ProductTag')
 
     class Meta:
         managed = False
@@ -98,3 +99,43 @@ class Option(Model):
     class Meta:
         managed = False
         db_table = 'option'
+
+
+class Tag(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'tag'
+
+    def __str__(self):
+        return self.name
+
+
+class ProductTag(Model):
+    id = AutoField(primary_key=True)
+    product = ForeignKey('Product', DO_NOTHING)
+    tag = ForeignKey('Tag', DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'product_tag'
+        unique_together = (('product', 'tag'),)
+
+
+class Keyword(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'keyword'
+
+
+class KeywordNgram(Model):
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'keyword_ngram'
