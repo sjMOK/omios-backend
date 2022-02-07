@@ -1,7 +1,8 @@
+from datetime import datetime, timedelta
 from django.http import QueryDict
 from rest_framework.test import APISimpleTestCase
 
-from .utils import get_result_message, querydict_to_dict
+from .utils import get_result_message, querydict_to_dict, gmt_to_kst
 
 
 class GetResultMessageTestCase(APISimpleTestCase):
@@ -43,3 +44,9 @@ class QuerydictToDictTestCase(APISimpleTestCase):
         }
         result = querydict_to_dict(QueryDict('a=1&a=2&a=3&b=4&c=5&c=5&d=6'))
         self.assertDictEqual(result, expected_result)
+
+
+class GmtToKstTestCase(APISimpleTestCase):
+    def test(self):
+        test_data = datetime.now()
+        self.assertEqual(gmt_to_kst(test_data), test_data + timedelta(hours=9))

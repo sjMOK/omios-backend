@@ -25,3 +25,8 @@ def querydict_to_dict(querydict):
         data[key] = value
 
     return data
+
+
+def gmt_to_kst(gmt):
+    from datetime import timedelta
+    return gmt + timedelta(hours=9)
