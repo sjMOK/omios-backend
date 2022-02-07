@@ -1,4 +1,6 @@
 from django.db.models.query import Prefetch
+from django.db import connection
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
@@ -94,13 +96,14 @@ class ProductViewSet(viewsets.GenericViewSet):
     default_fields = ('id', 'name', 'price',)
     additional_fields = {
         'shopper_list': (),
-        'shopper_retrieve': ('options', 'images', 'sub_category',),
+        'shopper_detail': ('options', 'sub_category', 'images'),
         'wholesaler_list': ('created',),
-        'wholesaler_retrieve': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images',),
+        'wholesaler_detail': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images',),
     }
 
     def get_allowed_fields(self):
-        user_action = 'wholesaler_{0}'.format(self.action) if hasattr(self.request.user, 'wholesaler') else 'shopper_{0}'.format(self.action)
+        request_type = 'detail' if self.detail else 'list'
+        user_action = 'wholesaler_{0}'.format(request_type) if hasattr(self.request.user, 'wholesaler') else 'shopper_{0}'.format(request_type)
         return self.default_fields + self.additional_fields[user_action]
 
     def get_object(self, queryset):
@@ -157,6 +160,31 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
+    def get_response_for_list(self, queryset):
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(
+                page, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
+            )
+            paginated_response = self.get_paginated_response(serializer.data)
+            return Response(get_result_message(data=paginated_response.data))
+        
+        serializer = self.get_serializer(
+            queryset, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
+        )
+        
+        return Response(get_result_message(data=serializer.data))
+
+    def list(self, request):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        queryset = self.sort_queryset(
+            self.filter_queryset(
+                self.get_queryset().prefetch_related(prefetch_images)
+            )
+        )   
+
+        return self.get_response_for_list(queryset)
+
     def retrieve(self, request, id=None):
         prefetch_options = Prefetch('options', queryset=models.Option.objects.select_related('size'), to_attr='related_options')
         prefetch_images = Prefetch('images', to_attr='related_images')
@@ -167,28 +195,8 @@ class ProductViewSet(viewsets.GenericViewSet):
     
         product = self.get_object(queryset)
         
-        serializer = self.get_serializer(product, fields=self.get_allowed_fields(), context={'action': self.action, 'user': self.request.user})
+        serializer = self.get_serializer(product, fields=self.get_allowed_fields(), context={'detail': self.detail})
 
-        return Response(get_result_message(data=serializer.data))
-
-    def list(self, request):
-        prefetch_images = Prefetch('images', to_attr='related_images')
-        queryset = self.sort_queryset(
-            self.filter_queryset(
-                self.get_queryset().prefetch_related(prefetch_images)
-            )
-        )
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(
-                page, fields=self.get_allowed_fields(), many=True, context={'action': self.action, 'user': self.request.user}
-            )
-            paginated_response = self.get_paginated_response(serializer.data)
-            return Response(get_result_message(data=paginated_response.data))
-        
-        serializer = self.get_serializer(queryset, fields=self.get_allowed_fields(), many=True)
-        
         return Response(get_result_message(data=serializer.data))
 
     def create(self, request):

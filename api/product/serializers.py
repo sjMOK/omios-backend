@@ -113,9 +113,9 @@ class ProductSerializer(Serializer):
     def to_representation(self, instance):
         ret = super().to_representation(instance)
 
-        if self.context['action'] == 'retrieve':
+        if self.context['detail']:
             ret = self.to_representation_retrieve(ret, instance)
-        elif self.context['action'] == 'list':
+        else:
             ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].url) if instance.related_images else DEFAULT_IMAGE_URL
 
         return ret
