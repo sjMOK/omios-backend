@@ -9,8 +9,39 @@ from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
-from common.utils import get_result_message, querydict_to_dict
+from common.utils import get_result_message, querydict_to_dict, levenshtein
 from common.storage import upload_images
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_search_box_data(request):
+    search_word = request.query_params.get('query', None)
+    if search_word is None:
+        return Response('검색어를 입력하세요')
+
+    sub_categories = models.SubCategory.objects.filter(name__contains=search_word)
+    sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
+
+    keywords = list(models.KeywordNgram.objects.filter(name__contains=search_word).values_list('name', flat=True))
+
+    keywords_leven_distance = [
+        {'name': keyword, 'distance': levenshtein(search_word, keyword)}
+        for keyword in keywords
+    ]
+
+    sorted_keywords = sorted(keywords_leven_distance, key=lambda x: (x['distance'], x['name']))
+    if len(sorted_keywords) > 10:
+        sorted_keywords = sorted_keywords[:10]
+
+    keyword_response_data = [keyword['name'] for keyword in sorted_keywords]
+
+    response_data = {
+        'sub_category': sub_category_serializer.data,
+        'keyword': keyword_response_data
+    }
+
+    return Response(get_result_message(data=response_data))
 
 
 @api_view(['GET'])
@@ -183,3 +214,24 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.save()
 
         return Response(get_result_message(data={'id': product.id}))
+
+    @action(detail=False, url_path='search')
+    def search(self, request):
+        search_word = request.query_params.get('query', None)
+        if search_word is None:
+            return Response('검색어를 입력하세요')
+        elif len(search_word) < 2:
+            return Response('검색어 두 자 이상')
+
+        tag_id_list = list(models.Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
+        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
+
+        prefetch_tags = Prefetch('tags', to_attr='related_tags')
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        queryset = self.sort_queryset(
+            self.filter_queryset(
+                self.get_queryset().filter(condition).prefetch_related(prefetch_images, prefetch_tags)
+            )
+        )
+
+        return self.get_response_for_list(queryset)
