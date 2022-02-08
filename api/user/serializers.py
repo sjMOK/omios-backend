@@ -1,12 +1,10 @@
-from random import randint
-from django.utils import timezone
-from django.contrib.auth.hashers import make_password
 from rest_framework.serializers import *
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer, TokenBlacklistSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 from rest_framework.validators import UniqueValidator
 
+from common.utils import gmt_to_kst
 from . import models, validators
 
 
@@ -21,7 +19,9 @@ class UserAccessTokenSerializer(TokenObtainPairSerializer):
             token['user_type'] = 'wholesaler'
 
         models.OutstandingToken.objects.filter(jti=token['jti']).update(
-            token = token,
+            token=token,
+            created_at=gmt_to_kst(token.current_time),
+            expires_at=gmt_to_kst(datetime_from_epoch(token['exp'])),
         )
         
         return token
@@ -36,8 +36,8 @@ class UserRefreshTokenSerializer(TokenRefreshSerializer):
             user=models.User.objects.get(id=refresh['user_id']),
             jti=refresh['jti'],
             token=str(refresh),
-            created_at=refresh.current_time,
-            expires_at=datetime_from_epoch(refresh['exp']),
+            created_at=gmt_to_kst(refresh.current_time),
+            expires_at=gmt_to_kst(datetime_from_epoch(refresh['exp'])),
         )
         
         return token
@@ -52,6 +52,7 @@ class MembershipSerializer(ModelSerializer):
 class UserSerializer(ModelSerializer):
     username = RegexField(r'^[a-zA-Z0-9]+$', min_length=4, max_length=20, validators=[UniqueValidator(queryset=models.User.objects.all())])
     password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10, write_only=True)
+    last_update_password = DateTimeField(required=False)
 
     class Meta:
         model = models.User
@@ -62,12 +63,6 @@ class UserSerializer(ModelSerializer):
             validators.PasswordSimilarityValidator().validate(attrs['password'], attrs['username'])
 
         return attrs
-
-    def create(self, validated_data):
-        validated_data['password'] = make_password(validated_data['password'])
-        user = self.Meta.model.objects.create(**validated_data)
-
-        return user
 
     def update(self, instance, validated_data):
         for key, value in validated_data.items():            
@@ -92,17 +87,6 @@ class ShopperSerializer(UserSerializer):
             'weight': {'min_value': 30, 'max_value': 200}
         }
 
-    def __get_random_nickname(self):
-        while True:
-            nickname = 'dp_' + timezone.now().strftime('%m%d%H%M') + '_' + str(randint(1, 10**5))
-            if not models.Shopper.objects.filter(nickname=nickname).exists():
-                return nickname
-
-    def create(self, validated_data):
-        validated_data['nickname'] = self.__get_random_nickname()
-
-        return super().create(validated_data)
-
 
 class WholesalerSerializer(UserSerializer):
     phone = RegexField(r'^01[0|1|6|7|8|9][0-9]{7,8}$')
@@ -117,16 +101,29 @@ class UserPasswordSerializer(Serializer):
     current_password = CharField(min_length=10, max_length=128)
     new_password = RegexField(r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$', max_length=128, min_length=10)
 
-    def __init__(self, data, user):
-        super().__init__(data=data)
-        self.user = user
-
     def validate(self, attrs):
-        if not self.user.check_password(attrs['current_password']):
+        if not self.instance.check_password(attrs['current_password']):
             raise ValidationError('current password does not correct.')
         elif attrs['current_password'] == attrs['new_password']:
             raise ValidationError('new password is same as the current password.')
     
-        validators.PasswordSimilarityValidator().validate(attrs['new_password'], self.user.username)
+        validators.PasswordSimilarityValidator().validate(attrs['new_password'], self.instance.username)
 
         return attrs
+
+    def __discard_refresh_token(self, user_id):
+        all_tokens = models.OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now()).all()
+
+        discarding_tokens = []
+        for token in all_tokens:
+            if not hasattr(token, 'blacklistedtoken'):
+                discarding_tokens.append(models.BlacklistedToken(token=token))
+    
+        models.BlacklistedToken.objects.bulk_create(discarding_tokens)
+
+    def update(self, instance, validated_data):
+        instance.password = validated_data['new_password']
+        instance.save(update_fields=['password'])
+        self.__discard_refresh_token(instance.id)
+        
+        return instance

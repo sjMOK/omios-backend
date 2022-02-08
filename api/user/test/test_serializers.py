@@ -16,13 +16,13 @@ def get_authentication_data(user):
     }
 
 
-class UserTokenSerializerTest(APITestCase):
+class UserTokenSerializerTest(SerializerTestCase):
     fixtures = ['membership']
-    __serializer_class = UserAccessTokenSerializer
+    _serializer_class = UserAccessTokenSerializer
 
     def __get_refresh_token(self, factory):
         self.user = factory()
-        serializer = self.__serializer_class(data=get_authentication_data(self.user))
+        serializer = self._get_serializer(data=get_authentication_data(self.user))
         serializer.is_valid()
 
         return serializer.validated_data['refresh']
@@ -45,44 +45,44 @@ class UserTokenSerializerTest(APITestCase):
         pass
 
 
-class UserRefreshTokenSerializerTest(APITestCase):
-    __serializer_class = UserRefreshTokenSerializer
+class UserRefreshTokenSerializerTest(SerializerTestCase):
+    _serializer_class = UserRefreshTokenSerializer
 
     def test_refresh_token_validation(self):
         user = UserFactory()
         set_up_serializer = UserAccessTokenSerializer(data=get_authentication_data(user))
         set_up_serializer.is_valid()
-        serializer = self.__serializer_class(data={'refresh': set_up_serializer.validated_data['refresh']})
+        serializer = self._get_serializer(data={'refresh': set_up_serializer.validated_data['refresh']})
         serializer.is_valid()
 
         self.assertIsNotNone(OutstandingToken.objects.get(token=serializer.validated_data['refresh']))
 
 
-class UserSerializerTest(APITestCase):
-    __serializer_class = UserSerializer
+class UserSerializerTest(SerializerTestCase):
+    _serializer_class = UserSerializer
 
     def setUp(self):
         self.test_data = {
             'username': 'username'
         }
 
-    def __get_serializer(self, password=None, **kwargs):
+    def _get_serializer(self, password=None, **kwargs):
         if password is not None:
             self.test_data['password'] = password
 
-        return self.__serializer_class(data=self.test_data, **kwargs)
+        return super()._get_serializer(data=self.test_data, **kwargs)
 
     def test_password_regex_validation(self):
-        test_datas = ['username00', 'USERNAME00', 'usernameUSERNAME']
-        for test_data in test_datas:
-            serializer = self.__get_serializer(test_data)
+        test_passwords = ['username00', 'USERNAME00', 'usernameUSERNAME']
+        for test_password in test_passwords:
+            serializer = self._get_serializer(test_password)
 
             self.assertTrue(not serializer.is_valid())
             self.assertTrue('password' in serializer.errors)
             self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
 
     def test_password_similarity_validation(self):
-        serializer = self.__get_serializer('Username00')
+        serializer = self._get_serializer('Username00')
 
         self.assertTrue(not serializer.is_valid())
         self.assertTrue('non_field_errors' in serializer.errors)
@@ -91,7 +91,7 @@ class UserSerializerTest(APITestCase):
     def test_update(self):
         user = UserFactory()
         original_password = get_factory_password(user)
-        serializer = self.__get_serializer(instance=user, partial=True)
+        serializer = self._get_serializer(instance=user, partial=True)
         serializer.is_valid()
         user = serializer.save()
 
@@ -99,8 +99,8 @@ class UserSerializerTest(APITestCase):
         self.assertTrue(user.check_password(original_password))
 
 
-class UserPasswordSerializerTest(APITestCase):
-    __serializer_class = UserPasswordSerializer
+class UserPasswordSerializerTest(SerializerTestCase):
+    _serializer_class = UserPasswordSerializer
 
     def setUp(self):
         self.user = UserFactory()
@@ -109,23 +109,23 @@ class UserPasswordSerializerTest(APITestCase):
             'new_password': self.user.username + '_New_Password',
         }
 
-    def __get_serializer(self, current_password=None, new_password=None):
+    def _get_serializer(self, current_password=None, new_password=None):
         if current_password is not None:
             self.test_data['current_password'] = current_password
         if new_password is not None:
             self.test_data['new_password'] = new_password
 
-        return self.__serializer_class(instance=self.user, data=self.test_data)
+        return super()._get_serializer(instance=self.user, data=self.test_data)
 
     def test_current_password_validation(self):
-        serializer = self.__get_serializer('weird_password')
+        serializer = self._get_serializer('weird_password')
 
         self.assertTrue(not serializer.is_valid())
         self.assertTrue('non_field_errors' in serializer.errors)
         self.assertEqual(str(serializer.errors['non_field_errors'][0]), 'current password does not correct.')
         
     def test_same_new_password_validation(self):
-        serializer = self.__get_serializer(new_password=self.test_data['current_password'])
+        serializer = self._get_serializer(new_password=self.test_data['current_password'])
 
         self.assertTrue(not serializer.is_valid())
         self.assertTrue('non_field_errors' in serializer.errors)
@@ -134,9 +134,9 @@ class UserPasswordSerializerTest(APITestCase):
     def test_update(self):
         token_num = randint(3, 10)
         for i in range(token_num):
-            serializer = UserAccessTokenSerializer(data=get_authentication_data(self.user))
-            serializer.is_valid()
-        serializer = self.__get_serializer()
+            set_up_serializer = UserAccessTokenSerializer(data=get_authentication_data(self.user))
+            set_up_serializer.is_valid()
+        serializer = self._get_serializer()
         serializer.is_valid()
         self.user = serializer.save()
 

@@ -19,7 +19,16 @@ class ModelTestCase(APITestCase):
 
 
 class SerializerTestCase(APITestCase):
-    pass
+    _serializer_class = None
+
+    def __init__(self, *args, **kwargs):
+        if self._serializer_class is None:
+            raise APIException('_serializer_class must be written')
+
+        super().__init__(*args, **kwargs)
+
+    def _get_serializer(self, **kwargs):
+        return self._serializer_class(**kwargs)
 
 
 class ViewTestCase(APITestCase):
