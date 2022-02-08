@@ -36,13 +36,19 @@ def get_searchbox_data(request):
     if search_word is None:
         return Response(get_result_message(HTTP_400_BAD_REQUEST, 'search word is required.'), status=HTTP_400_BAD_REQUEST)
 
-    sub_categories = models.SubCategory.objects.filter(name__contains=search_word)
+    condition = Q(name__contains=search_word)
+
+    main_categories = models.MainCategory.objects.filter(condition)
+    main_category_serializer = serializers.MainCategorySerializer(main_categories, many=True)
+
+    sub_categories = models.SubCategory.objects.filter(condition)
     sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
 
-    keywords = list(models.Keyword.objects.filter(name__contains=search_word).values_list('name', flat=True))
+    keywords = list(models.Keyword.objects.filter(condition).values_list('name', flat=True))
     sorted_keywords = sort_keywords(keywords, search_word)
 
     response_data = {
+        'main_category': main_category_serializer.data,
         'sub_category': sub_category_serializer.data,
         'keyword': sorted_keywords
     }
