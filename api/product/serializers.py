@@ -9,24 +9,13 @@ class MainCategorySerializer(ModelSerializer):
         model = models.MainCategory
         fields = '__all__'
 
-    def __init__(self, *args, **kwargs):
-        fields = kwargs.pop('fields', None)
-
-        super().__init__(*args, **kwargs)
-
-        if fields is not None:
-            allowed = set(fields)
-            existing = set(self.fields)
-            for field_name in existing - allowed:
-                self.fields.pop(field_name)
-        
-        return
-
 
 class SubCategorySerializer(ModelSerializer):
+    main_category = MainCategorySerializer()
     class Meta:
         model = models.SubCategory
-        exclude = ['main_category']
+        fields = '__all__'
+        # exclude = ['main_category']
 
 
 class ColorSerializer(ModelSerializer):
@@ -63,6 +52,12 @@ class OptionSerializer(ModelSerializer):
         return ret
 
 
+class TagSerializer(ModelSerializer):
+    class Meta:
+        model = models.Tag
+        fields = ['name']
+
+
 class ProductImagesSerializer(Serializer):
     id = IntegerField(read_only=True)
     url = URLField(max_length=200)
@@ -81,6 +76,7 @@ class ProductSerializer(Serializer):
     sub_category = PrimaryKeyRelatedField(write_only=True, queryset=models.SubCategory.objects.all())
     options = OptionSerializer(many=True, source='related_options')
     images = ProductImagesSerializer(many=True, source='related_images')
+    tags = TagSerializer(many=True, source='related_tags')
     on_sale = BooleanField(required=False)
 
 
@@ -100,9 +96,10 @@ class ProductSerializer(Serializer):
     def to_representation_retrieve(self, ret, instance):
         ret['sub_category'] = SubCategorySerializer(instance.sub_category).data
         ret['main_category'] = MainCategorySerializer(instance.sub_category.main_category).data
-            
+        ret['tags'] = [tag['name'] for tag in ret['tags']]
+
         related_images = ret.get('images', None)
-        if related_images:
+        if related_images is not None:
             for image in related_images:
                 image['url'] = BASE_IMAGE_URL + image['url']
         else:
@@ -112,10 +109,10 @@ class ProductSerializer(Serializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-
-        if self.context['action'] == 'retrieve':
+        
+        if self.context['detail']:
             ret = self.to_representation_retrieve(ret, instance)
-        elif self.context['action'] == 'list':
+        else:
             ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].url) if instance.related_images else DEFAULT_IMAGE_URL
 
         return ret
