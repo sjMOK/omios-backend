@@ -10,7 +10,6 @@ class MainCategory(Model):
     image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
 
     class Meta:
-        managed = False
         db_table = 'main_category'
         ordering = ['id']
 
@@ -24,7 +23,6 @@ class SubCategory(Model):
     name = CharField(max_length=20)
 
     class Meta:
-        managed = False
         db_table = 'sub_category'
 
     def __str__(self):
@@ -43,7 +41,6 @@ class Product(Model):
     tags = ManyToManyField('Tag', through='ProductTag')
 
     class Meta:
-        managed = False
         db_table = 'product'
 
     def __str__(self):
@@ -57,7 +54,6 @@ class ProductImages(Model):
     sequence = IntegerField()
 
     class Meta:
-        managed = False
         db_table = 'product_images'
         ordering = ['sequence']
 
@@ -68,7 +64,6 @@ class Color(Model):
     image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
 
     class Meta:
-        managed = False
         db_table = 'color'
 
     def __str__(self):
@@ -80,7 +75,6 @@ class Size(Model):
     name = CharField(unique=True, max_length=10)
 
     class Meta:
-        managed = False
         db_table = 'size'
         ordering = ['id']
 
@@ -97,7 +91,6 @@ class Option(Model):
     price_difference = IntegerField()
 
     class Meta:
-        managed = False
         db_table = 'option'
 
 
@@ -106,7 +99,6 @@ class Tag(Model):
     name = CharField(unique=True, max_length=20)
 
     class Meta:
-        managed = False
         db_table = 'tag'
 
     def __str__(self):
@@ -119,7 +111,6 @@ class ProductTag(Model):
     tag = ForeignKey('Tag', DO_NOTHING)
 
     class Meta:
-        managed = False
         db_table = 'product_tag'
         unique_together = (('product', 'tag'),)
 
@@ -129,13 +120,4 @@ class Keyword(Model):
     name = CharField(unique=True, max_length=20)
 
     class Meta:
-        managed = False
         db_table = 'keyword'
-
-
-class KeywordNgram(Model):
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        managed = False
-        db_table = 'keyword_ngram'
