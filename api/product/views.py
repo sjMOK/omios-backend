@@ -1,6 +1,6 @@
 from django.db.models.query import Prefetch
 from django.db import connection
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
@@ -15,18 +15,7 @@ from common.utils import get_result_message, querydict_to_dict, levenshtein
 from common.storage import upload_images
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_search_box_data(request):
-    search_word = request.query_params.get('query', None)
-    if search_word is None:
-        return Response('검색어를 입력하세요')
-
-    sub_categories = models.SubCategory.objects.filter(name__contains=search_word)
-    sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
-
-    keywords = list(models.Keyword.objects.filter(name__contains=search_word).values_list('name', flat=True))
-
+def sort_keywords(keywords, search_word):
     keywords_leven_distance = [
         {'name': keyword, 'distance': levenshtein(search_word, keyword)}
         for keyword in keywords
@@ -36,11 +25,26 @@ def get_search_box_data(request):
     if len(sorted_keywords) > 10:
         sorted_keywords = sorted_keywords[:10]
 
-    keyword_response_data = [keyword['name'] for keyword in sorted_keywords]
+    return [keyword['name'] for keyword in sorted_keywords]
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_searchbox_data(request):
+    search_word = request.query_params.get('query', None)
+
+    if search_word is None:
+        return Response(get_result_message(HTTP_400_BAD_REQUEST, 'search word is required.'), status=HTTP_400_BAD_REQUEST)
+
+    sub_categories = models.SubCategory.objects.filter(name__contains=search_word)
+    sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
+
+    keywords = list(models.Keyword.objects.filter(name__contains=search_word).values_list('name', flat=True))
+    sorted_keywords = sort_keywords(keywords, search_word)
 
     response_data = {
         'sub_category': sub_category_serializer.data,
-        'keyword': keyword_response_data
+        'keyword': sorted_keywords
     }
 
     return Response(get_result_message(data=response_data))
@@ -51,6 +55,7 @@ def get_search_box_data(request):
 def get_main_categories(request):
     queryset = models.MainCategory.objects.all()
     serializer = serializers.MainCategorySerializer(queryset, many=True)
+
     return Response(get_result_message(data=serializer.data))
 
 
@@ -59,11 +64,8 @@ def get_main_categories(request):
 def get_sub_categories(request, id=None):
     main_category = get_object_or_404(models.MainCategory, id=id)
     serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
-    data = {
-        'main_category_id': main_category.id,
-        'sub_category': serializer.data,
-    }
-    return Response(get_result_message(data=data))
+
+    return Response(get_result_message(data=serializer.data))
 
 
 @api_view(['GET'])
@@ -80,7 +82,7 @@ def upload_prdocut_image(request):
 
     serializer = serializers.ImageSerializer(data=[{'image': image} for image in images], many=True)
     if not serializer.is_valid():
-        return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors))
+        return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
 
     images = upload_images('product', request.user.id, images)
 
@@ -93,17 +95,18 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
-    default_fields = ('id', 'name', 'price',)
+    default_fields = ('id', 'name', 'price')
     additional_fields = {
         'shopper_list': (),
-        'shopper_detail': ('options', 'sub_category', 'images'),
+        'shopper_detail': ('options', 'sub_category', 'images', 'tags'),
         'wholesaler_list': ('created',),
-        'wholesaler_detail': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images',),
+        'wholesaler_detail': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'),
     }
 
     def get_allowed_fields(self):
         request_type = 'detail' if self.detail else 'list'
         user_action = 'wholesaler_{0}'.format(request_type) if hasattr(self.request.user, 'wholesaler') else 'shopper_{0}'.format(request_type)
+
         return self.default_fields + self.additional_fields[user_action]
 
     def get_object(self, queryset):
@@ -121,8 +124,14 @@ class ProductViewSet(viewsets.GenericViewSet):
 
     def get_queryset(self):
         if hasattr(self.request.user, 'wholesaler'):
-            return models.Product.objects.filter(wholesaler=self.request.user)
-        return models.Product.objects.filter(on_sale=True)
+            condition = Q(wholesaler=self.request.user)
+        else:
+            condition = Q(on_sale=True)
+        
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        prefetch_tags = Prefetch('tags', to_attr='related_tags')
+
+        return models.Product.objects.prefetch_related(prefetch_images, prefetch_tags).filter(condition)
 
     def filter_queryset(self, queryset):
         query_params = querydict_to_dict(self.request.query_params)
@@ -142,8 +151,8 @@ class ProductViewSet(viewsets.GenericViewSet):
                     filterset[filter_mapping[key] + '__in'] = value    
                 else:
                     filterset[filter_mapping[key]] = value
-        
-        return queryset.filter(**filterset).distinct()
+                     
+        return queryset.filter(**filterset).annotate(count_id=Count('id'))
 
     def sort_queryset(self, queryset):
         sort_mapping = {
@@ -161,36 +170,36 @@ class ProductViewSet(viewsets.GenericViewSet):
         return queryset.order_by(*sort_set)
 
     def get_response_for_list(self, queryset):
+        queryset = queryset.only(*self.default_fields)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(
                 page, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
             )
             paginated_response = self.get_paginated_response(serializer.data)
+
             return Response(get_result_message(data=paginated_response.data))
-        
+
         serializer = self.get_serializer(
             queryset, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
         )
-        
+
         return Response(get_result_message(data=serializer.data))
 
     def list(self, request):
-        prefetch_images = Prefetch('images', to_attr='related_images')
         queryset = self.sort_queryset(
             self.filter_queryset(
-                self.get_queryset().prefetch_related(prefetch_images)
+                self.get_queryset()
             )
-        )   
+        )
 
         return self.get_response_for_list(queryset)
 
     def retrieve(self, request, id=None):
         prefetch_options = Prefetch('options', queryset=models.Option.objects.select_related('size'), to_attr='related_options')
-        prefetch_images = Prefetch('images', to_attr='related_images')
 
         queryset = self.filter_queryset(
-            self.get_queryset().prefetch_related(prefetch_options, prefetch_images).select_related('sub_category__main_category')
+            self.get_queryset().prefetch_related(prefetch_options).select_related('sub_category__main_category')
         )
     
         product = self.get_object(queryset)
@@ -209,11 +218,6 @@ class ProductViewSet(viewsets.GenericViewSet):
         return Response(get_result_message(HTTP_201_CREATED, data={'id': product.id}))
 
     def partial_update(self, request, id=None):
-        product = self.get_object(self.get_queryset())
-        serializer = self.get_serializer(product, data=request.data, partial=True)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-
         return Response('product.partial_update()')
 
     def destroy(self, request, id=None):
@@ -227,18 +231,14 @@ class ProductViewSet(viewsets.GenericViewSet):
     def search(self, request):
         search_word = request.query_params.get('query', None)
         if search_word is None:
-            return Response('검색어를 입력하세요')
-        elif len(search_word) < 2:
-            return Response('검색어 두 자 이상')
+            return Response(get_result_message(code=HTTP_400_BAD_REQUEST, message='검색어를 입력하세요.'), status=HTTP_400_BAD_REQUEST)
 
         tag_id_list = list(models.Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
-        prefetch_tags = Prefetch('tags', to_attr='related_tags')
-        prefetch_images = Prefetch('images', to_attr='related_images')
         queryset = self.sort_queryset(
             self.filter_queryset(
-                self.get_queryset().filter(condition).prefetch_related(prefetch_images, prefetch_tags)
+                self.get_queryset().filter(condition)
             )
         )
 

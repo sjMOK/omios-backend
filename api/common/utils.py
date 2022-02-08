@@ -27,21 +27,29 @@ def levenshtein(a_text, b_text):
     a_len = len(a_text) + 1 
     b_len = len(b_text) + 1 
     array = [ [] for a in range(a_len) ] 
+
     for i in range(a_len): 
-        array[i] = [0 for a in range(b_len)] 
-    for i in range(b_len): array[0][i] = i 
-    for i in range(a_len): array[i][0] = i 
+        array[i] = [0 for _ in range(b_len)] 
+
+    for i in range(b_len):
+        array[0][i] = i 
+    
+    for i in range(a_len): 
+        array[i][0] = i 
+
     cost = 0 
-    for i in range(1,a_len): 
-        for j in range(1,b_len): 
+    for i in range(1, a_len): 
+        for j in range(1, b_len): 
             if a_text[i-1] != b_text[j-1]: 
                 cost = 1 
             else : 
                 cost = 0 
+
             addNum = array[i-1][j] + 1 
             minusNum = array[i][j-1] + 1 
-            modiNum = array[i-1][j-1]+cost 
-            minNum = min([addNum,minusNum,modiNum]) 
+            modiNum = array[i-1][j-1] + cost 
+            minNum = min([addNum, minusNum, modiNum]) 
+
             array[i][j] = minNum 
             
     return array[a_len-1][b_len-1]
