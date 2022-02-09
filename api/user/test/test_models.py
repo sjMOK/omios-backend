@@ -3,8 +3,7 @@ from rest_framework.test import APITestCase
 from rest_framework.exceptions import APIException
 from freezegun import freeze_time
 
-from common.test import ModelTestCase
-from common.utils import FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.test import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from ..models import Membership, User, Shopper, Wholesaler
 
 

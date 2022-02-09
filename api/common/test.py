@@ -1,6 +1,10 @@
 from rest_framework.test import APITestCase
 from rest_framework.exceptions import APIException
 
+FREEZE_TIME = '2021-11-20 01:02:03.456789'
+FREEZE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+FREEZE_TIME_AUTO_TICK_SECONDS = 10
+
 
 class ModelTestCase(APITestCase):
     _model_class = None
