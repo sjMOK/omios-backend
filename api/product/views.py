@@ -1,6 +1,6 @@
 from django.db.models.query import Prefetch
 from django.db import connection
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
@@ -133,7 +133,7 @@ class ProductViewSet(viewsets.GenericViewSet):
             condition = Q(wholesaler=self.request.user)
         else:
             condition = Q(on_sale=True)
-        
+
         prefetch_images = Prefetch('images', to_attr='related_images')
         prefetch_tags = Prefetch('tags', to_attr='related_tags')
 
@@ -157,8 +157,8 @@ class ProductViewSet(viewsets.GenericViewSet):
                     filterset[filter_mapping[key] + '__in'] = value    
                 else:
                     filterset[filter_mapping[key]] = value
-                     
-        return queryset.filter(**filterset).annotate(count_id=Count('id'))
+
+        return queryset.filter(**filterset)                     
 
     def sort_queryset(self, queryset):
         sort_mapping = {
@@ -175,31 +175,32 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
-    def get_response_for_list(self, queryset):
-        queryset = queryset.only(*self.default_fields)
+    def get_response_for_list(self, queryset, **extra_data):
+        queryset = self.sort_queryset(
+            self.filter_queryset(queryset)
+        ).alias(Count('id')).only(*self.default_fields)
+
         page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(
-                page, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
-            )
-            paginated_response = self.get_paginated_response(serializer.data)
-
-            return Response(get_result_message(data=paginated_response.data))
-
         serializer = self.get_serializer(
-            queryset, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
+            page, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
         )
 
-        return Response(get_result_message(data=serializer.data))
+        paginated_response = self.get_paginated_response(serializer.data)
+        paginated_response.data.update(extra_data)
+
+        return Response(get_result_message(data=paginated_response.data))
 
     def list(self, request):
-        queryset = self.sort_queryset(
-            self.filter_queryset(
-                self.get_queryset()
-            )
-        )
+        queryset = self.get_queryset()
 
-        return self.get_response_for_list(queryset)
+        if 'main_category' in request.query_params:
+            queryset = queryset.filter(sub_category__main_category_id=request.query_params.get('main_category'))
+        if 'sub_category' in request.query_params:
+            queryset = queryset.filter(sub_category_id=request.query_params.get('sub_category'))
+
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        return self.get_response_for_list(queryset, max_price=max_price)
 
     def retrieve(self, request, id=None):
         prefetch_options = Prefetch('options', queryset=models.Option.objects.select_related('size'), to_attr='related_options')
@@ -209,7 +210,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         )
     
         product = self.get_object(queryset)
-        
+
         serializer = self.get_serializer(product, fields=self.get_allowed_fields(), context={'detail': self.detail})
 
         return Response(get_result_message(data=serializer.data))
@@ -242,10 +243,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         tag_id_list = list(models.Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
-        queryset = self.sort_queryset(
-            self.filter_queryset(
-                self.get_queryset().filter(condition)
-            )
-        )
+        queryset = self.get_queryset().filter(condition)
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
 
-        return self.get_response_for_list(queryset)
+        return self.get_response_for_list(queryset, max_price=max_price)
