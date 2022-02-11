@@ -1,19 +1,18 @@
 from django.utils import timezone
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.views import TokenViewBase
 
-from common import utils
+from common.utils import get_response
 from . import models, serializers, permissions
 
 
 class TokenView(TokenViewBase):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data = utils.get_result_message(HTTP_201_CREATED, data=response.data)
+        response.data = get_response(status=HTTP_201_CREATED, data=response.data)
         response.status_code = HTTP_201_CREATED
         return response
 
@@ -46,37 +45,37 @@ class UserDetailView(APIView):
     def get(self, request):
         serializer = self._serializer_class(instance=self._get_model_instance(request.user))
 
-        return Response(utils.get_result_message(data=serializer.data))
+        return get_response(data=serializer.data)
 
     def post(self, request):
         serializer = self._serializer_class(data=request.data)
 
         if not serializer.is_valid():
-            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
         
         user = serializer.save()
-        
-        return Response(utils.get_result_message(HTTP_201_CREATED, data={'id': user.user_id}), status=HTTP_201_CREATED)
+
+        return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
 
     def patch(self, request):
         if 'password' in request.data:
-            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'password modification is not allowed in PATCH method'), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message='password modification is not allowed in PATCH method')
         
         serializer = self._serializer_class(instance=self._get_model_instance(request.user), data=request.data, partial=True)
 
         if not serializer.is_valid():
-            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, self.serializer.errors), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
         user = serializer.save()
 
-        return Response(utils.get_result_message(data={'id': user.user_id}))
+        return get_response(data={'id': user.user_id})
 
     def delete(self, request):
         user = request.user
         user.is_active = False
         user.save()
 
-        return Response(utils.get_result_message(data={'id': user.id}), status=HTTP_200_OK)
+        return get_response(data={'id': user.id})
 
 
 class ShopperDetailView(UserDetailView):
@@ -109,14 +108,14 @@ class UserPasswordView(APIView):
     
         serializer = serializers.UserPasswordSerializer(data=request.data, user=request.user)
         if not serializer.is_valid():
-            return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
         user.set_password(serializer.validated_data['new_password'])
         user.last_update_password = timezone.now()
         user.save()
         self.__discard_refresh_token_by_user_id(user.id)
 
-        return Response(utils.get_result_message(data={'id': user.id}), status=HTTP_200_OK)
+        return get_response(data={'id': user.id})
 
 
 @api_view(['GET'])
@@ -131,12 +130,12 @@ def is_unique(request):
 
     request_data = list(request.query_params.items())
     if len(request.query_params) != 1:
-        return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'Only one parameter is allowed.'), status=HTTP_400_BAD_REQUEST)
+        return get_response(status=HTTP_400_BAD_REQUEST, message='Only one parameter is allowed.')
     elif request_data[0][0] not in mapping.keys():
-        return Response(utils.get_result_message(HTTP_400_BAD_REQUEST, 'Invalid parameter name.'), status=HTTP_400_BAD_REQUEST)
+        return get_response(status=HTTP_400_BAD_REQUEST, message='Invalid parameter name.')
 
     mapping_data = mapping[request_data[0][0]]
     if mapping_data['model'].objects.filter(**{mapping_data['column']: request_data[0][1]}).exists():
-        return Response(utils.get_result_message(data={'is_unique': False}), status=HTTP_200_OK)
+        return get_response(data={'is_unique': False})
 
-    return Response(utils.get_result_message(data={'is_unique': True}), status=HTTP_200_OK)
+    return get_response(data={'is_unique': True})

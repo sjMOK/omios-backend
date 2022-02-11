@@ -5,13 +5,12 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from . import models, serializers, permissions
-from common.utils import get_result_message, querydict_to_dict, levenshtein
+from common.utils import get_response, querydict_to_dict, levenshtein
 from common.storage import upload_images
 
 
@@ -34,7 +33,7 @@ def get_searchbox_data(request):
     search_word = request.query_params.get('query', None)
 
     if search_word is None:
-        return Response(get_result_message(HTTP_400_BAD_REQUEST, 'search word is required.'), status=HTTP_400_BAD_REQUEST)
+        return get_response(status=HTTP_400_BAD_REQUEST, message='search word is required.')
 
     condition = Q(name__contains=search_word)
 
@@ -53,7 +52,7 @@ def get_searchbox_data(request):
         'keyword': sorted_keywords
     }
 
-    return Response(get_result_message(data=response_data))
+    return get_response(data=response_data)
 
 
 @api_view(['GET'])
@@ -62,7 +61,7 @@ def get_main_categories(request):
     queryset = models.MainCategory.objects.all()
     serializer = serializers.MainCategorySerializer(queryset, many=True)
 
-    return Response(get_result_message(data=serializer.data))
+    return get_response(data=serializer.data)
 
 
 @api_view(['GET'])
@@ -71,7 +70,7 @@ def get_sub_categories(request, id=None):
     main_category = get_object_or_404(models.MainCategory, id=id)
     serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
 
-    return Response(get_result_message(data=serializer.data))
+    return get_response(data=serializer.data)
 
 
 @api_view(['GET'])
@@ -79,7 +78,8 @@ def get_sub_categories(request, id=None):
 def get_colors(request):
     queryset = models.Color.objects.all()
     serializer = serializers.ColorSerializer(queryset, many=True)
-    return Response(get_result_message(data=serializer.data))
+
+    return get_response(data=serializer.data)
 
 
 @api_view(['POST'])
@@ -88,11 +88,11 @@ def upload_prdocut_image(request):
 
     serializer = serializers.ImageSerializer(data=[{'image': image} for image in images], many=True)
     if not serializer.is_valid():
-        return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
+        return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
     images = upload_images('product', request.user.id, images)
 
-    return Response(get_result_message(HTTP_201_CREATED, data={'images': images}), status=HTTP_201_CREATED)
+    return get_response(status=HTTP_201_CREATED, data={'images': images})
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -188,7 +188,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         paginated_response = self.get_paginated_response(serializer.data)
         paginated_response.data.update(extra_data)
 
-        return Response(get_result_message(data=paginated_response.data))
+        return get_response(data=paginated_response.data)
 
     def list(self, request):
         queryset = self.get_queryset()
@@ -213,32 +213,32 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         serializer = self.get_serializer(product, fields=self.get_allowed_fields(), context={'detail': self.detail})
 
-        return Response(get_result_message(data=serializer.data))
+        return get_response(data=serializer.data)
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
         if not serializer.is_valid():
-            return Response(get_result_message(HTTP_400_BAD_REQUEST, serializer.errors), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
         product = serializer.save()
 
-        return Response(get_result_message(HTTP_201_CREATED, data={'id': product.id}))
+        return get_response(status=HTTP_201_CREATED, data={'id': product.id})
 
     def partial_update(self, request, id=None):
-        return Response('product.partial_update()')
+        return get_response(data='product.partial_update()')
 
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
         product.on_sale = False
         product.save()
 
-        return Response(get_result_message(data={'id': product.id}))
+        return get_response(data={'id': product.id})
 
     @action(detail=False, url_path='search')
     def search(self, request):
         search_word = request.query_params.get('query', None)
         if search_word is None:
-            return Response(get_result_message(code=HTTP_400_BAD_REQUEST, message='검색어를 입력하세요.'), status=HTTP_400_BAD_REQUEST)
+            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
         tag_id_list = list(models.Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)

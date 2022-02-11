@@ -6,8 +6,6 @@ from drf_yasg import openapi
 
 from user.urls import token_urlpatterns
 
-handler400 = 'common.views.custom_400_view'
-handler403 = 'common.views.custom_403_view'
 handler404 = 'common.views.custom_404_view'
 handler500 = 'common.views.custom_500_view'
 

@@ -1,16 +1,44 @@
+from datetime import timedelta
+from django.http import JsonResponse
+from rest_framework.response import Response
+from rest_framework.exceptions import APIException
+
+
 DEFAULT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/default.png'
 BASE_IMAGE_URL= 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/'
 
 
-def get_result_message(code=200, message='success', data=None):
+def get_response_body(code, message='success', data=None):
+    if int(code / 100) == 2:
+        if message != 'success':
+            raise APIException('Success response must contain "success" message.')
+        elif data is None:
+            raise APIException('Success response must contain data.')
+    else:
+        if message == 'success':
+            raise APIException('Failure response must not contain "success" message.')
+        elif data is not None:
+            raise APIException('Failure response must not contain data.')
+
     result = {
         'code': code,
         'message': message, 
     }
-    if data and int(code / 100) == 2:
+
+    if data is not None:
         result['data'] = data
 
     return result
+
+
+def get_response(type='drf', status=200, **kwargs):
+    response_class = None
+    if type == 'django':
+        response_class = JsonResponse
+    elif type == 'drf':
+        response_class = Response
+
+    return response_class(get_response_body(code=status, **kwargs), status=status)
 
 
 def querydict_to_dict(querydict):
@@ -25,7 +53,6 @@ def querydict_to_dict(querydict):
 
 
 def gmt_to_kst(gmt):
-    from datetime import timedelta
     return gmt + timedelta(hours=9)
 
 
