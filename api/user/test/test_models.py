@@ -1,5 +1,4 @@
 from datetime import datetime
-from rest_framework.test import APITestCase
 from rest_framework.exceptions import APIException
 from freezegun import freeze_time
 
@@ -42,7 +41,7 @@ class UserTest(ModelTestCase):
         self.assertEqual(user.created_at, user.last_update_password)
         
     def test_default_save(self):
-        self.assertRaises(APIException, self._get_model().save)
+        self.assertRaisesRegex(APIException, r'^User model save method requires force_insert or update_fields.$', self._get_model().save)
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_save_using_force_insert(self):
@@ -62,7 +61,7 @@ class UserTest(ModelTestCase):
         self.assertGreater(user.last_update_password, user.created_at)
 
     def test_public_set_password(self):
-        self.assertRaises(APIException, self._get_model().set_password, self.test_data['password'])
+        self.assertRaisesRegex(APIException, r'^Public set_password method must not used.$', self._get_model().set_password, self.test_data['password'])
     
 
 class ShopperTest(ModelTestCase):
@@ -83,7 +82,7 @@ class ShopperTest(ModelTestCase):
     def test_create(self):
         shopper = self._get_model_after_creation()
         
-        self.assertTrue(shopper.user)
+        self.assertIsInstance(shopper.user, User)
         self.assertTrue(shopper.membership)
         self.assertEqual(shopper.name, self.test_data['name'])
         self.assertEqual(shopper.birthday, self.test_data['birthday'])
@@ -103,5 +102,5 @@ class ShopperTest(ModelTestCase):
         self.assertTrue(shopper.nickname.startswith('omios_'))
 
 
-class WholesalerTest(APITestCase):
+class WholesalerTest(ModelTestCase):
     pass

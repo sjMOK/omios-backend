@@ -1,13 +1,11 @@
 from random import randint
 from datetime import datetime
-from rest_framework.test import APITestCase, APITransactionTestCase
 
 from common.test import SerializerTestCase
 from common.factory import get_factory_password, UserFactory, ShopperFactory, WholesalerFactory
 from ..models import OutstandingToken
 from ..serializers import UserAccessTokenSerializer, UserPasswordSerializer, UserRefreshTokenSerializer, RefreshToken, UserSerializer
 
-from django.test import tag
 
 def get_authentication_data(user):
     return {
@@ -72,14 +70,26 @@ class UserSerializerTest(SerializerTestCase):
 
         return super()._get_serializer(data=self.test_data, **kwargs)
 
-    def test_password_regex_validation(self):
-        test_passwords = ['username00', 'USERNAME00', 'usernameUSERNAME']
-        for test_password in test_passwords:
-            serializer = self._get_serializer(test_password)
+    def test__lowercase_number_password_regex_validation(self):
+        serializer = self._get_serializer('username00')
 
-            self.assertTrue(not serializer.is_valid())
-            self.assertTrue('password' in serializer.errors)
-            self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
+        self.assertTrue(not serializer.is_valid())
+        self.assertTrue('password' in serializer.errors)
+        self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
+
+    def test__uppercase_number_password_regex_validation(self):
+        serializer = self._get_serializer('USERNAME00')
+
+        self.assertTrue(not serializer.is_valid())
+        self.assertTrue('password' in serializer.errors)
+        self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
+
+    def test__lowercase_uppercase_password_regex_validation(self):
+        serializer = self._get_serializer('usernameUSERNAME')
+
+        self.assertTrue(not serializer.is_valid())
+        self.assertTrue('password' in serializer.errors)
+        self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
 
     def test_password_similarity_validation(self):
         serializer = self._get_serializer('Username00')
