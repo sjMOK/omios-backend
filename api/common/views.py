@@ -1,7 +1,7 @@
-from django.http import JsonResponse
 from rest_framework.views import exception_handler
 
-from .utils import get_result_message
+from .utils import get_response, get_response_body
+
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
@@ -16,18 +16,13 @@ def custom_exception_handler(exc, context):
     elif isinstance(response.data, list):
         message = response.data
     
-    response.data = get_result_message(response.status_code, message)
+    response.data = get_response_body(response.status_code, message)
     return response
 
-def custom_400_view(request, exception):
-    return JsonResponse(get_result_message(400, 'Bad Request'), status=400)
-
-def custom_403_view(request, exception):
-    return JsonResponse(get_result_message(400, 'Forbidden'), status=403)    
 
 def custom_404_view(request, exception):
-    return JsonResponse(get_result_message(404, 'Page Not Found, please check url'), status=404)
+    return get_response('django', 404, message='Page Not Found, please check url.')
+
 
 def custom_500_view(request):
-    return JsonResponse(get_result_message(500, 'Server Error'), status=500)
-
+    return get_response('django', 500, message='Server Error.')

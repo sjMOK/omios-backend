@@ -23,7 +23,7 @@ class Color(serializers.ColorSerializer):
 
 
 decorated_main_category_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(MainCategory(many=True)), security=[], operation_description='상품 메인 카테고리 가져오기'
+    method='GET', **documentation.get_response(serializers.MainCategorySerializer(many=True)), security=[], operation_description='상품 메인 카테고리 가져오기'
 )(views.get_main_categories)
 
 decorated_sub_category_view = swagger_auto_schema(

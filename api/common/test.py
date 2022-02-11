@@ -1,5 +1,25 @@
-from rest_framework.test import APITestCase
+from django.utils.module_loading import import_string
+from rest_framework.test import APISimpleTestCase, APITestCase
 from rest_framework.exceptions import APIException
+
+
+FREEZE_TIME = '2021-11-20 01:02:03.456789'
+FREEZE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+FREEZE_TIME_AUTO_TICK_SECONDS = 10
+
+
+class FunctionTestCase(APISimpleTestCase):
+    _function = None
+
+    def __init__(self, *args, **kwargs):
+        if self._function is None:
+            raise APIException('_function must be written')
+
+        self._function = import_string('%s.%s' % (self._function.__module__, self._function.__name__))
+        super().__init__(*args, **kwargs)
+
+    def _call_function(self, *args, **kwargs):
+        return self._function(*args, **kwargs)
 
 
 class ModelTestCase(APITestCase):
