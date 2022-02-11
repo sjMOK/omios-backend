@@ -104,7 +104,7 @@ class GmtToKstTestCase(FunctionTestCase):
 
     def test(self):
         test_data = datetime.now()
-        self.assertEqual(gmt_to_kst(test_data), test_data + timedelta(hours=9))
+
         self.assertEqual(self._call_function(test_data), test_data + timedelta(hours=9))
 
 
@@ -137,5 +137,3 @@ class LeveshteinTestCase(FunctionTestCase):
         expected_result = 5
 
         self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
-
-        
