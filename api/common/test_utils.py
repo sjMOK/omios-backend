@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from django.http import QueryDict
 from rest_framework.test import APISimpleTestCase
 
-from .utils import get_result_message, querydict_to_dict, gmt_to_kst
+from .utils import get_result_message, querydict_to_dict, gmt_to_kst, levenshtein
 
 
 class GetResultMessageTestCase(APISimpleTestCase):
@@ -50,3 +50,32 @@ class GmtToKstTestCase(APISimpleTestCase):
     def test(self):
         test_data = datetime.now()
         self.assertEqual(gmt_to_kst(test_data), test_data + timedelta(hours=9))
+
+
+class LeveshteinTestCase(APISimpleTestCase):
+    def setUp(self):
+        self.basis_word = '원피스'
+
+    def test_additional_string_in_front(self):
+        test_word = '니트원피스'
+        expected_result = 2
+
+        self.assertEqual(levenshtein(self.basis_word, test_word), expected_result)
+
+    def test_additional_string_in_rear(self):
+        test_word = '원피스 수영복'
+        expected_result = 4
+
+        self.assertEqual(levenshtein(self.basis_word, test_word), expected_result)
+
+    def test_similar_word(self):
+        test_word = '원피피스'
+        expected_result = 1
+
+        self.assertEqual(levenshtein(self.basis_word, test_word), expected_result)
+
+    def test_completely_different_word(self):
+        test_word = '체크가디건'
+        expected_result = 5
+
+        self.assertEqual(levenshtein(self.basis_word, test_word), expected_result)
