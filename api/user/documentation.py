@@ -56,21 +56,21 @@ class Shopper(ModelSerializer):
 
 class DecoratedUserRefreshTokenView(views.UserRefreshTokenView):
     def post(self, request, *args, **kwargs):
-        super().post(request, *args, **kwargs)
+        return super().post(request, *args, **kwargs)
 
 
 class DecoreatedWholesalerDetailView(views.WholesalerDetailView):
     def get(self, request):
-        super().get(request)
+        return super().get(request)
 
     def post(self, request):
-        super().post(request)
+        return super().post(request)
 
     def patch(self, request):
-        super().patch(request)
+        return super().patch(request)
 
     def delete(self, request):
-        super().delete(request)
+        return super().delete(request)
 
 
 decorated_access_token_view = swagger_auto_schema(

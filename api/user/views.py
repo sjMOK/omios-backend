@@ -5,16 +5,13 @@ from rest_framework.views import APIView
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.views import TokenViewBase
 
-from common.utils import get_response
+from common.utils import get_response, get_response_body
 from . import models, serializers, permissions
 
 
 class TokenView(TokenViewBase):
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        response.data = get_response(status=HTTP_201_CREATED, data=response.data)
-        response.status_code = HTTP_201_CREATED
-        return response
+        return get_response(status=HTTP_201_CREATED, data=super().post(request, *args, **kwargs).data)
 
 
 class UserBlacklistTokenView(TokenView):
@@ -24,7 +21,7 @@ class UserBlacklistTokenView(TokenView):
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        response.data['data'] = {'id': request.user.id}
+        response.data = get_response_body(response.status_code, data={'id': request.user.id})
         return response
 
 
