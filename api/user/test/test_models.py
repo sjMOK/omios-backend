@@ -60,8 +60,11 @@ class UserTest(ModelTestCase):
         self.assertTrue(user.check_password(self.test_data['password']))
         self.assertGreater(user.last_update_password, user.created_at)
 
-    def test_public_set_password(self):
-        self.assertRaisesRegex(APIException, r'^Public set_password method must not used.$', self._get_model().set_password, self.test_data['password'])
+    def test_save__after_public_set_password(self):
+        user = self._get_model_after_creation()
+        user.set_password('new_password')
+
+        self.assertRaisesRegex(APIException, r'^The save method cannot be used when the public set_password method is used.$', user.save)
     
 
 class ShopperTest(ModelTestCase):
