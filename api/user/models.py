@@ -32,15 +32,14 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'username'
 
-    def set_password(self, raw_password):
-        raise APIException('Public set_password method must not used.')
-
     def __set_password(self, update_time):
         super().set_password(self.password)
         self.last_update_password = update_time
 
     def save(self, force_insert=False, update_fields=None, *args, **kwargs):
-        if (not force_insert and update_fields is None):
+        if self._password is not None:
+            raise APIException('The save method cannot be used when the public set_password method is used.')
+        elif (not force_insert and update_fields is None):
             raise APIException('User model save method requires force_insert or update_fields.')
 
         if force_insert:

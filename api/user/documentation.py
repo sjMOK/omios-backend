@@ -79,7 +79,7 @@ decorated_access_token_view = swagger_auto_schema(
 
 decorated_refresh_token_view = swagger_auto_schema(
     method='POST', request_body=RefreshTokenRequest, **documentation.get_response(Token(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
-)(views.UserRefreshTokenView.as_view())
+)(DecoratedUserRefreshTokenView.as_view())
 
 decorated_blacklist_token_view = swagger_auto_schema(
     method='POST', request_body=RefreshTokenRequest, **documentation.get_response(code=201), operation_description='refresh 토큰 폐기 (로그아웃)'
