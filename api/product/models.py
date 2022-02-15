@@ -56,6 +56,28 @@ class ProductImages(Model):
     class Meta:
         db_table = 'product_images'
         ordering = ['sequence']
+        unique_together = (('product', 'sequence'),)
+
+
+class Tag(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        db_table = 'tag'
+
+    def __str__(self):
+        return self.name
+
+
+class ProductTag(Model):
+    id = AutoField(primary_key=True)
+    product = ForeignKey('Product', DO_NOTHING)
+    tag = ForeignKey('Tag', DO_NOTHING)
+
+    class Meta:
+        db_table = 'product_tag'
+        unique_together = (('product', 'tag'),)
 
 
 class Color(Model):
@@ -88,31 +110,15 @@ class Option(Model):
     size = ForeignKey('Size', DO_NOTHING)
     color = ForeignKey('Color', DO_NOTHING)
     display_color_name = CharField(max_length=20)
-    price_difference = IntegerField()
+    price_difference = IntegerField(default=0)
 
     class Meta:
         db_table = 'option'
 
-
-class Tag(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        db_table = 'tag'
-
-    def __str__(self):
-        return self.name
-
-
-class ProductTag(Model):
-    id = AutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING)
-    tag = ForeignKey('Tag', DO_NOTHING)
-
-    class Meta:
-        db_table = 'product_tag'
-        unique_together = (('product', 'tag'),)
+    def save(self, *args, **kwargs):
+        if not self.display_color_name:
+            self.display_color_name = self.color.name
+        super().save(*args, **kwargs)
 
 
 class Keyword(Model):
