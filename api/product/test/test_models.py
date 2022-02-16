@@ -7,7 +7,11 @@ from pdb import set_trace
 from common.test import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from common.factory import WholesalerFactory
 from ..models import *
-from .factory import ProductFactory
+from .factory import (
+    MainCategoryFactory, SubCategoryFactory, ProductFactory, 
+    TagFactory, SizeFactory, ColorFactory
+)
+
 
 
 class MainCategoryTest(ModelTestCase):
@@ -32,7 +36,7 @@ class SubCategoryTest(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.main_category = MainCategory.objects.get(id=1)
+        cls.main_category = MainCategoryFactory()
 
     def setUp(self):
         self.test_data = {
@@ -48,13 +52,12 @@ class SubCategoryTest(ModelTestCase):
 
 
 class ProductTest(ModelTestCase):
-    fixtures = ['main_category', 'sub_category']
     _model_class = Product
 
     @classmethod
     def setUpTestData(cls):
         cls.wholesaler = WholesalerFactory(username='musinsa')
-        cls.sub_category = SubCategory.objects.get(id=1)
+        cls.sub_category = SubCategoryFactory()
 
     def setUp(self):
         self.test_data = {
@@ -82,11 +85,10 @@ class ProductTest(ModelTestCase):
 
 class ProductImagesTest(ModelTestCase):
     _model_class = ProductImages
-    fixtures = ['sub_category', 'main_category']
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory(sub_category=SubCategory.object.get(id=1))
+        cls.product = ProductFactory()
 
     def setUp(self):
         self.test_data = {
@@ -117,12 +119,11 @@ class TagTest(ModelTestCase):
 
 class ProductTagTest(ModelTestCase):
     _model_class = ProductTag
-    fixtures = ['sub_category', 'main_category']
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory(sub_category=SubCategory.objects.get(id=1))
-        cls.tag = Tag.objects.create(name='남친룩')
+        cls.product = ProductFactory()
+        cls.tag = TagFactory()
 
     def setUp(self):
         self.test_data = {
@@ -166,14 +167,13 @@ class SizeTest(ModelTestCase):
 
 
 class OptionTest(ModelTestCase):
-    fixtures = ['main_category', 'sub_category']
     _model_class = Option
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory(sub_category=SubCategory.objects.get(id=1))
-        cls.size = Size.objects.create(name='XS')
-        cls.color = Color.objects.create(name='블랙')
+        cls.product = ProductFactory()
+        cls.size = SizeFactory()
+        cls.color = ColorFactory()
 
     def setUp(self):
         self.test_data = {
