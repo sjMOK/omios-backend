@@ -11,7 +11,7 @@ class SerializerMixin:
 
             for field in allow_fields:
                 if field not in existing_fields:
-                    raise APIException('allow_fields <{0}> not in serializer.fields'.foramt(field))
+                    raise APIException('allow_fields <{0}> not in serializer.fields'.format(field))
 
             fields = set(self.fields) - set(allow_fields)
             for field in fields:
