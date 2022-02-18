@@ -19,7 +19,7 @@ class MainCategory(Model):
 
 class SubCategory(Model):
     id = AutoField(primary_key=True)
-    main_category = ForeignKey('MainCategory', DO_NOTHING)
+    main_category = ForeignKey('MainCategory', related_name='sub_categories', on_delete=DO_NOTHING)
     name = CharField(max_length=20)
     sizes = ManyToManyField('Size', through='SubCategorySize')
 
@@ -53,13 +53,61 @@ class Product(Model):
     style = ForeignKey('Style', DO_NOTHING)
     tags = ManyToManyField('Tag', through='ProductTag')
     laundry_informations = ManyToManyField('LaundryInformation', through='ProductLaundryInformation')
-    
+    age = ForeignKey('Age', DO_NOTHING)
+
     class Meta:
         managed = False
         db_table = 'product'
 
     def __str__(self):
         return self.name
+
+
+class Age(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(max_length=10)
+
+    class Meta:
+        managed = False
+        db_table = 'age'
+
+
+class Thickness(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(max_length=10)
+
+    class Meta:
+        managed = False
+        db_table = 'thickness'
+
+
+class SeeThrough(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(max_length=10)
+
+    class Meta:
+        managed = False
+        db_table = 'see_through'
+
+
+class Flexibility(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(max_length=10)
+
+    class Meta:
+        managed = False
+        db_table = 'flexibility'
+
+
+class ProductAdditionalInformation(Model):
+    product = OneToOneField('Product', DO_NOTHING, primary_key=True)       
+    thickness = ForeignKey('Thickness', DO_NOTHING)
+    see_through = ForeignKey('SeeThrough', DO_NOTHING)
+    flexibility = ForeignKey('Flexibility', DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'product_additional_information'
 
 
 class ProductImages(Model):
@@ -145,10 +193,7 @@ class Size(Model):
 
 class Option(Model):
     id = BigAutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING, related_name='options')
     size = ForeignKey('Size', DO_NOTHING)
-    color = ForeignKey('Color', DO_NOTHING)
-    display_color_name = CharField(max_length=20)
     price_difference = IntegerField(default=0)
     product_color = ForeignKey('ProductColor', DO_NOTHING)
     display_size_name = CharField(max_length=20)
@@ -158,8 +203,8 @@ class Option(Model):
         db_table = 'option'
 
     def save(self, *args, **kwargs):
-        if not self.display_color_name:
-            self.display_color_name = self.color.name
+        if not self.display_size_name:
+            self.display_size_name = self.size.name
         super().save(*args, **kwargs)
 
 
