@@ -21,6 +21,8 @@ class SubCategory(Model):
     id = AutoField(primary_key=True)
     main_category = ForeignKey('MainCategory', related_name='sub_categories', on_delete=DO_NOTHING)
     name = CharField(max_length=20)
+    require_product_additional_information = BooleanField()
+    require_laundry_information = BooleanField()
     sizes = ManyToManyField('Size', through='SubCategorySize')
 
     class Meta:
@@ -70,6 +72,7 @@ class Age(Model):
     class Meta:
         managed = False
         db_table = 'age'
+        ordering = ['id']
 
 
 class Thickness(Model):
@@ -79,6 +82,7 @@ class Thickness(Model):
     class Meta:
         managed = False
         db_table = 'thickness'
+        ordering = ['id']
 
 
 class SeeThrough(Model):
@@ -88,6 +92,7 @@ class SeeThrough(Model):
     class Meta:
         managed = False
         db_table = 'see_through'
+        ordering = ['id']
 
 
 class Flexibility(Model):
@@ -97,6 +102,7 @@ class Flexibility(Model):
     class Meta:
         managed = False
         db_table = 'flexibility'
+        ordering = ['id']
 
 
 class ProductAdditionalInformation(Model):
@@ -150,6 +156,7 @@ class Color(Model):
 
     class Meta:
         db_table = 'color'
+        ordering = ['id']
 
     def __str__(self):
         return self.name
@@ -223,6 +230,7 @@ class Style(Model):
     class Meta:
         managed = False
         db_table = 'style'
+        ordering = ['id']
 
 
 class LaundryInformation(Model):
@@ -232,6 +240,7 @@ class LaundryInformation(Model):
     class Meta:
         managed = False
         db_table = 'laundry_information'
+        ordering = ['id']
 
 
 class ProductLaundryInformation(Model):
@@ -252,6 +261,7 @@ class Material(Model):
     class Meta:
         managed = False
         db_table = 'material'
+        ordering = ['id']
 
 
 class ProductMaterial(Model):
