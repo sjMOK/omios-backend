@@ -1,5 +1,4 @@
 from django.db.models.query import Prefetch
-from django.db import connection
 from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
 from django.http import Http404
@@ -9,7 +8,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
-from . import models, serializers, permissions
+from .models import (
+    Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
+    Style, Keyword, Product, Option, Tag, Age, Thickness,
+)
+from .serializers import (
+    LaundryInformationSerializer, MainCategorySerializer, SizeSerializer, StyleSerializer, SubCategorySerializer, ColorSerializer, 
+    ImageSerializer, ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
+    FlexibilitySerializer,
+)
+from .permissions import ProductPermission
 from common.utils import get_response, querydict_to_dict, levenshtein
 from common.storage import upload_images
 
@@ -37,13 +45,13 @@ def get_searchbox_data(request):
 
     condition = Q(name__contains=search_word)
 
-    main_categories = models.MainCategory.objects.filter(condition)
-    main_category_serializer = serializers.MainCategorySerializer(main_categories, many=True)
+    main_categories = MainCategory.objects.filter(condition)
+    main_category_serializer = MainCategorySerializer(main_categories, many=True)
 
-    sub_categories = models.SubCategory.objects.filter(condition)
-    sub_category_serializer = serializers.SubCategorySerializer(sub_categories, many=True)
+    sub_categories = SubCategory.objects.filter(condition)
+    sub_category_serializer = SubCategorySerializer(sub_categories, many=True)
 
-    keywords = list(models.Keyword.objects.filter(condition).values_list('name', flat=True))
+    keywords = list(Keyword.objects.filter(condition).values_list('name', flat=True))
     sorted_keywords = sort_keywords(keywords, search_word)
 
     response_data = {
@@ -135,8 +143,8 @@ def get_sub_categories_by_main_category(request, id=None):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_colors(request):
-    queryset = models.Color.objects.all()
-    serializer = serializers.ColorSerializer(queryset, many=True)
+    queryset = Color.objects.all()
+    serializer = ColorSerializer(queryset, many=True)
 
     return get_response(data=serializer.data)
 
@@ -145,7 +153,7 @@ def get_colors(request):
 def upload_prdocut_image(request):
     images = request.FILES.getlist('image')
 
-    serializer = serializers.ImageSerializer(data=[{'image': image} for image in images], many=True)
+    serializer = ImageSerializer(data=[{'image': image} for image in images], many=True)
     if not serializer.is_valid():
         return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
@@ -155,8 +163,8 @@ def upload_prdocut_image(request):
 
 
 class ProductViewSet(viewsets.GenericViewSet):
-    permission_classes = [permissions.ProductPermission]
-    serializer_class = serializers.ProductSerializer
+    permission_classes = [ProductPermission]
+    serializer_class = ProductSerializer
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
@@ -196,7 +204,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         prefetch_images = Prefetch('images', to_attr='related_images')
         prefetch_tags = Prefetch('tags', to_attr='related_tags')
 
-        return models.Product.objects.prefetch_related(prefetch_images, prefetch_tags).filter(condition)
+        return Product.objects.prefetch_related(prefetch_images, prefetch_tags).filter(condition)
 
     def filter_queryset(self, queryset):
         query_params = querydict_to_dict(self.request.query_params)
@@ -262,7 +270,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         return self.get_response_for_list(queryset, max_price=max_price)
 
     def retrieve(self, request, id=None):
-        prefetch_options = Prefetch('options', queryset=models.Option.objects.select_related('size'), to_attr='related_options')
+        prefetch_options = Prefetch('options', queryset=Option.objects.select_related('size'), to_attr='related_options')
 
         queryset = self.filter_queryset(
             self.get_queryset().prefetch_related(prefetch_options).select_related('sub_category__main_category')
@@ -299,7 +307,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         if search_word is None:
             return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
-        tag_id_list = list(models.Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
+        tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
         queryset = self.get_queryset().filter(condition)

@@ -1,4 +1,8 @@
-from django.db.models import *
+from django.db.models import (
+    Model, ForeignKey, ManyToManyField, DO_NOTHING, OneToOneField, 
+    AutoField, CharField, ImageField,  BooleanField, BigAutoField, DateTimeField,
+    IntegerField,
+)
 from django.utils import timezone
 
 from common import storage

@@ -1,39 +1,48 @@
-from rest_framework.serializers import *
+from rest_framework.serializers import (
+    Serializer, ModelSerializer, IntegerField, CharField, ImageField, PrimaryKeyRelatedField,
+    URLField, DateTimeField, BooleanField,
+)
+from rest_framework.validators import UniqueValidator
 
-from . import models, validators
+from .validators import validate_file_size, validate_url
+from .models import (
+    SubCategory, MainCategory, Color, Size, Option, Tag, Product, ProductImages,
+) 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
+from common.serializers import DynamicFieldSerializer
 
 
-class MainCategorySerializer(ModelSerializer):
-    class Meta:
-        model = models.MainCategory
-        fields = '__all__'
+class SubCategorySerializer(DynamicFieldSerializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20)
+    sizes = PrimaryKeyRelatedField(many=True, read_only=True)
 
 
-class SubCategorySerializer(ModelSerializer):
-    main_category = MainCategorySerializer()
-    class Meta:
-        model = models.SubCategory
-        fields = '__all__'
+class MainCategorySerializer(DynamicFieldSerializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, validators=[UniqueValidator(queryset=MainCategory.objects.all())])
+    image_url = ImageField(max_length=200)
+    sub_category = SubCategorySerializer(many=True, allow_fields=('id', 'name'), source='sub_categories')
 
 
 class ColorSerializer(ModelSerializer):
     class Meta:
-        model = models.Color
+        model = Color
         fields = '__all__'
 
     
 class SizeSerializer(ModelSerializer):
     class Meta:
-        model = models.Size
+        model = Size
         fields = '__all__'
 
 
 class OptionSerializer(ModelSerializer):
-    color = PrimaryKeyRelatedField(write_only=True, queryset=models.Color.objects.all())
+    color = PrimaryKeyRelatedField(write_only=True, queryset=Color.objects.all())
     display_color_name = CharField(max_length=20, required=False)
+
     class Meta:
-        model = models.Option
+        model = Option
         exclude = ['product']
 
     def to_representation(self, instance):
@@ -53,7 +62,7 @@ class OptionSerializer(ModelSerializer):
 
 class TagSerializer(ModelSerializer):
     class Meta:
-        model = models.Tag
+        model = Tag
         fields = ['name']
 
 
@@ -63,7 +72,7 @@ class ProductImagesSerializer(Serializer):
     sequence = IntegerField(max_value=15, min_value=1)
 
     def validate_url(self, value):
-        return validators.validate_url(value)
+        return validate_url(value)
 
 
 class ProductSerializer(Serializer):
@@ -72,7 +81,7 @@ class ProductSerializer(Serializer):
     code = CharField(max_length=12, read_only=True)
     created = DateTimeField(read_only=True)
     price = IntegerField(max_value=2147483647, min_value=0)
-    sub_category = PrimaryKeyRelatedField(write_only=True, queryset=models.SubCategory.objects.all())
+    sub_category = PrimaryKeyRelatedField(write_only=True, queryset=SubCategory.objects.all())
     options = OptionSerializer(many=True, source='related_options')
     images = ProductImagesSerializer(many=True, source='related_images')
     tags = TagSerializer(many=True, source='related_tags')
@@ -120,13 +129,13 @@ class ProductSerializer(Serializer):
         related_options = validated_data.pop('related_options')
         related_images = validated_data.pop('related_images')
 
-        product = models.Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
+        product = Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
 
-        options = [models.Option(product=product, **option_data) for option_data in related_options ]
-        models.Option.objects.bulk_create(options)
+        options = [Option(product=product, **option_data) for option_data in related_options ]
+        Option.objects.bulk_create(options)
 
-        images = [models.ProductImages(product=product, **image_data) for image_data in related_images]
-        models.ProductImages.objects.bulk_create(images)
+        images = [ProductImages(product=product, **image_data) for image_data in related_images]
+        ProductImages.objects.bulk_create(images)
 
         return product
     
@@ -134,6 +143,40 @@ class ProductSerializer(Serializer):
         return super().update(instance, validated_data)
 
 
-
 class ImageSerializer(Serializer):
-    image = ImageField(max_length=200, validators=[validators.validate_file_size])
+    image = ImageField(max_length=200, validators=[validate_file_size])
+
+
+class LaundryInformationSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20)
+
+
+class MaterialSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)
+
+
+class StyleSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)
+
+
+class AgeSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class ThicknessSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class SeeThroughSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class FlexibilitySerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
