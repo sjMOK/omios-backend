@@ -57,18 +57,77 @@ def get_searchbox_data(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_main_categories(request):
-    queryset = models.MainCategory.objects.all()
-    serializer = serializers.MainCategorySerializer(queryset, many=True)
+def get_common_registration_data(request):
+    colors = Color.objects.all()
+    materials=  Material.objects.all()
+    styles = Style.objects.all()
+    ages = Age.objects.all()
+
+    response_data = {}
+    response_data['color'] = ColorSerializer(colors, many=True).data
+    response_data['material'] = MaterialSerializer(materials, many=True).data
+    response_data['style'] = StyleSerializer(styles , many=True).data
+    response_data['age'] = AgeSerializer(ages, many=True).data
+
+    return get_response(data=response_data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_dynamic_registation_data(request):
+    sub_category_id = request.query_params.get('sub_category', None)
+    if sub_category_id is None:
+        return get_response(status=400, message='this request should include sub_category.')
+
+    sub_category = SubCategory.objects.get(id=sub_category_id)
+
+    sizes = sub_category.sizes.all()
+
+    response_data = dict()
+    response_data['size'] = SizeSerializer(sizes, many=True).data
+
+    if sub_category.require_product_additional_information:
+        thickness = Thickness.objects.all()
+        see_through = SeeThrough.objects.all()
+        flexibility = Flexibility.objects.all()
+
+        product_additional_inforamtion = dict()
+        product_additional_inforamtion['thickness'] = ThicknessSerializer(thickness, many=True).data
+        product_additional_inforamtion['see_through'] = SeeThroughSerializer(see_through, many=True).data
+        product_additional_inforamtion['flexibility'] = FlexibilitySerializer(flexibility, many=True).data
+
+        response_data['product_additional_information'] = product_additional_inforamtion
+
+    if sub_category.require_laundry_information:
+        laundry_information = LaundryInformation.objects.all()
+        response_data['laundry_inforamtion'] = LaundryInformationSerializer(laundry_information, many=True).data
+
+    return get_response(data=response_data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_all_categories(request):
+    main_categories = MainCategory.objects.all()
+    serializer = MainCategorySerializer(main_categories, many=True)
 
     return get_response(data=serializer.data)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_sub_categories(request, id=None):
-    main_category = get_object_or_404(models.MainCategory, id=id)
-    serializer = serializers.SubCategorySerializer(main_category.subcategory_set.all(), many=True)
+def get_main_categories(request):
+    queryset = MainCategory.objects.all()
+    serializer = MainCategorySerializer(queryset, many=True, exclude_fields=('id', 'name', 'image_url'))
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_sub_categories_by_main_category(request, id=None):
+    main_category = get_object_or_404(MainCategory, id=id)
+    serializer = SubCategorySerializer(main_category.sub_categories.all(), many=True, allow_fields=('id', 'name'))
 
     return get_response(data=serializer.data)
 
