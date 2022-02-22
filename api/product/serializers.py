@@ -15,7 +15,6 @@ class SubCategorySerializer(ModelSerializer):
     class Meta:
         model = models.SubCategory
         fields = '__all__'
-        # exclude = ['main_category']
 
 
 class ColorSerializer(ModelSerializer):

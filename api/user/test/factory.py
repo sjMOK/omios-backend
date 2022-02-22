@@ -36,3 +36,8 @@ class ShopperFactory(UserFactory):
 class WholesalerFactory(UserFactory):
     class Meta:
         model = 'user.Wholesaler'
+
+    name = '무신사'
+    email = 'musinsa@naver.com'
+    phone='01011111111'
+    company_registration_number=111122223333

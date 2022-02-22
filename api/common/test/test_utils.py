@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import APIException
 
 from .test_cases import FunctionTestCase
-from ..utils import get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso
+from ..utils import get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein
 
 
 class GetResponseBodyTestCase(FunctionTestCase):
@@ -118,3 +118,34 @@ class DateTimeToIsoTestCase(FunctionTestCase):
         test_data = None
 
         self.assertIsNone(self._call_function(test_data))
+
+
+class LeveshteinTestCase(FunctionTestCase):
+    _function = levenshtein
+
+    def setUp(self):
+        self.basis_word = '원피스'
+
+    def test_additional_string_in_front(self):
+        test_word = '니트원피스'
+        expected_result = 2
+
+        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+
+    def test_additional_string_in_rear(self):
+        test_word = '원피스 수영복'
+        expected_result = 4
+
+        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+
+    def test_similar_word(self):
+        test_word = '원피피스'
+        expected_result = 1
+
+        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+
+    def test_completely_different_word(self):
+        test_word = '체크가디건'
+        expected_result = 5
+
+        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
