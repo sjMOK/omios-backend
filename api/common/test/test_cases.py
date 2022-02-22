@@ -42,11 +42,18 @@ class ModelTestCase(APITestCase):
 
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def _get_default_model_after_creation(cls, data=None):
+        if data is None:
+            data = cls._test_data
+
+        return cls._model_class.objects.create(**data)
+
     def _get_model(self):
         return self._model_class(**self._test_data)
 
     def _get_model_after_creation(self):
-        return self._model_class.objects.create(**self._test_data)
+        return self._get_default_model_after_creation(self._test_data)
 
 
 class SerializerTestCase(APITestCase):
