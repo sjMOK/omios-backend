@@ -1,6 +1,9 @@
-from django.utils import timezone
-from storages.backends.s3boto3 import S3Boto3Storage
 import os
+
+from storages.backends.s3boto3 import S3Boto3Storage
+
+from django.utils import timezone
+
 
 class CustomS3Boto3Storage(S3Boto3Storage):
     file_overwrite = False

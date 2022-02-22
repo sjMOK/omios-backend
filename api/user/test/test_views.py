@@ -1,80 +1,13 @@
-from gc import freeze
-import json
-from rest_framework.test import APITestCase, APITransactionTestCase
 from freezegun import freeze_time
-from django.test import tag
-
-from common.test import ViewTestCase, FREEZE_TIME
-from common.factory import get_factory_authentication_data, UserFactory
-from common.utils import datetime_to_iso
-from ..models import BlacklistedToken, Shopper
-from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from pdb import set_trace
+from common.test.test_cases import ViewTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.utils import datetime_to_iso
+from .factory import get_factory_password, get_factory_authentication_data
+from ..models import BlacklistedToken, User, Shopper, Wholesaler
+from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer
 
-
-# class ShopperViewTestCase(DefaultViewTestCase):
-#     fixtures = ['membership']
-
-#     def test_bad_request_post(self):
-#         request_body = {
-#             "name": "테스트test",
-#             "birthday": "20211120",
-#             "gender": 2,
-#             "email": "1235asdfasdf",
-#             "phone": "0101111111212123",
-#             "username": "tt",
-#             "password": "testtest"
-#         }
-
-#         response = self.client.post('/user/shopper/', request_body)
-#         response_body = json.loads(response.content)
-
-#         self._assert_error(response_body, 400)
-#         for key in request_body.keys():
-#             self.assertTrue(key in response_body['message'])
-    
-#     def test_success_post(self):
-#         request_body = {
-#             "name": "테스트",
-#             "birthday": "2021-11-20",
-#             "gender": 1,
-#             "email": "test@naver.com",
-#             "phone": "01011111111",
-#             "username": "xptmxm",
-#             "password": "Testtest00"
-#         }
-
-#         response = self.client.post('/user/shopper/', request_body)
-#         response_body = json.loads(response.content)
-       
-#         self._assert_success(response_body, 201)
-#         self.assertTrue('id' in response_body['data'])
-        
-
-# @tag('aa')
-# class UniqueViewTestCase(APITestCase):
-#     _test_url = '/user/unique/'
-
-#     def test_parameter_count_validation(self):
-#         test_datas = [
-#             None,
-#             {
-#                 'parameter1': '1',
-#                 'parameter2': '2',
-#             }
-#         ]
-
-#         for test_data in test_datas:
-#             response = self.client.get(self._test_url)
-#             response_body = json.loads(response.content)
-
-            # self.assert
-
-    # def test_parameter_name_validation(self):
-    #     pass
 
 class TokenViewTestCase(ViewTestCase):
     @classmethod
@@ -94,7 +27,6 @@ class TokenViewTestCase(ViewTestCase):
     
     def _assert_failure(self, expected_message):
         super()._assert_failure(401, expected_message)
-        # self.assertEqual(self._response_body['message'], message)    
 
 
 class IssuingTokenViewTestCase(TokenViewTestCase):
@@ -133,9 +65,6 @@ class RefreshingTokenViewTestCase(TokenViewTestCase):
     def setUpTestData(cls):
         cls._issue_token()
 
-    # def setUp(self):
-    #     self._test_data = self._token
-
     def test_success(self):
         self._post()
 
@@ -164,8 +93,6 @@ class BlacklistingTokenViewTestCase(TokenViewTestCase):
 
     def setUp(self):
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self._test_data['access'])
-        # self._set_jwt()
-        # self._test_data = self._token
 
     def test_success(self):
         self._post()
@@ -182,9 +109,6 @@ class ShopperViewTestCase(ViewTestCase):
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        # token_serializer = IssuingTokenSerializer(data=get_factory_authentication_data(cls._user))
-        # token_serializer.is_valid()
-        # cls._token = token_serializer.validated_data
 
     def setUp(self):
         self._set_authentication()
@@ -264,8 +188,80 @@ class WholesalerViewTestCase(ViewTestCase):
 
 
 class ChangePasswordTestCase(ViewTestCase):
-    pass
+    _url = '/user/password/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_user()
+
+    @freeze_time(FREEZE_TIME)
+    def test_success(self):
+        self._set_authentication()
+        self._test_data = {
+            'current_password': get_factory_password(self._user),
+            'new_password': 'New_password00'
+        }
+        self._patch()
+        self._user = User.objects.get(id=self._user.id)
+
+        self._assert_success_with_id_response()
+        self.assertEqual(self._response_data['id'], self._user.id)
+        self.assertTrue(self._user.check_password(self._test_data['new_password']))
+        self.assertEqual(datetime_to_iso(self._user.last_update_password), FREEZE_TIME)
 
 
 class IsUniqueTestCase(ViewTestCase):
-    pass
+    fixtures = ['membership']
+    _url = '/user/unique/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = cls._create_shopper()[0]
+        # cls.__wholesaler = cls._create_wholesaler()
+
+    def test_is_unique_username(self):
+        self._get({'username': 'unique_username'})
+
+        self._assert_success_with_is_unique_response(True)
+
+    def test_is_not_unique_username(self):
+        self._get({'username': self.__shopper.username})
+
+        self._assert_success_with_is_unique_response(False)
+
+    def test_is_unique_shopper_nickname(self):
+        self._get({'shopper_nickname': 'unique_nickname'})
+
+        self._assert_success_with_is_unique_response(True)
+
+    def test_is_not_unique_shopper_nickname(self):
+        self._get({'shopper_nickname': self.__shopper.nickname})
+
+        self._assert_success_with_is_unique_response(False)
+
+    def test_is_unique_wholesaler_name(self):
+        pass
+
+    def test_is_not_unique_wholesaler_name(self):
+        pass
+
+    def test_is_unique_wholesaler_company_registration_number(self):
+        pass
+
+    def test_is_not_unique_wholesaler_company_registration_number(self):
+        pass
+
+    def test_no_parameter_validation(self):
+        self._get()
+
+        self._assert_failure(400, 'Only one parameter is allowed.')
+
+    def test_many_paramter_validation(self):
+        self._get({'parameter1': 'parameter1', 'parameter2': 'parameter2'})
+
+        self._assert_failure(400, 'Only one parameter is allowed.')
+
+    def test_invalid_parameter_validation(self):
+        self._get({'invalid_parameter': 'test'})
+
+        self._assert_failure(400, 'Invalid parameter name.')

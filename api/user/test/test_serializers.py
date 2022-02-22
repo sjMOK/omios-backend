@@ -1,26 +1,23 @@
 from random import randint
 from datetime import datetime
 
-from common.test import SerializerTestCase
-from common.factory import get_factory_password, UserFactory, ShopperFactory, WholesalerFactory
+from common.test.test_cases import SerializerTestCase, ModelSerializerTestCase
+from common.utils import datetime_to_iso
+from .factory import get_factory_password, get_factory_authentication_data, UserFactory, ShopperFactory, WholesalerFactory
 from ..models import OutstandingToken
-from ..serializers import UserAccessTokenSerializer, UserPasswordSerializer, UserRefreshTokenSerializer, RefreshToken, UserSerializer
+from ..serializers import (
+    IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
+    UserSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer,
+)
 
 
-def get_authentication_data(user):
-    return {
-        'username': user.username,
-        'password': get_factory_password(user),
-    }
-
-
-class UserTokenSerializerTest(SerializerTestCase):
+class IssuingTokenSerializerTestCase(SerializerTestCase):
     fixtures = ['membership']
-    _serializer_class = UserAccessTokenSerializer
+    _serializer_class = IssuingTokenSerializer
 
     def __get_refresh_token(self, factory):
         self.user = factory()
-        serializer = self._get_serializer(data=get_authentication_data(self.user))
+        serializer = self._get_serializer(data=get_factory_authentication_data(self.user))
         serializer.is_valid()
 
         return serializer.validated_data['refresh']
@@ -43,12 +40,12 @@ class UserTokenSerializerTest(SerializerTestCase):
         pass
 
 
-class UserRefreshTokenSerializerTest(SerializerTestCase):
-    _serializer_class = UserRefreshTokenSerializer
+class RefreshingTokenSerializerTestCase(SerializerTestCase):
+    _serializer_class = RefreshingTokenSerializer
 
     def test_refresh_token_validation(self):
         user = UserFactory()
-        set_up_serializer = UserAccessTokenSerializer(data=get_authentication_data(user))
+        set_up_serializer = IssuingTokenSerializer(data=get_factory_authentication_data(user))
         set_up_serializer.is_valid()
         serializer = self._get_serializer(data={'refresh': set_up_serializer.validated_data['refresh']})
         serializer.is_valid()
@@ -56,8 +53,24 @@ class UserRefreshTokenSerializerTest(SerializerTestCase):
         self.assertIsNotNone(OutstandingToken.objects.get(token=serializer.validated_data['refresh']))
 
 
-class UserSerializerTest(SerializerTestCase):
+class MembershipSerializerTestCase(ModelSerializerTestCase):
+    fixtures = ['membership']
+    _serializer_class = MembershipSerializer
+
+    def test_model_instance_serialization(self):
+        membership = self._serializer_class.Meta.model.objects.get(id=1)
+        self._test_model_instance_serialization(membership, {
+            'id': membership.id,
+            'name': membership.name,
+        })
+
+
+class UserSerializerTestCase(ModelSerializerTestCase):
     _serializer_class = UserSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._user = UserFactory()
 
     def setUp(self):
         self.test_data = {
@@ -70,21 +83,33 @@ class UserSerializerTest(SerializerTestCase):
 
         return super()._get_serializer(data=self.test_data, **kwargs)
 
-    def test__lowercase_number_password_regex_validation(self):
+    def test_model_instance_serialization(self):
+        self._test_model_instance_serialization(self._user, {
+            'id': self._user.id,
+            'last_login': self._user.last_login,
+            'username': self._user.username,
+            'is_admin': self._user.is_admin,
+            'is_active': self._user.is_active,
+            'last_update_password': datetime_to_iso(self._user.last_update_password),
+            'created_at': datetime_to_iso(self._user.created_at),
+            'deleted_at': datetime_to_iso(self._user.deleted_at),
+        })
+
+    def test_lowercase_number_password_regex_validation(self):
         serializer = self._get_serializer('username00')
 
         self.assertTrue(not serializer.is_valid())
         self.assertTrue('password' in serializer.errors)
         self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
 
-    def test__uppercase_number_password_regex_validation(self):
+    def test_uppercase_number_password_regex_validation(self):
         serializer = self._get_serializer('USERNAME00')
 
         self.assertTrue(not serializer.is_valid())
         self.assertTrue('password' in serializer.errors)
         self.assertEqual(str(serializer.errors['password'][0]), 'This value does not match the required pattern.')
 
-    def test__lowercase_uppercase_password_regex_validation(self):
+    def test_lowercase_uppercase_password_regex_validation(self):
         serializer = self._get_serializer('usernameUSERNAME')
 
         self.assertTrue(not serializer.is_valid())
@@ -99,17 +124,40 @@ class UserSerializerTest(SerializerTestCase):
         self.assertEqual(str(serializer.errors['non_field_errors'][0]), 'The similarity between password and username is too large.')
 
     def test_update(self):
-        user = UserFactory()
-        original_password = get_factory_password(user)
-        serializer = self._get_serializer(instance=user, partial=True)
+        original_password = get_factory_password(self._user)
+        serializer = self._get_serializer(instance=self._user, partial=True)
         serializer.is_valid()
-        user = serializer.save()
+        self._user = serializer.save()
 
-        self.assertEqual(user.username, self.test_data['username'])
-        self.assertTrue(user.check_password(original_password))
+        self.assertEqual(self._user.username, self.test_data['username'])
+        self.assertTrue(self._user.check_password(original_password))
 
 
-class UserPasswordSerializerTest(SerializerTestCase):
+class ShopperSerializerTestCase(ModelSerializerTestCase):
+    fixtures = ['membership']
+    _serializer_class = ShopperSerializer
+
+    def test_model_instance_serialization(self):
+        shopper = ShopperFactory()
+        self._test_model_instance_serialization(shopper, {
+            **UserSerializer(instance=shopper).data,
+            'membership': MembershipSerializer(instance=shopper.membership).data,
+            'name': shopper.name,
+            'nickname': shopper.nickname,
+            'phone': shopper.phone,
+            'email': shopper.email,
+            'gender': shopper.gender,
+            'birthday': shopper.birthday,
+            'height': shopper.height,
+            'weight': shopper.weight,
+        })
+
+
+class WholesalerSerializerTestCase(ModelSerializerTestCase):
+    pass
+
+
+class UserPasswordSerializerTestCase(SerializerTestCase):
     _serializer_class = UserPasswordSerializer
 
     def setUp(self):
@@ -119,7 +167,7 @@ class UserPasswordSerializerTest(SerializerTestCase):
             'new_password': self.user.username + '_New_Password',
         }
 
-    def _get_serializer(self, current_password=None, new_password=None):
+    def _get_serializer(self, current_password=None, new_password=None, **kwargs):
         if current_password is not None:
             self.test_data['current_password'] = current_password
         if new_password is not None:
@@ -143,8 +191,8 @@ class UserPasswordSerializerTest(SerializerTestCase):
         
     def test_update(self):
         token_num = randint(3, 10)
-        for i in range(token_num):
-            set_up_serializer = UserAccessTokenSerializer(data=get_authentication_data(self.user))
+        for _ in range(token_num):
+            set_up_serializer = IssuingTokenSerializer(data=get_factory_authentication_data(self.user))
             set_up_serializer.is_valid()
         serializer = self._get_serializer()
         serializer.is_valid()
