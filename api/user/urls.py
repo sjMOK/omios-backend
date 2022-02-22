@@ -1,13 +1,14 @@
 from django.urls import path
+
 from . import documentation
 
 
 app_name = 'user'
 
 token_urlpatterns = [
-    path('', documentation.decorated_access_token_view),
-    path('refresh/', documentation.decorated_refresh_token_view),
-    path('blacklist/', documentation.decorated_blacklist_token_view),
+    path('', documentation.decorated_issuing_token_view),
+    path('refresh/', documentation.decorated_refreshing_token_view),
+    path('blacklist/', documentation.decorated_blacklisting_token_view),
 ]
 
 urlpatterns = [

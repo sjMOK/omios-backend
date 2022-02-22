@@ -1,5 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 from django.http import JsonResponse
+
 from rest_framework.response import Response
 from rest_framework.exceptions import APIException
 
@@ -54,6 +56,10 @@ def querydict_to_dict(querydict):
 
 def gmt_to_kst(gmt):
     return gmt + timedelta(hours=9)
+
+
+def datetime_to_iso(datetime_instance):
+    return datetime_instance.isoformat() if isinstance(datetime_instance, datetime) else None
 
 
 def levenshtein(a_text, b_text): 

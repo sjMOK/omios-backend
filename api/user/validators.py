@@ -1,4 +1,5 @@
 from difflib import SequenceMatcher
+
 from rest_framework.serializers import ValidationError
 
 class PasswordSimilarityValidator:

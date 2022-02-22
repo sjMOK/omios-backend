@@ -1,4 +1,4 @@
-from rest_framework.serializers import *
+from rest_framework.serializers import Serializer, IntegerField, BooleanField, CharField
 
 
 class IdResponse(Serializer):

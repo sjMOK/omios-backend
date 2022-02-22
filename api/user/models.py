@@ -1,7 +1,12 @@
 import string, random
-from django.db.models import *
+
+from django.db.models import (
+    Model, BigAutoField, CharField, BooleanField, DateTimeField, OneToOneField, 
+    ForeignKey, EmailField, DateField, IntegerField, DO_NOTHING,
+)
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
+
 from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
@@ -44,26 +49,32 @@ class User(AbstractBaseUser):
 
         if force_insert:
             self.__set_password(self.created_at)
-        elif update_fields and 'password' in update_fields:
-            self.__set_password(timezone.now())
+        elif update_fields:
+            if 'password' in update_fields:
+                self.__set_password(timezone.now())
+                update_fields.append('last_update_password')
+            if 'is_active' in update_fields:
+                self.deleted_at = timezone.now()
+                update_fields.append('deleted_at')
 
         super().save(force_insert=force_insert, update_fields=update_fields, *args, **kwargs)
 
 
 class Shopper(User):
     user = OneToOneField(User, DO_NOTHING, parent_link=True, primary_key=True)
+    membership = ForeignKey(Membership, DO_NOTHING, default=1)
     name = CharField(max_length=20)
-    email = EmailField(max_length=50)
-    phone = CharField(max_length=15, unique=True)
     nickname = CharField(max_length=20, unique=True)
+    phone = CharField(max_length=15, unique=True)
+    email = EmailField(max_length=50)
     gender = BooleanField()
     birthday = DateField()
     height = IntegerField(null=True)
     weight = IntegerField(null=True)
-    membership = ForeignKey(Membership, DO_NOTHING, default=1)
 
     class Meta:
         db_table = 'shopper'
+        managed = False
 
     def __str__(self):
         return '{0} {1}'.format(self.username, self.name)
@@ -86,8 +97,8 @@ class Shopper(User):
 class Wholesaler(User):
     user = OneToOneField(User, DO_NOTHING, parent_link=True, primary_key=True)
     name = CharField(max_length=60)
-    email = EmailField(max_length=50)
     phone = CharField(max_length=15)
+    email = EmailField(max_length=50)
     company_registration_number = CharField(max_length=12, unique=True)
 
     class Meta:

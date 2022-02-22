@@ -1,7 +1,7 @@
 from factory import Sequence, LazyAttribute, SubFactory
 from factory.django import DjangoModelFactory
 
-from common.factory import WholesalerFactory
+from user.test.factory import WholesalerFactory
 
 
 class MainCategoryFactory(DjangoModelFactory):
