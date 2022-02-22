@@ -47,9 +47,9 @@ class SerializerMixin:
             self.fields.pop(field)
 
 
-class DynamicFieldSerializer(SerializerMixin, Serializer):
+class DynamicFieldsSerializer(SerializerMixin, Serializer):
     pass
 
 
-class DynamicFieldModelSerializer(SerializerMixin, ModelSerializer):
+class DynamicFieldsModelSerializer(SerializerMixin, ModelSerializer):
     pass
