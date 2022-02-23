@@ -4,7 +4,7 @@ from rest_framework.test import APISimpleTestCase
 from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import APIException
 
-from .serializers import SerializerMixin
+from ..serializers import SerializerMixin
 
 
 class SerializerMixinTestCase(APISimpleTestCase):
