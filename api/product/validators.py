@@ -18,5 +18,14 @@ def validate_url(value):
 
     result = value.split(BASE_IMAGE_URL)
     value = result[-1]
-    
+
     return value
+
+
+def validate_price_difference(price, options):
+    for option in options:
+        price_difference = option.get('price_difference', 0)
+        if price_difference > price * 0.2:
+            raise ValidationError(
+                'The option price difference must be less than 20% of the product price.'
+            )
