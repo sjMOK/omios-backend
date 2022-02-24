@@ -68,8 +68,20 @@ class SerializerTestCase(APITestCase):
 
         super().__init__(*args, **kwargs)
 
-    def _get_serializer(self, **kwargs):
-        return self._serializer_class(**kwargs)
+    def _get_serializer(self, *args, **kwargs):
+        return self._serializer_class(*args, **kwargs)
+
+    def _get_serializer_after_validation(self, *args, **kwargs):
+        serializer = self._get_serializer(*args, **kwargs)
+        serializer.is_valid()
+
+        return serializer
+
+    def _test_single_field_validation_failure(self, expected_field, expected_message, *args, **kwargs):
+        serializer = self._get_serializer_after_validation(*args, **kwargs)
+
+        self.assertTrue(expected_field in serializer.errors)
+        self.assertEqual(serializer.errors[expected_field][0], expected_message)
 
 
 class ModelSerializerTestCase(SerializerTestCase):

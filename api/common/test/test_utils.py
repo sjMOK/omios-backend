@@ -110,42 +110,26 @@ class DateTimeToIsoTestCase(FunctionTestCase):
         self.assertEqual(self._call_function(test_data), test_data.isoformat())
 
     def test_string(self):
-        test_data = 'string'
-
-        self.assertIsNone(self._call_function(test_data))
+        self.assertIsNone(self._call_function('string'))
 
     def test_none(self):
-        test_data = None
-
-        self.assertIsNone(self._call_function(test_data))
+        self.assertIsNone(self._call_function(None))
 
 
 class LeveshteinTestCase(FunctionTestCase):
     _function = levenshtein
 
     def setUp(self):
-        self.basis_word = '원피스'
+        self.__basis_word = '원피스'
 
     def test_additional_string_in_front(self):
-        test_word = '니트원피스'
-        expected_result = 2
-
-        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+        self.assertEqual(self._call_function(self.__basis_word, '니트원피스'), 2)
 
     def test_additional_string_in_rear(self):
-        test_word = '원피스 수영복'
-        expected_result = 4
-
-        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+        self.assertEqual(self._call_function(self.__basis_word, '원피스 수영복'), 4)
 
     def test_similar_word(self):
-        test_word = '원피피스'
-        expected_result = 1
-
-        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+        self.assertEqual(self._call_function(self.__basis_word, '원피피스'), 1)
 
     def test_completely_different_word(self):
-        test_word = '체크가디건'
-        expected_result = 5
-
-        self.assertEqual(self._call_function(self.basis_word, test_word), expected_result)
+        self.assertEqual(self._call_function(self.__basis_word, '체크가디건'), 5)

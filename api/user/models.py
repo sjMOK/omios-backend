@@ -74,7 +74,6 @@ class Shopper(User):
 
     class Meta:
         db_table = 'shopper'
-        managed = False
 
     def __str__(self):
         return '{0} {1}'.format(self.username, self.name)

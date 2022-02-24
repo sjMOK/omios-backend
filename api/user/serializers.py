@@ -18,6 +18,13 @@ NICKNAME_REGEX = r'^[a-z0-9._]+$'
 PHONE_REGEX = r'^01[0|1|6|7|8|9][0-9]{7,8}$'
 
 
+def get_token_time(token):
+    return {
+        'created_at': gmt_to_kst(token.current_time),
+        'expires_at': gmt_to_kst(datetime_from_epoch(token['exp']))
+    }
+
+
 class IssuingTokenSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -30,8 +37,7 @@ class IssuingTokenSerializer(TokenObtainPairSerializer):
 
         OutstandingToken.objects.filter(jti=token['jti']).update(
             token=token,
-            created_at=gmt_to_kst(token.current_time),
-            expires_at=gmt_to_kst(datetime_from_epoch(token['exp'])),
+            **get_token_time(token),
         )
         
         return token
@@ -46,8 +52,7 @@ class RefreshingTokenSerializer(TokenRefreshSerializer):
             user=User.objects.get(id=refresh['user_id']),
             jti=refresh['jti'],
             token=str(refresh),
-            created_at=gmt_to_kst(refresh.current_time),
-            expires_at=gmt_to_kst(datetime_from_epoch(refresh['exp'])),
+            **get_token_time(refresh),
         )
         
         return token
@@ -122,14 +127,8 @@ class UserPasswordSerializer(Serializer):
         return attrs
 
     def __discard_refresh_token(self, user_id):
-        all_tokens = OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now()).all()
-
-        discarding_tokens = []
-        for token in all_tokens:
-            if not hasattr(token, 'blacklistedtoken'):
-                discarding_tokens.append(BlacklistedToken(token=token))
-    
-        BlacklistedToken.objects.bulk_create(discarding_tokens)
+        discarding_tokens = OutstandingToken.objects.filter(user_id=user_id, expires_at__gt=timezone.now(), blacklistedtoken__isnull=True).all()
+        BlacklistedToken.objects.bulk_create([BlacklistedToken(token=token) for token in discarding_tokens])
 
     def update(self, instance, validated_data):
         instance.password = validated_data['new_password']

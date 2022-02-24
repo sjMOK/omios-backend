@@ -5,7 +5,7 @@ from freezegun import freeze_time
 from rest_framework.exceptions import APIException
 
 from common.utils import datetime_to_iso
-from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
 from ..models import Membership, User, Shopper, Wholesaler
 
 
@@ -79,12 +79,8 @@ class UserTestCase(ModelTestCase):
         self._user.set_password('new_password')
 
         self.assertRaisesRegex(APIException, r'^The save method cannot be used when the public set_password method is used.$', self._user.save)
-    
 
 
-from django.test import tag
-
-@tag('test')
 class ShopperTestCase(ModelTestCase):
     fixtures = ['membership']
     _model_class = Shopper
