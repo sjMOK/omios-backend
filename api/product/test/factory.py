@@ -18,6 +18,22 @@ class SubCategoryFactory(DjangoModelFactory):
 
     main_category = SubFactory(MainCategoryFactory)
     name = Sequence(lambda num: 'sub_category_{0}'.format(num))
+    require_product_additional_information = True
+    require_laundry_information = True
+
+
+class StyleFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Style'
+
+    name = Sequence(lambda num: 'test_style_{0}'.format(num))
+
+
+class AgeFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Age'
+
+    name = name = Sequence(lambda num: 'age_{0}'.format(num))
 
 
 class ProductFactory(DjangoModelFactory):
@@ -28,6 +44,29 @@ class ProductFactory(DjangoModelFactory):
     price = 35000
     wholesaler = SubFactory(WholesalerFactory)
     sub_category = SubFactory(SubCategoryFactory)
+    style = SubFactory(StyleFactory)
+    age = SubFactory(AgeFactory)
+
+
+class ThicknessFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Thickness'
+
+    name = Sequence(lambda num: 'thickness_{0}'.format(num))
+    
+
+class SeeThroughFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.SeeThrough'
+
+    name = Sequence(lambda num: 'age_{0}'.format(num))
+
+
+class FlexibilityFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Flexibility'
+
+    name = Sequence(lambda num: 'flexibility_{0}'.format(num))
 
 
 class TagFactory(DjangoModelFactory):
@@ -45,6 +84,15 @@ class ColorFactory(DjangoModelFactory):
     image_url = 'color/black.svg'
 
 
+class ProductColorFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductColor'
+
+    product = SubFactory(ProductFactory)
+    color = SubFactory(ColorFactory)
+    display_color_name = Sequence(lambda num: 'display_color_name_{0}'.format(num))
+
+
 class SizeFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Size'
@@ -52,17 +100,8 @@ class SizeFactory(DjangoModelFactory):
     name = Sequence(lambda num: 'size_{0}'.format(num))
 
 
-class OptionFactory(DjangoModelFactory):
+class LaundryInformationFactory(DjangoModelFactory):
     class Meta:
-        model = 'product.Option'
+        model = 'product.LaundryInformation'
 
-    product = SubFactory(ProductFactory)
-    size = SubFactory(SizeFactory)
-    color = SubFactory(ColorFactory)
-
-
-class KeywordFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Keyword'
-
-    name = Sequence(lambda num: 'keyword_{0}'.format(num))
+    name = Sequence(lambda num: 'laundry_info_{0}'.format(num))
