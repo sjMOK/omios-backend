@@ -306,27 +306,29 @@ class SizeTest(ModelTestCase):
 class OptionTest(ModelTestCase):
     _model_class = Option
 
-    @classmethod
-    def setUpTestData(cls):
+    # @classmethod
+    # def setUpTestData(cls):
+        
+
+        
+    #     cls._option = cls._get_default_model_after_creation()
+
+    def setUp(self):
         product_color = ProductColorFactory()
         size = SizeFactory()
-
-        cls._test_data = {
+        self._test_data = {
             'product_color': product_color,
             'size': size,
             'display_size_name': '6호',
             'price_difference': 1500,
         }
-        cls._option = cls._get_default_model_after_creation()
-
-    def setUp(self):
-        pass 
 
     def test_create(self):
-        self.assertEqual(self._option.product_color, self._test_data['product_color'])
-        self.assertEqual(self._option.size, self._test_data['size'])
-        self.assertEqual(self._option.display_size_name, self._test_data['display_size_name'])
-        self.assertEqual(self._option.price_difference, self._test_data['price_difference'])
+        option = self._get_model_after_creation()
+        self.assertEqual(option.product_color, self._test_data['product_color'])
+        self.assertEqual(option.size, self._test_data['size'])
+        self.assertEqual(option.display_size_name, self._test_data['display_size_name'])
+        self.assertEqual(option.price_difference, self._test_data['price_difference'])
 
     def test_display_size_name(self):
         self._test_data.pop('display_size_name')
