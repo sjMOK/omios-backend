@@ -94,7 +94,7 @@ class Flexibility(Model):
 
 
 class ProductAdditionalInformation(Model):
-    product = OneToOneField('Product', DO_NOTHING, primary_key=True)       
+    product = OneToOneField('Product', DO_NOTHING, primary_key=True, related_name='product_additional_information')
     thickness = ForeignKey('Thickness', DO_NOTHING)
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
@@ -142,7 +142,7 @@ class Color(Model):
 
 class ProductColor(Model):
     id = AutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING)
+    product = ForeignKey('Product', DO_NOTHING, related_name='colors')
     color = ForeignKey('Color', DO_NOTHING)
     display_color_name = CharField(max_length=20)
 
@@ -158,7 +158,7 @@ class ProductColor(Model):
 
 class ProductColorImages(Model):
     id = AutoField(primary_key=True)
-    product_color = ForeignKey('ProductColor', DO_NOTHING)
+    product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='images')
     image_url = CharField(max_length=200)
     sequence = IntegerField()
 
@@ -181,13 +181,14 @@ class Size(Model):
 
 class Option(Model):
     id = BigAutoField(primary_key=True)
-    product_color = ForeignKey('ProductColor', DO_NOTHING)
+    product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
     size = ForeignKey('Size', DO_NOTHING)
     display_size_name = CharField(max_length=20)
     price_difference = IntegerField(default=0)  
 
     class Meta:
         db_table = 'option'
+        unique_together = (('product_color', 'size'),)
 
     def save(self, *args, **kwargs):
         if not self.display_size_name:
@@ -242,7 +243,7 @@ class Material(Model):
 
 class ProductMaterial(Model):
     id = AutoField(primary_key=True)
-    product = ForeignKey('Product', DO_NOTHING)
+    product = ForeignKey('Product', DO_NOTHING, related_name='materials')
     material = CharField(max_length=20)
     mixing_rate = IntegerField()
 
