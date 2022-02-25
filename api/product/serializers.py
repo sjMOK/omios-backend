@@ -6,7 +6,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.serializers import DynamicFieldsSerializer
+from common.serializers import DynamicFieldsSerializer, convert_primary_key_related_field_to_serializer
 from .validators import validate_file_size, validate_url, validate_price_difference
 from .models import (
     LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Size, Option, Tag, Product, ProductImages,
@@ -15,17 +15,16 @@ from .models import (
 )
 
 
-class SubCategorySerializer(DynamicFieldsSerializer):
+class SubCategorySerializer(Serializer):
     id = IntegerField(read_only=True)
     name = CharField(max_length=20)
-    sizes = PrimaryKeyRelatedField(many=True, read_only=True)
 
 
 class MainCategorySerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
     name = CharField(max_length=20, validators=[UniqueValidator(queryset=MainCategory.objects.all())])
     image_url = ImageField(max_length=200)
-    sub_category = SubCategorySerializer(many=True, allow_fields=('id', 'name'), source='sub_categories')
+    sub_category = SubCategorySerializer(many=True, source='sub_categories')
 
 
 class ColorSerializer(ModelSerializer):
@@ -33,7 +32,7 @@ class ColorSerializer(ModelSerializer):
         model = Color
         fields = '__all__'
 
-    
+
 class SizeSerializer(ModelSerializer):
     class Meta:
         model = Size
@@ -49,7 +48,7 @@ class TagSerializer(ModelSerializer):
 class ProductImagesListSerializer(ListSerializer):
     def to_internal_value(self, data):
         ret = super().to_internal_value(data)
-        
+
         sequence = 1
         for image_data in ret:
             image_data['sequence'] = sequence
@@ -71,8 +70,15 @@ class ProductImagesSerializer(Serializer):
     class Meta:
         list_serializer_class = ProductImagesListSerializer
 
-    def validate_url(self, value):
+    def validate_image_url(self, value):
         return validate_url(value)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        
+        ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
+
+        return ret
 
 
 class ProductColorImagesListSerializer(ListSerializer):
@@ -101,8 +107,15 @@ class ProductColorImagesSerializer(Serializer):
     class Meta:
         list_serializer_class = ProductColorImagesListSerializer
 
-    def validate_url(self, value):
+    def validate_image_url(self, value):
         return validate_url(value)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
+
+        return ret
 
 
 class LaundryInformationSerializer(Serializer):
@@ -115,6 +128,15 @@ class ProductAdditionalInformationSerializer(Serializer):
     see_through = PrimaryKeyRelatedField(queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     lining = BooleanField()
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        ret['thickness'] = ThicknessSerializer(instance.thickness).data
+        ret['see_through'] = SeeThroughSerializer(instance.see_through).data
+        ret['flexibility'] = FlexibilitySerializer(instance.flexibility).data
+
+        return ret
 
 
 class ProductMaterialListSerializer(ListSerializer):
@@ -149,12 +171,23 @@ class OptionListSerializer(ListSerializer):
 
 class OptionSerializer(Serializer):
     id = IntegerField(read_only=True)
-    display_size_name = CharField(max_length=20, required=False)
+    display_size_name = CharField(allow_null=True, max_length=20)
     price_difference = IntegerField(max_value=100000, min_value=0, required=False)
-    size = PrimaryKeyRelatedField(queryset=Size.objects.all())
+    size = PrimaryKeyRelatedField(allow_null=True, queryset=Size.objects.all())
 
     class Meta:
         list_serializer_class = OptionListSerializer
+
+    def validate(self, attrs):
+        size = attrs.get('size')
+        display_size_name = attrs.get('display_size_name')
+
+        if size is None and display_size_name is None:
+            raise ValidationError(
+                "'size' and 'display_size_name' cannot be null values at the same time."
+            )
+
+        return attrs
 
 
 class ProductColorListSerializer(ListSerializer):
@@ -183,7 +216,19 @@ class ProductColorSerializer(Serializer):
         return attrs
 
 
-class ProductCreateSerializer(Serializer):
+class AgeSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class StyleSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)
+
+
+class ProductCreateSerializer(DynamicFieldsSerializer):
+    id = IntegerField(read_only=True)
+    main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', allow_fields=('id', 'name'))
     sub_category = PrimaryKeyRelatedField(queryset=SubCategory.objects.all(), required=True)
     name = CharField(max_length=60, required=True)
     price = IntegerField(max_value=1000000, min_value=0, required=True)
@@ -194,17 +239,24 @@ class ProductCreateSerializer(Serializer):
     product_additional_information = ProductAdditionalInformationSerializer(allow_null=False)
     materials = ProductMaterialSerializer(allow_empty=False, many=True, required=True)
     colors = ProductColorSerializer(allow_empty=False, many=True, required=True)
-    images = ProductImagesSerializer(allow_empty=False, many=True, required=True)
+    images = ProductImagesSerializer(allow_empty=False, many=True, required=True, source='related_images')
 
+    primary_key_related_field_serializer_mapping = [
+        {'field': 'sub_category', 'serializer_class': SubCategorySerializer, 'many': False},
+        {'field': 'style', 'serializer_class': StyleSerializer, 'many': False},
+        {'field': 'age', 'serializer_class': AgeSerializer, 'many': False},
+        {'field': 'tags', 'serializer_class': TagSerializer, 'many': True},
+        {'field': 'laundry_informations', 'serializer_class': LaundryInformationSerializer, 'many': True},
+    ]
 
     def validate(self, attrs):
         price = attrs.get('price')
-        
+
         product_colors = attrs.get('colors')
         for product_color in product_colors:
             options = product_color.get('options')
             validate_price_difference(price, options)
-        
+
         return attrs
 
     def create(self, validated_data):
@@ -213,7 +265,7 @@ class ProductCreateSerializer(Serializer):
         product_additional_information = validated_data.pop('product_additional_information', None)
         materials = validated_data.pop('materials')
         colors = validated_data.pop('colors')
-        images = validated_data.pop('images')
+        images = validated_data.pop('related_images')
 
         product = Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
 
@@ -242,7 +294,7 @@ class ProductCreateSerializer(Serializer):
             )
 
             for option_data in options:
-                if 'display_size_name' not in option_data:
+                if option_data.get('display_size_name') is None:
                     option_data['display_size_name'] = option_data.get('size').name
 
             Option.objects.bulk_create(
@@ -257,6 +309,25 @@ class ProductCreateSerializer(Serializer):
 
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        if self.context['detail']:
+            ret = self.to_representation_retrieve(ret, instance)
+        else:
+            ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].image_url) if instance.related_images else DEFAULT_IMAGE_URL
+
+        return ret
+
+    def to_representation_retrieve(self, ret, instance):
+        for mapping in self.primary_key_related_field_serializer_mapping:
+            ret[mapping.get('field')] = convert_primary_key_related_field_to_serializer(instance=instance, **mapping)
+        
+        if not instance.related_images:
+            ret['images'] = [DEFAULT_IMAGE_URL]
+
+        return ret
 
 
 class ProductSerializer(DynamicFieldsSerializer):
@@ -279,7 +350,7 @@ class ProductSerializer(DynamicFieldsSerializer):
         related_images = ret.get('images', None)
         if related_images is not None:
             for image in related_images:
-                image['url'] = BASE_IMAGE_URL + image['url']
+                image['iamge_url'] = BASE_IMAGE_URL + image['image_url']
         else:
             ret['images'] = [DEFAULT_IMAGE_URL]
 
@@ -291,7 +362,7 @@ class ProductSerializer(DynamicFieldsSerializer):
         if self.context['detail']:
             ret = self.to_representation_retrieve(ret, instance)
         else:
-            ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].url) if instance.related_images else DEFAULT_IMAGE_URL
+            ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].image_url) if instance.related_images else DEFAULT_IMAGE_URL
 
         return ret
 
@@ -322,14 +393,9 @@ class MaterialSerializer(Serializer):
     name = CharField(max_length=20, read_only=True)
 
 
-class StyleSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
 
 
-class AgeSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+
 
 
 class ThicknessSerializer(Serializer):
