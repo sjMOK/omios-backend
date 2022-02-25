@@ -306,13 +306,6 @@ class SizeTest(ModelTestCase):
 class OptionTest(ModelTestCase):
     _model_class = Option
 
-    # @classmethod
-    # def setUpTestData(cls):
-        
-
-        
-    #     cls._option = cls._get_default_model_after_creation()
-
     def setUp(self):
         product_color = ProductColorFactory()
         size = SizeFactory()
