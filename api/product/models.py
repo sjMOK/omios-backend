@@ -24,7 +24,7 @@ class MainCategory(Model):
 class SubCategory(Model):
     id = AutoField(primary_key=True)
     main_category = ForeignKey('MainCategory', related_name='sub_categories', on_delete=DO_NOTHING)
-    sizes = ManyToManyField('Size', db_table='sub_category_size')
+    sizes = ManyToManyField('Size', through='SubCategorySize')
     name = CharField(max_length=20)
     require_product_additional_information = BooleanField()
     require_laundry_information = BooleanField()
@@ -177,6 +177,16 @@ class Size(Model):
 
     def __str__(self):
         return self.name
+
+
+class SubCategorySize(Model):
+    id = AutoField(primary_key=True)
+    sub_category = ForeignKey('SubCategory', DO_NOTHING)
+    size = ForeignKey('Size', DO_NOTHING)
+
+    class Meta:
+        db_table = 'sub_category_size'
+        unique_together = (('sub_category', 'size'),)
 
 
 class Option(Model):
