@@ -1,3 +1,4 @@
+from django.db import connection
 from django.db.models.query import Prefetch
 from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
@@ -15,7 +16,7 @@ from .models import (
 from .serializers import (
     LaundryInformationSerializer, MainCategorySerializer, SizeSerializer, StyleSerializer, SubCategorySerializer, ColorSerializer, 
     ImageSerializer, ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
-    FlexibilitySerializer,
+    FlexibilitySerializer, ProductCreateSerializer
 )
 from .permissions import ProductPermission
 from common.utils import get_response, querydict_to_dict, levenshtein
@@ -94,6 +95,7 @@ def get_dynamic_registation_data(request):
     response_data = dict()
     response_data['size'] = SizeSerializer(sizes, many=True).data
 
+    response_data['product_additional_information'] = None
     if sub_category.require_product_additional_information:
         thickness = Thickness.objects.all()
         see_through = SeeThrough.objects.all()
@@ -106,10 +108,11 @@ def get_dynamic_registation_data(request):
 
         response_data['product_additional_information'] = product_additional_inforamtion
 
+    response_data['laundry_inforamtion'] = list()
     if sub_category.require_laundry_information:
         laundry_information = LaundryInformation.objects.all()
         response_data['laundry_inforamtion'] = LaundryInformationSerializer(laundry_information, many=True).data
-
+        
     return get_response(data=response_data)
 
 
@@ -164,14 +167,14 @@ def upload_prdocut_image(request):
 
 class ProductViewSet(viewsets.GenericViewSet):
     permission_classes = [ProductPermission]
-    serializer_class = ProductSerializer
+    serializer_class = ProductCreateSerializer
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
     default_fields = ('id', 'name', 'price')
     additional_fields = {
         'shopper_list': (),
-        'shopper_detail': ('options', 'sub_category', 'images', 'tags'),
+        'shopper_detail': ('main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'product_additional_information', 'materials', 'colors', 'images'),
         'wholesaler_list': ('created',),
         'wholesaler_detail': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'),
     }
@@ -202,9 +205,8 @@ class ProductViewSet(viewsets.GenericViewSet):
             condition = Q(on_sale=True)
 
         prefetch_images = Prefetch('images', to_attr='related_images')
-        prefetch_tags = Prefetch('tags', to_attr='related_tags')
 
-        return Product.objects.prefetch_related(prefetch_images, prefetch_tags).filter(condition)
+        return Product.objects.prefetch_related(prefetch_images).filter(condition)
 
     def filter_queryset(self, queryset):
         query_params = querydict_to_dict(self.request.query_params)
@@ -249,7 +251,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(
-            page, fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
+            page, allow_fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
         )
 
         paginated_response = self.get_paginated_response(serializer.data)
@@ -270,20 +272,17 @@ class ProductViewSet(viewsets.GenericViewSet):
         return self.get_response_for_list(queryset, max_price=max_price)
 
     def retrieve(self, request, id=None):
-        prefetch_options = Prefetch('options', queryset=Option.objects.select_related('size'), to_attr='related_options')
-
-        queryset = self.filter_queryset(
-            self.get_queryset().prefetch_related(prefetch_options).select_related('sub_category__main_category')
-        )
-    
+        queryset = self.get_queryset().select_related('sub_category__main_category', 'style', 'age')
         product = self.get_object(queryset)
 
-        serializer = self.get_serializer(product, fields=self.get_allowed_fields(), context={'detail': self.detail})
-
+        serializer = self.get_serializer(product, allow_fields=self.get_allowed_fields(), context={'detail': self.detail})
+        # serializer.data
+        # return get_response(data=connection.queries)
         return get_response(data=serializer.data)
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
+
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
