@@ -1,6 +1,17 @@
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import Serializer, ModelSerializer
 
+from django.core.exceptions import ObjectDoesNotExist
+
+
+def convert_primary_key_related_field_to_serializer(serializer_class, instance, field, many=False):
+        try:
+            instance = getattr(instance, field)
+        except ObjectDoesNotExist:
+            return None
+
+        return serializer_class(instance, many=many).data
+
 
 class SerializerMixin:
     def __init__(self, *args, **kwargs):
