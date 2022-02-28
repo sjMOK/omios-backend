@@ -25,7 +25,7 @@ class RefreshingTokenRequest(RefreshingTokenSerializer):
 class ShopperCreateRequest(ShopperSerializer):
     class Meta:
         model = Shopper
-        fields = ['username', 'password', 'email', 'phone', 'name', 'birthday', 'gender']
+        fields = ['username', 'password', 'email', 'mobile_number', 'name', 'birthday', 'gender']
 
 
 class ShopperUpdateRequest(ShopperSerializer):

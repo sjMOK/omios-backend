@@ -9,18 +9,18 @@ from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
+from common.utils import get_response, querydict_to_dict, levenshtein
+from common.views import upload_image_view
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
     Style, Keyword, Product, Option, Tag, Age, Thickness,
 )
 from .serializers import (
     LaundryInformationSerializer, MainCategorySerializer, SizeSerializer, StyleSerializer, SubCategorySerializer, ColorSerializer, 
-    ImageSerializer, ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
+    ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
     FlexibilitySerializer, ProductCreateSerializer
 )
 from .permissions import ProductPermission
-from common.utils import get_response, querydict_to_dict, levenshtein
-from common.storage import upload_images
 
 
 def sort_keywords(keywords, search_word):
@@ -154,15 +154,7 @@ def get_colors(request):
 
 @api_view(['POST'])
 def upload_prdocut_image(request):
-    images = request.FILES.getlist('image')
-
-    serializer = ImageSerializer(data=[{'image': image} for image in images], many=True)
-    if not serializer.is_valid():
-        return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
-    images = upload_images('product', request.user.id, images)
-
-    return get_response(status=HTTP_201_CREATED, data={'images': images})
+    return upload_image_view(request, 'product', request.user.id)
 
 
 class ProductViewSet(viewsets.GenericViewSet):

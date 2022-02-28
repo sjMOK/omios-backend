@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.serializers import DynamicFieldsSerializer, convert_primary_key_related_field_to_serializer
-from .validators import validate_file_size, validate_url, validate_price_difference
+from .validators import validate_url, validate_price_difference
 from .models import (
     LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Size, Option, Tag, Product, ProductImages,
     Style, Age, ProductAdditionalInformation, Thickness, SeeThrough, Flexibility, ProductMaterial,
@@ -382,10 +382,6 @@ class ProductSerializer(DynamicFieldsSerializer):
     
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
-
-
-class ImageSerializer(Serializer):
-    image = ImageField(max_length=200, validators=[validate_file_size])
 
 
 class MaterialSerializer(Serializer):

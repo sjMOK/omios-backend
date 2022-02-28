@@ -5,6 +5,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
 
 from common.utils import get_response, get_response_body
+from common.views import upload_image_view
 from .models import User, Shopper, Wholesaler
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
@@ -91,6 +92,12 @@ class WholesalerView(UserView):
 
     def _get_model_instance(self, user):
         return user.wholesaler
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def upload_business_registration_image(request):
+    return upload_image_view(request, 'business_registration')
 
 
 @api_view(['PATCH'])
