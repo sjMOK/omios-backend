@@ -65,7 +65,7 @@ class Shopper(User):
     membership = ForeignKey(Membership, DO_NOTHING, default=1)
     name = CharField(max_length=20)
     nickname = CharField(max_length=20, unique=True)
-    phone = CharField(max_length=15, unique=True)
+    mobile_number = CharField(max_length=11, unique=True)
     email = EmailField(max_length=50)
     gender = BooleanField()
     birthday = DateField()
@@ -96,7 +96,7 @@ class Shopper(User):
 class Wholesaler(User):
     user = OneToOneField(User, DO_NOTHING, parent_link=True, primary_key=True)
     name = CharField(max_length=60)
-    phone = CharField(max_length=15)
+    mobile_number = CharField(max_length=11)
     email = EmailField(max_length=50)
     company_registration_number = CharField(max_length=12, unique=True)
 

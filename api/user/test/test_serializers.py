@@ -138,7 +138,7 @@ class ShopperSerializerTestCase(ModelSerializerTestCase):
             'membership': MembershipSerializer(instance=shopper.membership).data,
             'name': shopper.name,
             'nickname': shopper.nickname,
-            'phone': shopper.phone,
+            'mobile_number': shopper.mobile_number,
             'email': shopper.email,
             'gender': shopper.gender,
             'birthday': shopper.birthday,

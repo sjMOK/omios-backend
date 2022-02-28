@@ -92,7 +92,7 @@ class ShopperSerializer(UserSerializer):
     membership = MembershipSerializer(required=False)
     name = RegexField(NAME_REGEX, max_length=20)
     nickname = RegexField(NICKNAME_REGEX, min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=Shopper.objects.all())])
-    phone = RegexField(PHONE_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
+    mobile_number = RegexField(PHONE_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
 
     class Meta:
         model = Shopper
@@ -104,7 +104,7 @@ class ShopperSerializer(UserSerializer):
 
 
 class WholesalerSerializer(UserSerializer):
-    phone = RegexField(PHONE_REGEX)
+    mobile_number = RegexField(PHONE_REGEX)
     company_registration_number = CharField(max_length=12, validators=[UniqueValidator(queryset=Wholesaler.objects.all())])
 
     class Meta:

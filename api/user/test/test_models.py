@@ -92,7 +92,7 @@ class ShopperTestCase(ModelTestCase):
             "birthday": "2017-01-01",
             "gender": 1,
             "email": "testemail@naver.com",
-            "phone": "01012345678",
+            "mobile_number": "01012345678",
             "username": "shopper",
             "password": "password",
         }
@@ -103,7 +103,7 @@ class ShopperTestCase(ModelTestCase):
         self.assertTrue(self._shopper.membership)
         self.assertEqual(self._shopper.name, self._test_data['name'])
         self.assertEqual(self._shopper.nickname, self._test_data['username'])
-        self.assertEqual(self._shopper.phone, self._test_data['phone'])
+        self.assertEqual(self._shopper.mobile_number, self._test_data['mobile_number'])
         self.assertEqual(self._shopper.email, self._test_data['email'])
         self.assertEqual(self._shopper.gender, self._test_data['gender'])
         self.assertEqual(self._shopper.birthday, self._test_data['birthday'])
@@ -112,7 +112,7 @@ class ShopperTestCase(ModelTestCase):
 
     def test_default_nickname(self):
         self._shopper.nickname = self._test_data['username'] = 'shopper2'
-        self._test_data['phone'] = '01012341234'
+        self._test_data['mobile_number'] = '01012341234'
         self._shopper.save(update_fields=['nickname'])
         shopper = self._get_model_after_creation()
 

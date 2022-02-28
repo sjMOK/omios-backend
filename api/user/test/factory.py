@@ -30,7 +30,7 @@ class ShopperFactory(UserFactory):
     birthday = "2021-11-20"
     gender = Sequence(lambda num: num % 2)
     email = LazyAttribute(lambda shopper: '%s@omios.com' % shopper.username)
-    phone = Sequence(lambda num: '010%08d' % num)
+    mobile_number = Sequence(lambda num: '010%08d' % num)
 
 
 class WholesalerFactory(UserFactory):
@@ -39,5 +39,5 @@ class WholesalerFactory(UserFactory):
 
     name = '무신사'
     email = 'musinsa@naver.com'
-    phone='01011111111'
+    mobile_number='01011111111'
     company_registration_number=111122223333

@@ -126,7 +126,7 @@ class ShopperViewTestCase(ViewTestCase):
             "birthday": "2021-11-20",
             "gender": 1,
             "email": "test@naver.com",
-            "phone": "01011111111",
+            "mobile_number": "01011111111",
             "username": "xptmxm",
             "password": "Testtest00"
         }
