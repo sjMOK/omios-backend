@@ -11,12 +11,12 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Option, Tag, Age, Thickness,
+    Style, Keyword, Product, Tag, Age, Thickness,
 )
 from .serializers import (
     LaundryInformationSerializer, MainCategorySerializer, SizeSerializer, StyleSerializer, SubCategorySerializer, ColorSerializer, 
     ImageSerializer, ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
-    FlexibilitySerializer, ProductCreateSerializer
+    FlexibilitySerializer, ProductWriteSerializer
 )
 from .permissions import ProductPermission
 from common.utils import get_response, querydict_to_dict, levenshtein
@@ -167,17 +167,27 @@ def upload_prdocut_image(request):
 
 class ProductViewSet(viewsets.GenericViewSet):
     permission_classes = [ProductPermission]
-    serializer_class = ProductCreateSerializer
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     default_sorting = '-created'
     default_fields = ('id', 'name', 'price')
     additional_fields = {
         'shopper_list': (),
-        'shopper_detail': ('main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'product_additional_information', 'materials', 'colors', 'images'),
+        'shopper_detail': (
+            'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'product_additional_information', 'materials', 'colors', 'images'
+        ),
         'wholesaler_list': ('created',),
-        'wholesaler_detail': ('options', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'),
+        'wholesaler_detail': (
+            'options', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'
+        ),
     }
+    read_action = ('retrieve', 'list', 'search')
+
+
+    def get_serializer_class(self):
+        if self.action == 'create' or self.action == 'partial_update':
+            return ProductWriteSerializer
+        return ProductSerializer
 
     def get_allowed_fields(self):
         request_type = 'detail' if self.detail else 'list'
@@ -204,9 +214,10 @@ class ProductViewSet(viewsets.GenericViewSet):
         else:
             condition = Q(on_sale=True)
 
-        prefetch_images = Prefetch('images', to_attr='related_images')
-
-        return Product.objects.prefetch_related(prefetch_images).filter(condition)
+        if self.action in self.read_action:
+            prefetch_images = Prefetch('images', to_attr='related_images')
+            return Product.objects.prefetch_related(prefetch_images).filter(condition)
+        return Product.objects.filter(condition)
 
     def filter_queryset(self, queryset):
         query_params = querydict_to_dict(self.request.query_params)
@@ -276,8 +287,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         product = self.get_object(queryset)
 
         serializer = self.get_serializer(product, allow_fields=self.get_allowed_fields(), context={'detail': self.detail})
-        # serializer.data
-        # return get_response(data=connection.queries)
+
         return get_response(data=serializer.data)
 
     def create(self, request):
@@ -296,7 +306,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
         product.on_sale = False
-        product.save()
+        product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
 
