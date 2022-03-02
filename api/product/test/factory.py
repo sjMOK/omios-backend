@@ -36,18 +36,6 @@ class AgeFactory(DjangoModelFactory):
     name = name = Sequence(lambda num: 'age_{0}'.format(num))
 
 
-class ProductFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Product'
-
-    name = Sequence(lambda num: 'product_{0}'.format(num))
-    price = 35000
-    wholesaler = SubFactory(WholesalerFactory)
-    sub_category = SubFactory(SubCategoryFactory)
-    style = SubFactory(StyleFactory)
-    age = SubFactory(AgeFactory)
-
-
 class ThicknessFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Thickness'
@@ -67,6 +55,22 @@ class FlexibilityFactory(DjangoModelFactory):
         model = 'product.Flexibility'
 
     name = Sequence(lambda num: 'flexibility_{0}'.format(num))
+
+
+class ProductFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Product'
+
+    name = Sequence(lambda num: 'product_{0}'.format(num))
+    price = 35000
+    wholesaler = SubFactory(WholesalerFactory)
+    sub_category = SubFactory(SubCategoryFactory)
+    style = SubFactory(StyleFactory)
+    age = SubFactory(AgeFactory)
+    thickness = SubFactory(ThicknessFactory)
+    see_through = SubFactory(SeeThroughFactory)
+    flexibility = SubFactory(FlexibilityFactory)
+    lining = True
 
 
 class TagFactory(DjangoModelFactory):
@@ -91,6 +95,7 @@ class ProductColorFactory(DjangoModelFactory):
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
     display_color_name = Sequence(lambda num: 'display_color_name_{0}'.format(num))
+    image_url = 'product/sample/product_21.jpg'
 
 
 class SizeFactory(DjangoModelFactory):

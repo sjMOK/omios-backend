@@ -7,12 +7,12 @@ from pdb import set_trace
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from user.test.factory import WholesalerFactory
 from ..models import (
-    MainCategory, SubCategory, Product, Age, Thickness, SeeThrough, Flexibility, ProductAdditionalInformation, ProductImages,
-    Tag, Color, ProductColor, ProductColorImages, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, 
+    MainCategory, SubCategory, Product, Age, Thickness, SeeThrough, Flexibility, ProductImages,
+    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, 
 )
 from .factory import (
-    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, ThicknessFactory,
-    SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
+    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, 
+    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
 )
 
 
@@ -55,7 +55,7 @@ class SubCategoryTest(ModelTestCase):
         self.assertTrue(sub_category.require_product_additional_information)
         self.assertTrue(sub_category.require_laundry_information)
 
-@tag('product')
+
 class ProductTest(ModelTestCase):
     _model_class = Product
 
@@ -65,6 +65,9 @@ class ProductTest(ModelTestCase):
         sub_category = SubCategoryFactory()
         age = AgeFactory()
         style = StyleFactory()
+        thickness = ThicknessFactory()
+        see_through = SeeThroughFactory()
+        flexibility = FlexibilityFactory()
 
         cls._test_data = {
             'wholesaler': wholesaler,
@@ -73,7 +76,11 @@ class ProductTest(ModelTestCase):
             'price': 35000,
             'age': age,
             'style': style,
-        }   
+            'thickness': thickness,
+            'see_through': see_through,
+            'flexibility': flexibility,
+            'lining': True
+        }
 
         cls._product = cls._get_default_model_after_creation()
 
@@ -84,6 +91,10 @@ class ProductTest(ModelTestCase):
         self.assertEqual(self._product.price, self._test_data['price'])
         self.assertEqual(self._product.age, self._test_data['age'])
         self.assertEqual(self._product.style, self._test_data['style'])
+        self.assertEqual(self._product.thickness, self._test_data['thickness'])
+        self.assertEqual(self._product.see_through, self._test_data['see_through'])
+        self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
+        self.assertTrue(self._product.lining)
     
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
@@ -164,33 +175,6 @@ class FlexibilityTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])        
 
 
-class ProductAdditionalInformationTest(ModelTestCase):
-    _model_class = ProductAdditionalInformation
-
-    def setUp(self):
-        product = ProductFactory()
-        thickness = ThicknessFactory()
-        see_through = SeeThroughFactory()
-        flexibility = FlexibilityFactory()
-
-        self._test_data = {
-            'product': product,
-            'thickness': thickness,
-            'see_through': see_through,
-            'flexibility': flexibility,
-            'lining': True,
-        }
-
-    def test_create(self):
-        product_additional_inforamtion = self._get_model_after_creation()
-
-        self.assertEqual(product_additional_inforamtion.product, self._test_data['product'])
-        self.assertEqual(product_additional_inforamtion.thickness, self._test_data['thickness'])
-        self.assertEqual(product_additional_inforamtion.see_through, self._test_data['see_through'])
-        self.assertEqual(product_additional_inforamtion.flexibility, self._test_data['flexibility'])
-        self.assertTrue(product_additional_inforamtion.lining)
-
-
 class ProductImagesTest(ModelTestCase):
     _model_class = ProductImages
 
@@ -253,6 +237,7 @@ class ProductColorTest(ModelTestCase):
             'product': product,
             'color': color,
             'display_color_name': 'display_color_name',
+            'image_url': 'product/sample/product_21.jpg'
         }
 
         cls._product_color = cls._get_default_model_after_creation()
@@ -261,32 +246,13 @@ class ProductColorTest(ModelTestCase):
         self.assertEqual(self._product_color.product, self._test_data['product'])
         self.assertEqual(self._product_color.color, self._test_data['color'])
         self.assertEqual(self._product_color.display_color_name, self._test_data['display_color_name'])
+        self.assertEqual(self._product_color.image_url, self._test_data['image_url'])
     
     def test_display_color_name(self):
         self._test_data.pop('display_color_name')
         product_color = self._get_model_after_creation()
 
         self.assertEqual(product_color.display_color_name, product_color.color.name)
-
-
-class ProductColorImagesTest(ModelTestCase):
-    _model_class = ProductColorImages
-
-    def setUp(self):
-        product_color = ProductColorFactory()
-        
-        self._test_data = {
-            'product_color': product_color,
-            'image_url': 'product/color/product_1.jpg',
-            'sequence': 1,
-        }
-
-    def test_create(self):
-        product_color_images = self._get_model_after_creation()
-
-        self.assertEqual(product_color_images.product_color, self._test_data['product_color'])
-        self.assertEqual(product_color_images.image_url, self._test_data['image_url'])
-        self.assertEqual(product_color_images.sequence, self._test_data['sequence'])
 
 
 class SizeTest(ModelTestCase):
