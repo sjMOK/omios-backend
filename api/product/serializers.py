@@ -79,62 +79,25 @@ class ProductImagesSerializer(Serializer):
         return ret
 
 
-class ProductColorImagesListSerializer(ListSerializer):
-    def to_internal_value(self, data):
-        ret = super().to_internal_value(data)
-        
-        sequence = 1
-        for image_data in ret:
-            image_data['sequence'] = sequence
-            sequence += 1
-
-        return ret
-
-    def validate(self, attrs):
-        urls = [attr.get('image_url') for attr in attrs]
-        if len(urls) != len(set(urls)):
-            raise ValidationError('product_color image_url is duplicated.')
-
-        return attrs
-
-
-class ProductColorImagesSerializer(Serializer):
-    image_url = CharField(max_length=200)
-    sequence = IntegerField(read_only=True, max_value=5, min_value=1)
-    
-    class Meta:
-        list_serializer_class = ProductColorImagesListSerializer
-
-    def validate_image_url(self, value):
-        return validate_url(value)
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-
-        ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
-
-        return ret
-
-
 class LaundryInformationSerializer(Serializer):
     id = IntegerField(read_only=True)
     name = CharField(read_only=True, max_length=20)
 
 
-class ProductAdditionalInformationSerializer(Serializer):
-    thickness = PrimaryKeyRelatedField(write_only=True, queryset=Thickness.objects.all())
-    see_through = PrimaryKeyRelatedField(write_only=True, queryset=SeeThrough.objects.all())
-    flexibility = PrimaryKeyRelatedField(write_only=True, queryset=Flexibility.objects.all())
-    lining = BooleanField()
+class ThicknessSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
 
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
 
-        ret['thickness'] = ThicknessSerializer(instance.thickness).data
-        ret['see_through'] = SeeThroughSerializer(instance.see_through).data
-        ret['flexibility'] = FlexibilitySerializer(instance.flexibility).data
+class SeeThroughSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
 
-        return ret
+
+class FlexibilitySerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
 
 
 class ProductMaterialListSerializer(ListSerializer):
