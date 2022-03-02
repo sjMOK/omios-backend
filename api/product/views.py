@@ -16,10 +16,9 @@ from .models import (
     Style, Keyword, Product, Tag, Age, Thickness,
 )
 from .serializers import (
-    LaundryInformationSerializer, MainCategorySerializer, SizeSerializer, StyleSerializer, SubCategorySerializer, ColorSerializer, 
-    ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
-    FlexibilitySerializer, ProductWriteSerializer, ProductSerializer, MaterialSerializer, AgeSerializer, ThicknessSerializer, SeeThroughSerializer,
-    FlexibilitySerializer, 
+    ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
+    AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
+    ColorSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer, 
 )
 from .permissions import ProductPermission
 
@@ -167,20 +166,21 @@ class ProductViewSet(viewsets.GenericViewSet):
     additional_fields = {
         'shopper_list': (),
         'shopper_detail': (
-            'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'product_additional_information', 'materials', 'colors', 'images'
+            'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 'flexibility',  
+            'lining', 'materials', 'colors', 'images'
         ),
         'wholesaler_list': ('created',),
         'wholesaler_detail': (
             'options', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'
         ),
     }
-    read_action = ('retrieve', 'list', 'search')
+    read_action = ('retrieve', 'list', 'search', 'saler_product')
 
 
     def get_serializer_class(self):
         if self.action == 'create' or self.action == 'partial_update':
             return ProductWriteSerializer
-        return ProductSerializer
+        return ProductReadSerializer
 
     def get_allowed_fields(self):
         request_type = 'detail' if self.detail else 'list'
@@ -294,7 +294,12 @@ class ProductViewSet(viewsets.GenericViewSet):
         return get_response(status=HTTP_201_CREATED, data={'id': product.id})
 
     def partial_update(self, request, id=None):
-        return get_response(data='product.partial_update()')
+        product = self.get_object(self.get_queryset())
+        serializer = ProductWriteSerializer(product, data=request.data, partial=True)
+        serializer.is_valid()
+        serializer.save()
+
+        return get_response(data='product id{0} update success'.format(product.id))
 
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
@@ -302,6 +307,14 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
+
+    @action(detail=True, url_path='saler')
+    def saler_product(self, request, id=None):
+        queryset = self.get_queryset().select_related('sub_category', 'style', 'age')
+        product = self.get_object(queryset)
+        serializer = ProductWriteSerializer(product)
+
+        return get_response(data=serializer.data)
 
     @action(detail=False, url_path='search')
     def search(self, request):
