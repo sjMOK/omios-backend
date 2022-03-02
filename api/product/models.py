@@ -49,6 +49,10 @@ class Product(Model):
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
     on_sale = BooleanField(default=True)
+    thickness = ForeignKey('Thickness', DO_NOTHING)
+    see_through = ForeignKey('SeeThrough', DO_NOTHING)
+    flexibility = ForeignKey('Flexibility', DO_NOTHING)
+    lining = BooleanField()
 
     class Meta:
         db_table = 'product'
@@ -93,17 +97,6 @@ class Flexibility(Model):
         ordering = ['id']
 
 
-class ProductAdditionalInformation(Model):
-    product = OneToOneField('Product', DO_NOTHING, primary_key=True, related_name='product_additional_information')
-    thickness = ForeignKey('Thickness', DO_NOTHING)
-    see_through = ForeignKey('SeeThrough', DO_NOTHING)
-    flexibility = ForeignKey('Flexibility', DO_NOTHING)
-    lining = BooleanField()
-
-    class Meta:
-        db_table = 'product_additional_information'
-
-
 class ProductImages(Model):
     id = BigAutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='images')
@@ -145,6 +138,7 @@ class ProductColor(Model):
     product = ForeignKey('Product', DO_NOTHING, related_name='colors')
     color = ForeignKey('Color', DO_NOTHING)
     display_color_name = CharField(max_length=20)
+    image_url = CharField(max_length=200)
 
     class Meta:
         db_table = 'product_color'
@@ -154,17 +148,6 @@ class ProductColor(Model):
         if not self.display_color_name:
             self.display_color_name = self.color.name
         super().save(*args, **kwargs)
-
-
-class ProductColorImages(Model):
-    id = AutoField(primary_key=True)
-    product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='images')
-    image_url = CharField(max_length=200)
-    sequence = IntegerField()
-
-    class Meta:
-        db_table = 'product_color_images'
-        unique_together = (('product_color', 'sequence'), ('product_color', 'image_url'),)
 
 
 class Size(Model):
