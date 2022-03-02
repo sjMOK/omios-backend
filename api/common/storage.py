@@ -30,19 +30,23 @@ def product_image_path(instance, filename):
     )
 
 
-def get_upload_path_prefix(type, user_id):
-    if type == 'product':
-        return 'product/wholesaler{}/product_'.format(user_id)
+def get_upload_path_prefix(type, *args):
+    if type == 'business_registration':
+        middle_path = ''
+    elif type == 'product':
+        middle_path = '/wholesaler{}'.format(*args)
     elif type == 'review':
-        return 'review/shopper{}/review_'.format(user_id)
+        middle_path = '/shopper{}'.format(*args)
     else:
         return False
 
+    return '{}{}/{}_'.format(type, middle_path, type)
 
-def upload_images(type, user_id, images):
+
+def upload_images(type, images, *args):
     result = []
 
-    upload_path_prefix = get_upload_path_prefix(type, user_id)
+    upload_path_prefix = get_upload_path_prefix(type, *args)
     if upload_path_prefix:
         storage = MediaStorage()
         for image in images:

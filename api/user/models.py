@@ -1,8 +1,8 @@
 import string, random
 
 from django.db.models import (
-    Model, BigAutoField, CharField, BooleanField, DateTimeField, OneToOneField, 
-    ForeignKey, EmailField, DateField, IntegerField, DO_NOTHING,
+    Model, AutoField, BigAutoField, CharField, BooleanField, DateTimeField, OneToOneField, 
+    ForeignKey, EmailField, DateField, IntegerField, ImageField, DO_NOTHING, ManyToManyField
 )
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
@@ -10,8 +10,11 @@ from django.utils import timezone
 from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
+from common.storage import MediaStorage
+
 
 class Membership(Model):
+    id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
 
     class Meta:
@@ -93,15 +96,66 @@ class Shopper(User):
         super().save(*args, **kwargs)
 
 
+class ShopperAddress(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    name = CharField(max_length=20, null=True)
+    receiver = CharField(max_length=20)
+    mobile_number = CharField(max_length=11)
+    phone_number = CharField(max_length=11, null=True)
+    zip_code = CharField(max_length=5)
+    base_address = CharField(max_length=200)
+    detail_address = CharField(max_length=100)
+    is_default = BooleanField()
+
+    class Meta:
+        db_table = 'shopper_address'
+
+
 class Wholesaler(User):
     user = OneToOneField(User, DO_NOTHING, parent_link=True, primary_key=True)
     name = CharField(max_length=60)
     mobile_number = CharField(max_length=11)
+    phone_number = CharField(max_length=11, unique=True)
     email = EmailField(max_length=50)
     company_registration_number = CharField(max_length=12, unique=True)
+    business_registration_image_url = ImageField(max_length=200, storage=MediaStorage)
+    zip_code = CharField(max_length=5)
+    base_address = CharField(max_length=200)
+    detail_address = CharField(max_length=100)
+    is_approved = BooleanField(default=False)
 
     class Meta:
         db_table = 'wholesaler'
 
     def __str__(self):
         return '{0} {1}'.format(self.username, self.name)
+
+
+class Floor(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=10)
+
+    class Meta:
+        db_table = 'floor'
+
+
+class Building(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+    zip_code = CharField(max_length=5)
+    base_address = CharField(max_length=200)
+    floors = ManyToManyField('Floor', through='BuildingFloor')
+
+    class Meta:
+        db_table = 'building'
+
+
+class BuildingFloor(Model):
+    id = AutoField(primary_key=True)
+    building = ForeignKey('Building', DO_NOTHING)
+    floor = ForeignKey('Floor', DO_NOTHING)
+
+    class Meta:
+        db_table = 'building_floor'
+        unique_together = (('building', 'floor'),)

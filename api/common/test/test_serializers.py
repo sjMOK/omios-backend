@@ -11,7 +11,7 @@ class SerializerMixinTestCase(APISimpleTestCase):
     class DummySerializer(Serializer):
         name = CharField(max_length=20)
         age = IntegerField()
-        phone = CharField(max_length=20)
+        mobile_number = CharField(max_length=20)
         address = CharField(max_length=50)
 
 

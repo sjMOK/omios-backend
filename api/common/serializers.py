@@ -1,5 +1,7 @@
 from rest_framework.exceptions import APIException
-from rest_framework.serializers import Serializer, ModelSerializer
+from rest_framework.serializers import Serializer, ModelSerializer, ImageField
+
+from .validators import validate_file_size
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -64,3 +66,7 @@ class DynamicFieldsSerializer(SerializerMixin, Serializer):
 
 class DynamicFieldsModelSerializer(SerializerMixin, ModelSerializer):
     pass
+
+
+class ImageSerializer(Serializer):
+    image = ImageField(max_length=200, validators=[validate_file_size])
