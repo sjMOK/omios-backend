@@ -43,29 +43,47 @@ class TagSerializer(Serializer):
 
 
 class ProductImagesListSerializer(ListSerializer):
-    def to_internal_value(self, data):
-        ret = super().to_internal_value(data)
-
-        sequence = 1
-        for image_data in ret:
-            image_data['sequence'] = sequence
-            sequence += 1
-
-        return ret
-
     def validate(self, attrs):
-        urls = [attr.get('image_url') for attr in attrs]
-        if len(urls) != len(set(urls)):
-            raise ValidationError('product image_url is duplicated.')
+        urls = []
+        sequences = []
+        for attr in attrs:
+            if not(len(attr)==1 and 'id' in attr):
+                urls.append(attr['image_url'])
+                sequences.append(attr['sequence'])
+
+        if len(urls) < 1:
+            raise ValidationError(
+            'The number of requested data is different from the number of materials the product has.')
+
+        if has_duplicate_element(urls):
+            raise ValidationError('Product image_url is duplicated.')
+
+        sequences.sort()
+        for index, value in enumerate(sequences):
+            if value != (index+1):
+                raise ValidationError(
+                    'The sequence of the images must be ascending from 1 to n.'
+                )
 
         return attrs
 
 
 class ProductImagesSerializer(Serializer):
+    id = IntegerField(required=False)
     image_url = URLField(max_length=200)
+    sequence = IntegerField()
 
     class Meta:
         list_serializer_class = ProductImagesListSerializer
+
+    def validate(self, attrs):
+        if self.root.partial:
+            if not bool(attrs):
+                raise ValidationError('Product Image data is empty')
+            if 'id' not in attrs:
+                validate_create_data_in_partial_update(attrs, self.fields)
+
+        return attrs
 
     def validate_image_url(self, value):
         return validate_url(value)
@@ -98,32 +116,44 @@ class FlexibilitySerializer(Serializer):
     name = CharField(max_length=10, read_only=True)
 
 
-
 class ProductMaterialListSerializer(ListSerializer):
     def validate(self, attrs):
-        total_mixing_rate = sum([attr.get('mixing_rate') for attr in attrs])
-        if total_mixing_rate > 100:
-            raise ValidationError('The sum of the mixing_rate cannot exceed 100.')
+        total_mixing_rate = sum(
+            [attr['mixing_rate'] for attr in attrs if not (len(attr)==1 and 'id' in attr)]
+        )
+
+        if total_mixing_rate != 100:
+            raise ValidationError('The total of material mixing rates must be 100.')
 
         materials = [attr.get('material') for attr in attrs]
-        if len(materials) != len(set(materials)):
+        if has_duplicate_element(materials):
             raise ValidationError('material is duplicated.')
 
         return attrs
 
 
 class ProductMaterialSerializer(Serializer):
+    id = IntegerField(required=False)
     material = CharField(max_length=20)
     mixing_rate = IntegerField(max_value=100, min_value=1)
 
     class Meta:
         list_serializer_class = ProductMaterialListSerializer
 
+    def validate(self, attrs):
+        if self.root.partial:
+            if not bool(attrs):
+                raise ValidationError('Product Material data is empty')
+            if 'id' not in attrs:
+                validate_create_data_in_partial_update(attrs, self.fields)
+
+        return attrs
+
 
 class OptionListSerializer(ListSerializer):
     def validate(self, attrs):
         sizes = [attr.get('size') for attr in attrs]
-        if len(sizes) != len(set(sizes)):
+        if has_duplicate_element(sizes):
             raise ValidationError("'size' is duplicated.")
 
         return attrs
