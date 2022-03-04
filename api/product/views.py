@@ -1,4 +1,4 @@
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models.query import Prefetch
 from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
@@ -283,6 +283,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(data=serializer.data)
 
+    @transaction.atomic
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
 
@@ -293,12 +294,12 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(status=HTTP_201_CREATED, data={'id': product.id})
 
+    @transaction.atomic
     def partial_update(self, request, id=None):
         product = self.get_object(self.get_queryset())
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
-        serializer.is_valid()
+        serializer.is_valid(raise_exception=True)
         serializer.save()
-
         return get_response(data='product id{0} update success'.format(product.id))
 
     def destroy(self, request, id=None):
