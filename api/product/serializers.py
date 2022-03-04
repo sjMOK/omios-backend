@@ -377,6 +377,17 @@ class ProductWriteSerializer(ProductSerializer):
 
         return (create_data, update_data, delete_data)
         
+    def update_many_to_one_fields(self, product, rel_model_class, create_data, update_data, delete_data):
+        delete_fields_id = [data['id'] for data in delete_data]
+        rel_model_class.objects.filter(product=product, id__in=delete_fields_id).delete()
+
+        for data in update_data:
+            field_id = data.pop('id')
+            rel_model_class.objects.filter(product=product, id=field_id).update(**data)
+
+        rel_model_class.objects.bulk_create(
+            [rel_model_class(product=product, **data) for data in create_data]
+        )
 
     def update_images(self, product, image_data):
         create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(image_data)
@@ -386,33 +397,14 @@ class ProductWriteSerializer(ProductSerializer):
                 'The number of requested data is different from the number of images the product has.'
             )
 
-        delete_image_id = [data['id'] for data in delete_data]
-        ProductImages.objects.filter(product=product, id__in=delete_image_id).delete()
-
-        for data in update_data:
-            image_id = data.pop('id')
-            ProductImages.objects.filter(product=product, id=image_id).update(**data)
-
-        ProductImages.objects.bulk_create(
-            [ProductImages(product=product, **data) for data in create_data]
-        )
+        self.update_many_to_one_fields(product, ProductImages, create_data, update_data, delete_data)
 
         if product.images.all().count()==0:
             raise APIException('One product must have at least one image.')
 
     def update_materials(self, product, material_data):
         create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(material_data)
-
-        delete_material_id = [data['id'] for data in delete_data]
-        ProductMaterial.objects.filter(product=product, id__in=delete_material_id).delete()
-
-        for data in update_data:
-            material_id = data.pop('id')
-            ProductMaterial.objects.filter(product=product, id=material_id).update(**data)
-
-        ProductMaterial.objects.bulk_create(
-            [ProductMaterial(product=product, **data) for data in create_data]
-        )
+        self.update_many_to_one_fields(product, ProductMaterial, create_data, update_data, delete_data)
 
     def update(self, instance, validated_data):
         laundry_informations = validated_data.pop('laundry_informations', list())
