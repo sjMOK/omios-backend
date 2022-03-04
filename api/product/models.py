@@ -106,7 +106,6 @@ class ProductImages(Model):
     class Meta:
         db_table = 'product_images'
         ordering = ['sequence']
-        unique_together = (('product', 'sequence'),)
 
 
 class Tag(Model):
