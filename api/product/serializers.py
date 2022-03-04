@@ -237,6 +237,12 @@ class ProductSerializer(DynamicFieldsSerializer):
     colors = ProductColorSerializer(allow_empty=False, many=True)
     images = ProductImagesSerializer(allow_empty=False, many=True, source='related_images')
     
+    def _sort_dictionary_by_field_name(self, ret_dict):
+        for field in self.field_order:
+            ret_dict.move_to_end(field, last=True)
+
+        return ret_dict
+
 
 class ProductReadSerializer(ProductSerializer):
     main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', allow_fields=('id', 'name'))
@@ -248,6 +254,11 @@ class ProductReadSerializer(ProductSerializer):
     thickness = ThicknessSerializer(read_only=True)
     see_through = SeeThroughSerializer(read_only=True)
     flexibility = FlexibilitySerializer(read_only=True)
+
+    field_order = [
+        'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 
+        'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
+    ]
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -263,14 +274,6 @@ class ProductReadSerializer(ProductSerializer):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
 
-        field_order = [
-            'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 
-            'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
-        ]
-
-        for field in field_order:
-            ret.move_to_end(field, last=True)
-
         return ret
 
 
@@ -284,6 +287,11 @@ class ProductWriteSerializer(ProductSerializer):
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
 
+    field_order = [
+            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 
+            'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
+    ]
+
     def validate(self, attrs):
         price = attrs.get('price')
         
@@ -296,18 +304,10 @@ class ProductWriteSerializer(ProductSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-
-        field_order = [
-            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 
-            'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
-        ]
-
-        for field in field_order:
-            ret.move_to_end(field, last=True)
+        self._sort_dictionary_by_field_name(ret)
 
         return ret
     
-
     def create(self, validated_data):
         laundry_informations = validated_data.pop('laundry_informations', list())
         tags = validated_data.pop('tags', list())
