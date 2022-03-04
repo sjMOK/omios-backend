@@ -3,15 +3,30 @@ from rest_framework.serializers import (
     PrimaryKeyRelatedField, URLField, BooleanField,
 )
 from rest_framework.validators import UniqueValidator
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.serializers import DynamicFieldsSerializer, convert_primary_key_related_field_to_serializer
+from common.serializers import DynamicFieldsSerializer
 from .validators import validate_url, validate_price_difference
 from .models import (
     LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Size, Option, Tag, Product, 
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
 )
+
+def validate_create_data_in_partial_update(create_data, fields):
+    for key, value in fields.items():
+        if getattr(value, 'required', True) and key not in create_data:
+            raise ValidationError('{0} field is required.'.format(key))
+
+def has_duplicate_element(array):
+    if len(array) != len(set(array)):
+        return True
+    return False
+
+def is_delete_data(data):
+    if len(data.keys())==1 and 'id' in data:
+        return True
+    return False
 
 
 class SubCategorySerializer(Serializer):
@@ -183,11 +198,11 @@ class OptionSerializer(Serializer):
 class ProductColorListSerializer(ListSerializer):
     def validate(self, attrs):
         display_color_names = [attr.get('display_color_name') for attr in attrs]
-        if len(display_color_names) != len(set(display_color_names)):
+        if has_duplicate_element(display_color_names):
             raise ValidationError("'display color name' is duplicated.")
 
         image_urls = [attr.get('image_url') for attr in attrs]
-        if len(image_urls) != len(set(image_urls)):
+        if has_duplicate_element(image_urls):
             raise ValidationError("'image_url' is duplicated.")
 
         return attrs
@@ -347,6 +362,58 @@ class ProductWriteSerializer(ProductSerializer):
 
         return product
 
+    def get_separated_data_by_create_update_delete(self, data_array):
+        create_data = []
+        delete_data = []
+        update_data = []
+
+        for data in data_array:
+            if 'id' not in data:
+                create_data.append(data)
+            elif len(data)==1:
+                delete_data.append(data)
+            else:
+                update_data.append(data)
+
+        return (create_data, update_data, delete_data)
+        
+
+    def update_images(self, product, image_data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(image_data)
+
+        if len(delete_data + update_data) != product.images.all().count():
+            raise APIException(
+                'The number of requested data is different from the number of images the product has.'
+            )
+
+        delete_image_id = [data['id'] for data in delete_data]
+        ProductImages.objects.filter(product=product, id__in=delete_image_id).delete()
+
+        for data in update_data:
+            image_id = data.pop('id')
+            ProductImages.objects.filter(product=product, id=image_id).update(**data)
+
+        ProductImages.objects.bulk_create(
+            [ProductImages(product=product, **data) for data in create_data]
+        )
+
+        if product.images.all().count()==0:
+            raise APIException('One product must have at least one image.')
+
+    def update_materials(self, product, material_data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(material_data)
+
+        delete_material_id = [data['id'] for data in delete_data]
+        ProductMaterial.objects.filter(product=product, id__in=delete_material_id).delete()
+
+        for data in update_data:
+            material_id = data.pop('id')
+            ProductMaterial.objects.filter(product=product, id=material_id).update(**data)
+
+        ProductMaterial.objects.bulk_create(
+            [ProductMaterial(product=product, **data) for data in create_data]
+        )
+
     def update(self, instance, validated_data):
         laundry_informations = validated_data.pop('laundry_informations', list())
         tags = validated_data.pop('tags', list())
@@ -356,23 +423,34 @@ class ProductWriteSerializer(ProductSerializer):
 
         for key, value in validated_data.items():
             setattr(instance, key, value)
+        
+        if tags:
+            self.update_m2m_fields(instance.tags, tags)
+
+        if laundry_informations:
+            self.update_m2m_fields(instance.laundry_informations, laundry_informations)
+
+        if images:
+            self.update_images(instance, images)
 
         if materials:
-            for material_data in materials:
-                id = material_data.pop('id', None)
-
-                if id is None:
-                    ProductMaterial.objects.create(product=instance, **material_data)
-                else:
-                    product_material = ProductMaterial.objects.get(id=id)
-                    for key, value in material_data.items():
-                        setattr(product_material, key, value)
-
-                    product_material.save()
+            self.update_materials(instance, materials)
 
         instance.save(update_fields=validated_data.keys())
 
         return instance
+
+    def update_m2m_fields(self, m2m_field, validated_fields):
+        model = m2m_field.model
+
+        stored_fields = m2m_field.all()
+        input_fields = model.objects.filter(id__in=[field.id for field in validated_fields])
+
+        delete_fields = set(stored_fields) - set(input_fields)
+        m2m_field.remove(*delete_fields)
+
+        store_fields = set(input_fields) - set(stored_fields)
+        m2m_field.add(*store_fields)
 
 
 class MaterialSerializer(Serializer):
