@@ -174,18 +174,11 @@ class SubCategorySize(Model):
 class Option(Model):
     id = BigAutoField(primary_key=True)
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
-    size = ForeignKey('Size', DO_NOTHING)
-    display_size_name = CharField(max_length=20)
+    size = CharField(max_length=20)
     price_difference = IntegerField(default=0)  
 
     class Meta:
         db_table = 'option'
-        unique_together = (('product_color', 'size'),)
-
-    def save(self, *args, **kwargs):
-        if not self.display_size_name:
-            self.display_size_name = self.size.name
-        super().save(*args, **kwargs)
 
 
 class Keyword(Model):
