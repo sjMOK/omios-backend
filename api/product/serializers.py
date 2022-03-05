@@ -195,32 +195,24 @@ class OptionListSerializer(ListSerializer):
 
 class OptionSerializer(Serializer):
     id = IntegerField(read_only=True)
-    display_size_name = CharField(allow_null=True, max_length=20)
+    size = CharField(max_length=20)
     price_difference = IntegerField(max_value=100000, min_value=0, required=False)
-    size = PrimaryKeyRelatedField(write_only=True, allow_null=True, queryset=Size.objects.all())
 
     class Meta:
         list_serializer_class = OptionListSerializer
-
-    def validate(self, attrs):
-        size = attrs.get('size')
-        display_size_name = attrs.get('display_size_name')
-
-        if size is None and display_size_name is None:
-            raise ValidationError(
-                "'size' and 'display_size_name' cannot be null values at the same time."
-            )
-
-        return attrs
 
 
 class ProductColorListSerializer(ListSerializer):
     def validate(self, attrs):
         display_color_names = [attr.get('display_color_name') for attr in attrs]
+        
         if has_duplicate_element(display_color_names):
             raise ValidationError("'display color name' is duplicated.")
 
-        image_urls = [attr.get('image_url') for attr in attrs]
+        image_urls = [
+            attr.get('image_url') for attr in attrs if not is_delete_data(attr) and 'image_url' in attr
+        ]
+
         if has_duplicate_element(image_urls):
             raise ValidationError("'image_url' is duplicated.")
 
@@ -228,6 +220,7 @@ class ProductColorListSerializer(ListSerializer):
 
 
 class ProductColorSerializer(Serializer):
+    id = IntegerField(required=False)
     display_color_name = CharField(allow_null=True, max_length=20)
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
@@ -237,9 +230,19 @@ class ProductColorSerializer(Serializer):
         list_serializer_class = ProductColorListSerializer
 
     def validate(self, attrs):
-        display_color_name = attrs.get('display_color_name')
-        if display_color_name is None:
-            attrs['display_color_name'] = attrs.get('color').name
+        if self.root.partial:
+            if not bool(attrs):
+                raise ValidationError('Product color data is empty')
+
+            if is_update_data(attrs):
+                if 'color' in attrs:
+                    raise ValidationError('Color data cannot be updated.')
+            elif is_create_data(attrs):
+                validate_require_data_in_partial_update(attrs, self.fields)
+        else:
+            display_color_name = attrs.get('display_color_name')
+            if display_color_name is None:
+                attrs['display_color_name'] = attrs.get('color').name
         
         return attrs
 
@@ -319,14 +322,20 @@ class ProductWriteSerializer(ProductSerializer):
     ]
 
     def validate(self, attrs):
-        price = attrs.get('price')
-        
+        if self.partial and 'price' not in attrs:
+            price = getattr(self.instance, 'price', 0)
+        else:
+            price = attrs.get('price') 
+
         product_colors = attrs.get('colors', list())
+
         for product_color in product_colors:
-            options = product_color.get('options')
-            validate_price_difference(price, options)
+            options_data = product_color.get('options', list())
+            for option_data in options_data:
+                validate_price_difference(price, option_data)
 
         return attrs
+
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -358,10 +367,6 @@ class ProductWriteSerializer(ProductSerializer):
             options = color_data.pop('options')
 
             product_color = ProductColor.objects.create(product=product, **color_data)
-
-            for option_data in options:
-                if option_data.get('display_size_name') is None:
-                    option_data['display_size_name'] = option_data.get('size').name
 
             Option.objects.bulk_create(
                 [Option(product_color=product_color, **option_data) for option_data in options]
