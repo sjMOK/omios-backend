@@ -83,7 +83,7 @@ def get_common_registration_data(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_dynamic_registation_data(request):
+def get_dynamic_registration_data(request):
     sub_category_id = request.query_params.get('sub_category', None)
     if sub_category_id is None:
         return get_response(status=400, message='this request should include sub_category.')
@@ -95,18 +95,14 @@ def get_dynamic_registation_data(request):
     response_data = dict()
     response_data['size'] = SizeSerializer(sizes, many=True).data
 
-    response_data['product_additional_information'] = None
     if sub_category.require_product_additional_information:
         thickness = Thickness.objects.all()
         see_through = SeeThrough.objects.all()
         flexibility = Flexibility.objects.all()
 
-        product_additional_inforamtion = dict()
-        product_additional_inforamtion['thickness'] = ThicknessSerializer(thickness, many=True).data
-        product_additional_inforamtion['see_through'] = SeeThroughSerializer(see_through, many=True).data
-        product_additional_inforamtion['flexibility'] = FlexibilitySerializer(flexibility, many=True).data
-
-        response_data['product_additional_information'] = product_additional_inforamtion
+        response_data['thickness'] = ThicknessSerializer(thickness, many=True).data
+        response_data['see_through'] = SeeThroughSerializer(see_through, many=True).data
+        response_data['flexibility'] = FlexibilitySerializer(flexibility, many=True).data
 
     response_data['laundry_inforamtion'] = list()
     if sub_category.require_laundry_information:
