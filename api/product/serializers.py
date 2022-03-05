@@ -13,9 +13,9 @@ from .models import (
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
 )
 
-def validate_create_data_in_partial_update(create_data, fields):
+def validate_require_data_in_partial_update(data, fields):
     for key, value in fields.items():
-        if getattr(value, 'required', True) and key not in create_data:
+        if getattr(value, 'required', True) and key not in data:
             raise ValidationError('{0} field is required.'.format(key))
 
 def has_duplicate_element(array):
@@ -25,6 +25,16 @@ def has_duplicate_element(array):
 
 def is_delete_data(data):
     if len(data.keys())==1 and 'id' in data:
+        return True
+    return False
+
+def is_update_data(data):
+    if len(data.keys())>1 and 'id' in data:
+        return True
+    return False
+
+def is_create_data(data):
+    if bool(data) and 'id' not in data:
         return True
     return False
 
@@ -55,6 +65,34 @@ class SizeSerializer(ModelSerializer):
 
 class TagSerializer(Serializer):
     name = CharField(read_only=True, max_length=20)
+
+
+class LaundryInformationSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(read_only=True, max_length=20)
+
+
+class ThicknessSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class SeeThroughSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class FlexibilitySerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=10, read_only=True)
+
+
+class AgeSerializer(Serializer):
+    name = CharField(max_length=10, read_only=True)
+
+
+class StyleSerializer(Serializer):
+    name = CharField(max_length=20, read_only=True)
 
 
 class ProductImagesListSerializer(ListSerializer):
@@ -95,8 +133,8 @@ class ProductImagesSerializer(Serializer):
         if self.root.partial:
             if not bool(attrs):
                 raise ValidationError('Product Image data is empty')
-            if 'id' not in attrs:
-                validate_create_data_in_partial_update(attrs, self.fields)
+            if not is_delete_data(attrs):
+                validate_require_data_in_partial_update(attrs, self.fields)
 
         return attrs
 
@@ -111,30 +149,10 @@ class ProductImagesSerializer(Serializer):
         return ret
 
 
-class LaundryInformationSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
-
-
-class ThicknessSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
-
-
-class SeeThroughSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
-
-
-class FlexibilitySerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
-
-
 class ProductMaterialListSerializer(ListSerializer):
     def validate(self, attrs):
         total_mixing_rate = sum(
-            [attr['mixing_rate'] for attr in attrs if not (len(attr)==1 and 'id' in attr)]
+            [attr['mixing_rate'] for attr in attrs if not is_delete_data(attr)]
         )
 
         if total_mixing_rate != 100:
@@ -149,6 +167,7 @@ class ProductMaterialListSerializer(ListSerializer):
 
 class ProductMaterialSerializer(Serializer):
     id = IntegerField(required=False)
+    product = PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, required=False)
     material = CharField(max_length=20)
     mixing_rate = IntegerField(max_value=100, min_value=1)
 
@@ -159,8 +178,8 @@ class ProductMaterialSerializer(Serializer):
         if self.root.partial:
             if not bool(attrs):
                 raise ValidationError('Product Material data is empty')
-            if 'id' not in attrs:
-                validate_create_data_in_partial_update(attrs, self.fields)
+            if not is_delete_data(attrs):
+                validate_require_data_in_partial_update(attrs, self.fields)
 
         return attrs
 
@@ -233,14 +252,6 @@ class ProductColorSerializer(Serializer):
         ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
 
         return ret
-
-
-class AgeSerializer(Serializer):
-    name = CharField(max_length=10, read_only=True)
-
-
-class StyleSerializer(Serializer):
-    name = CharField(max_length=20, read_only=True)
 
 
 class ProductSerializer(DynamicFieldsSerializer):
