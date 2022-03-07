@@ -98,13 +98,6 @@ class ProductColorFactory(DjangoModelFactory):
     image_url = 'product/sample/product_21.jpg'
 
 
-class SizeFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Size'
-
-    name = Sequence(lambda num: 'size_{0}'.format(num))
-
-
 class LaundryInformationFactory(DjangoModelFactory):
     class Meta:
         model = 'product.LaundryInformation'

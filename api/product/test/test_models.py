@@ -12,7 +12,7 @@ from ..models import (
 )
 from .factory import (
     AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, 
-    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
+    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory
 )
 
 
@@ -274,11 +274,9 @@ class OptionTest(ModelTestCase):
 
     def setUp(self):
         product_color = ProductColorFactory()
-        size = SizeFactory()
         self._test_data = {
             'product_color': product_color,
-            'size': size,
-            'display_size_name': '6호',
+            'size': 'Free',
             'price_difference': 1500,
         }
 
@@ -286,14 +284,7 @@ class OptionTest(ModelTestCase):
         option = self._get_model_after_creation()
         self.assertEqual(option.product_color, self._test_data['product_color'])
         self.assertEqual(option.size, self._test_data['size'])
-        self.assertEqual(option.display_size_name, self._test_data['display_size_name'])
         self.assertEqual(option.price_difference, self._test_data['price_difference'])
-
-    def test_display_size_name(self):
-        self._test_data.pop('display_size_name')
-        option = self._get_model_after_creation()
-
-        self.assertEqual(option.display_size_name, option.size.name)
 
     def test_default_price_difference(self):
         self._test_data.pop('price_difference')
