@@ -328,6 +328,9 @@ class ProductColorSerializer(Serializer):
                     product_color_id=product_color_id, size = attr.get('size')
                 )
 
+                if is_update_data(attr):
+                    queryset = queryset.exclude(id=attr.get('id'))
+
                 if queryset.exists():
                     raise ValidationError(
                         'The option with the size already exists.'
@@ -501,8 +504,11 @@ class ProductWriteSerializer(ProductSerializer):
             options_data = data.pop('options', None)
             
             product_color_id = data.pop('id')
-            ProductColor.objects.filter(product=product, id=product_color_id).update(**data)
+            ProductColor.objects.filter(id=product_color_id).update(**data)
 
+            if options_data is not None:
+                product_color = ProductColor.objects.get(id=product_color_id)
+                self.update_options(product_color, options_data)
 
         for data in create_data:
             options_data = data.pop('options', None)
@@ -512,8 +518,22 @@ class ProductWriteSerializer(ProductSerializer):
                 [Option(product_color=product_color, **option_data) for option_data in options_data]
             )
 
-        if product.colors.all().count()==0:
-            raise APIException('The product must have at least one image.')
+        if product.colors.filter(on_sale=True).count()==0:
+            raise APIException('The product must have at least one color.')
+
+    def update_options(self, product_color, options_data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(options_data)
+        
+        delete_fields_id = [data['id'] for data in delete_data]
+        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).delete()
+
+        for data in update_data:
+            field_id = data.pop('id')
+            Option.objects.filter(product_color=product_color, id=field_id).update(**data)
+
+        Option.objects.bulk_create(
+            [Option(product_color=product_color, **data) for data in create_data]
+        )
 
     def get_separated_data_by_create_update_delete(self, data_array):
         create_data = []
