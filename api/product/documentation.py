@@ -24,14 +24,14 @@ class Color(ColorSerializer):
     pass
 
 
-decorated_main_category_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(MainCategorySerializer(many=True)), security=[], operation_description='상품 메인 카테고리 가져오기'
-)(get_main_categories)
+# decorated_main_category_view = swagger_auto_schema(
+#     method='GET', **documentation.get_response(MainCategorySerializer(many=True)), security=[], operation_description='상품 메인 카테고리 가져오기'
+# )(get_main_categories)
 
-decorated_sub_category_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(SubCategoryResponse()), security=[], operation_description='상품 서브 카테고리 가져오기'
-)(get_sub_categories_by_main_category)
+# decorated_sub_category_view = swagger_auto_schema(
+#     method='GET', **documentation.get_response(SubCategoryResponse()), security=[], operation_description='상품 서브 카테고리 가져오기'
+# )(get_sub_categories_by_main_category)
 
-decorated_color_view = swagger_auto_schema(
-    method='GET', **documentation.get_response(Color(many=True)), security=[], operation_description='상품 색상 가져오기'
-)(get_colors)
+# decorated_color_view = swagger_auto_schema(
+#     method='GET', **documentation.get_response(Color(many=True)), security=[], operation_description='상품 색상 가져오기'
+# )(get_colors)
