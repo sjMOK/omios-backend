@@ -297,24 +297,41 @@ class ProductColorSerializer(Serializer):
         list_serializer_class = ProductColorListSerializer
 
     def validate(self, attrs):
-        if self.root.partial:
-            if not bool(attrs):
-                raise ValidationError('Product color data is empty')
+        if self.root.partial and is_update_data(attrs):
+            product_color_id = attrs.get('id')
+            if 'color' in attrs:
+                input_color = attrs.get('color')
+                stored_color = ProductColor.objects.get(id=product_color_id).color
 
-            if is_update_data(attrs):
-                if 'color' in attrs:
+                if input_color != stored_color:
                     raise ValidationError('Color data cannot be updated.')
-            elif is_create_data(attrs):
-                validate_require_data_in_partial_update(attrs, self.fields)
-        else:
-            display_color_name = attrs.get('display_color_name')
-            if display_color_name is None:
-                attrs['display_color_name'] = attrs.get('color').name
+            
+            if 'options' in attrs:
+                self.validate_option_size_uniqueness(attrs.get('options'), product_color_id)
+
+        elif self.root.partial and is_create_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        
+        display_color_name = attrs.get('display_color_name', None)
+        if display_color_name is None and not is_delete_data(attrs):
+            attrs['display_color_name'] = attrs.get('color').name
         
         return attrs
 
     def validate_image_url(self, value):
         return validate_url(value)
+
+    def validate_option_size_uniqueness(self, attrs, product_color_id):
+        for attr in attrs:
+            if 'size' in attr:
+                queryset = Option.objects.filter(
+                    product_color_id=product_color_id, size = attr.get('size')
+                )
+
+                if queryset.exists():
+                    raise ValidationError(
+                        'The option with the size already exists.'
+                    )
     
     def to_representation(self, instance):
         ret = super().to_representation(instance)
