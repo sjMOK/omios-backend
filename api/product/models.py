@@ -136,8 +136,9 @@ class ProductColor(Model):
     id = AutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='colors')
     color = ForeignKey('Color', DO_NOTHING)
-    display_color_name = CharField(max_length=20)
+    display_color_name = CharField(max_length=20, null=True)
     image_url = CharField(max_length=200)
+    on_sale = BooleanField(default=True)
 
     class Meta:
         db_table = 'product_color'
@@ -175,7 +176,7 @@ class Option(Model):
     id = BigAutoField(primary_key=True)
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
     size = CharField(max_length=20)
-    price_difference = IntegerField(default=0)  
+    price_difference = IntegerField(default=0)
 
     class Meta:
         db_table = 'option'
