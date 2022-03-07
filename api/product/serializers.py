@@ -182,8 +182,6 @@ class ProductMaterialSerializer(Serializer):
 
     def validate(self, attrs):
         if self.root.partial:
-            if not bool(attrs):
-                raise ValidationError('Product Material data is empty')
             if not is_delete_data(attrs):
                 validate_require_data_in_partial_update(attrs, self.fields)
 
@@ -200,12 +198,25 @@ class OptionListSerializer(ListSerializer):
 
 
 class OptionSerializer(Serializer):
-    id = IntegerField(read_only=True)
+    id = IntegerField(required=False)
     size = CharField(max_length=20)
     price_difference = IntegerField(max_value=100000, min_value=0, required=False)
 
     class Meta:
         list_serializer_class = OptionListSerializer
+
+    def validate(self, attrs):
+        if self.root.partial and is_create_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        elif self.root.partial and is_update_data(attrs):
+            if 'size' in attrs:
+                input_size = attrs.get('size')
+                stored_size = Option.objects.get(id=attrs.get('id')).size
+
+                if input_size != stored_size:
+                    raise ValidationError('Size data cannot be updated.')
+
+        return attrs
 
 
 class ProductColorListSerializer(ListSerializer):
