@@ -1,4 +1,4 @@
-from rest_framework.serializers import Serializer, IntegerField, BooleanField, CharField
+from rest_framework.serializers import Serializer, IntegerField, BooleanField, CharField, ListField, URLField
 
 
 class IdResponse(Serializer):
@@ -18,6 +18,10 @@ class UniqueResponse(Serializer):
 class DefaultResponse(Serializer):
     code = IntegerField()
     message = CharField(max_length=7)
+
+
+class Image(Serializer):
+    image = ListField(child=URLField())
 
 
 def get_response(serializer=IdResponse(), code=200):    

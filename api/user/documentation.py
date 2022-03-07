@@ -1,16 +1,14 @@
-from django.utils.decorators import method_decorator
-
 from drf_yasg.utils import swagger_auto_schema
 
-from common.documentation import UniqueResponse, get_response
-from .models import Shopper
+from common.documentation import UniqueResponse, Image, get_response
+from .models import Shopper, Wholesaler
 from .serializers import (
-    Serializer, ModelSerializer, IssuingTokenSerializer, RefreshingTokenSerializer, 
-    MembershipSerializer, ShopperSerializer, UserPasswordSerializer, CharField,
+    Serializer, ModelSerializer, IssuingTokenSerializer, RefreshingTokenSerializer, CharField, 
+    MembershipSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, 
-    ShopperView, WholesalerView, is_unique, change_password,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView,
+    upload_business_registration_image, get_buildings, change_password, is_unique,
 )
 
 
@@ -35,6 +33,27 @@ class ShopperUpdateRequest(ShopperSerializer):
         extra_kwargs = {'email': {'required': False}}
 
 
+class WholesalerCreateRequest(WholesalerSerializer):
+    class Meta:
+        model = Wholesaler
+        fields = [
+            'username', 'password', 'name', 'company_registration_number', 'business_registration_image_url',
+            'mobile_number', 'phone_number', 'email', 'zip_code', 'base_address', 'detail_address'
+        ]
+
+
+class WholesalerUpdateRequest(WholesalerSerializer):
+    mobile_number = CharField(max_length=11, required=False)
+
+    class Meta:
+        model = Wholesaler
+        fields = ['mobile_number', 'email']
+        extra_kwargs = {
+            'mobile_number': {'required': False},
+            'email': {'required': False},
+        }
+
+
 class PasswordUpdateRequest(UserPasswordSerializer):
     def __init__(self):
         super(UserPasswordSerializer, self).__init__()
@@ -56,10 +75,12 @@ class Shopper(ModelSerializer):
     class Meta:
         model = Shopper
         exclude = ['password']
-        extra_kwargs = {
-            'is_admin': {'required': True},
-            'is_active': {'required': True},
-        }
+
+
+class Wholesaler(ModelSerializer):
+    class Meta:
+        model = Wholesaler
+        exclude = ['password']
 
 
 class DecoratedRefreshingTokenView(RefreshingTokenView):
@@ -104,19 +125,27 @@ decorated_shopper_view = swagger_auto_schema(
 )(ShopperView.as_view()))))
 
 decorated_wholesaler_view = swagger_auto_schema(
-    method='GET', **get_response(Shopper()), operation_description='Wholesaler 데이터 가져오기'
+    method='GET', **get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기'
 )(swagger_auto_schema(
-    method='POST', request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
+    method='POST', request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
 )(swagger_auto_schema(
-    method='PATCH', request_body=ShopperUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정'
+    method='PATCH', request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정'
 )(swagger_auto_schema(
     method='DELETE', **get_response(), operation_description='Wholesaler 회원탈퇴'
-)(WholesalerView.as_view()))))
+)(DecoreatedWholesalerDetailView.as_view()))))
+
+decorated_upload_business_registration_image_view = swagger_auto_schema(
+    method='POST', request_body=Image, **get_response(Image(), 201), security=[], operation_description='사업자 등록증 이미지 업로드\n요청 시에는 파일 전체를 보내야 함\n응답 시에는 저장된 url을 반환'
+)(upload_business_registration_image)
+
+decorated_get_buildings_view = swagger_auto_schema(
+    method='GET', **get_response(BuildingSerializer(many=True)), security=[], operation_description='동대문 건물 정보 가져오기'
+)(get_buildings)
 
 decorated_user_password_view = swagger_auto_schema(
     method='PATCH', request_body=PasswordUpdateRequest, **get_response(), operation_description='비밀번호 수정'
 )(change_password)
 
 decorated_is_unique_view = swagger_auto_schema(
-    method='GET', query_serializer=UniqueRequest, **get_response(UniqueResponse()), security=[], operation_description='중복검사'
+    method='GET', query_serializer=UniqueRequest, **get_response(UniqueResponse()), security=[], operation_description='중복검사\n한 번에 하나의 파라미터에 대해서만 요청 가능'
 )(is_unique)

@@ -1,3 +1,5 @@
+from django.db.models.query import Prefetch
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
@@ -6,10 +8,10 @@ from rest_framework_simplejwt.views import TokenViewBase
 
 from common.utils import get_response, get_response_body
 from common.views import upload_image_view
-from .models import User, Shopper, Wholesaler
+from .models import User, Shopper, Wholesaler, Building
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
-    UserPasswordSerializer, ShopperSerializer, WholesalerSerializer,
+    UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
@@ -88,7 +90,7 @@ class ShopperView(UserView):
 
 class WholesalerView(UserView):
     _serializer_class = WholesalerSerializer
-    _patchable_fields = []
+    _patchable_fields = ['mobile_number', 'email']
 
     def _get_model_instance(self, user):
         return user.wholesaler
@@ -98,6 +100,14 @@ class WholesalerView(UserView):
 @permission_classes([AllowAny])
 def upload_business_registration_image(request):
     return upload_image_view(request, 'business_registration')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_buildings(request):
+    serializer = BuildingSerializer(instance=Building.objects.all().prefetch_related(Prefetch('floors')), many=True)
+
+    return get_response(data=serializer.data)
 
 
 @api_view(['PATCH'])
