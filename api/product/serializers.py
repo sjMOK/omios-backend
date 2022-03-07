@@ -1,3 +1,5 @@
+from django.db.models import Manager
+
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer, IntegerField, CharField, ImageField,
     PrimaryKeyRelatedField, URLField, BooleanField,
@@ -97,16 +99,22 @@ class StyleSerializer(Serializer):
 
 class ProductImagesListSerializer(ListSerializer):
     def validate(self, attrs):
-        urls = []
-        sequences = []
-        for attr in attrs:
-            if not(len(attr)==1 and 'id' in attr):
-                urls.append(attr['image_url'])
-                sequences.append(attr['sequence'])
+        create_or_update_attrs = [attr for attr in attrs if not is_delete_data(attr)]
+        update_or_delete_attrs = [attr for attr in attrs if not is_create_data(attr)]
 
-        if len(urls) < 1:
+        if self.root.instance is not None:
+            if len(update_or_delete_attrs) != self.root.instance.images.all().count():
+                raise ValidationError(
+                    'The number of requested data is different from the number of images the product has.'
+                )
+
+        if len(create_or_update_attrs) > 10:
             raise ValidationError(
-            'The number of requested data is different from the number of materials the product has.')
+                'The product cannot have more than ten images.'
+            )
+
+        urls = [attr['image_url'] for attr in create_or_update_attrs]
+        sequences = [attr['sequence'] for attr in create_or_update_attrs]
 
         if has_duplicate_element(urls):
             raise ValidationError('Product image_url is duplicated.')
@@ -131,8 +139,6 @@ class ProductImagesSerializer(Serializer):
 
     def validate(self, attrs):
         if self.root.partial:
-            if not bool(attrs):
-                raise ValidationError('Product Image data is empty')
             if not is_delete_data(attrs):
                 validate_require_data_in_partial_update(attrs, self.fields)
 
