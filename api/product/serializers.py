@@ -221,19 +221,69 @@ class OptionSerializer(Serializer):
 
 class ProductColorListSerializer(ListSerializer):
     def validate(self, attrs):
-        display_color_names = [attr.get('display_color_name') for attr in attrs]
-        
-        if has_duplicate_element(display_color_names):
-            raise ValidationError("'display color name' is duplicated.")
+        if self.root.instance is not None:
+            return self.validate_update(attrs)
+        else:
+            return self.validate_create(attrs)
 
-        image_urls = [
-            attr.get('image_url') for attr in attrs if not is_delete_data(attr) and 'image_url' in attr
+    def validate_update(self, attrs):
+        create_data = [attr for attr in attrs if is_create_data(attr)]
+        delete_data = [attr for attr in attrs if is_delete_data(attr)]
+
+        len_colors = self.root.instance.colors.all().count() + len(create_data) - len(delete_data)
+        if len_colors > 10:
+            raise ValidationError(
+                'The product cannot have more than ten colors.'
+            )
+
+        display_color_name_attrs = [
+            attr for attr in attrs if 'display_color_name' in attr
         ]
 
-        if has_duplicate_element(image_urls):
-            raise ValidationError("'image_url' is duplicated.")
+        if has_duplicate_element([attr.get('display_color_name') for attr in display_color_name_attrs]):
+            raise ValidationError('display_color_name is duplicated.')
+
+        self.validate_display_color_name_uniqueness(display_color_name_attrs)
 
         return attrs
+
+    def validate_create(self, attrs):
+        if len(attrs) > 10:
+            raise ValidationError(
+                'The product cannot have more than ten colors.'
+            )
+
+        display_color_names = [attr.get('display_color_name') for attr in attrs]
+        if has_duplicate_element(display_color_names):
+            raise ValidationError('display color name is duplicated.')
+
+        image_urls = [attr.get('image_url') for attr in attrs]
+        if has_duplicate_element(image_urls):
+            raise ValidationError('image_url is duplicated.')
+
+        return attrs
+
+    def validate_display_color_name_uniqueness(self, attrs):
+        for attr in attrs:
+            queryset = ProductColor.objects.filter(
+                on_sale=True, product=self.root.instance, 
+                display_color_name=attr.get('display_color_name')
+            )
+
+            if is_update_data(attr):
+                queryset = queryset.exclude(id=attr.get('id'))
+
+            if queryset.exists():
+                raise ValidationError(
+                    'The product with the display_color_name already exists.'
+                )
+
+    def to_representation(self, data):
+        iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
+
+        return [
+            self.child.to_representation(item) for item in iterable
+        ]
 
 
 class ProductColorSerializer(Serializer):
