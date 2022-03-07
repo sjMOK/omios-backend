@@ -7,15 +7,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from common.utils import gmt_to_kst
-from .models import OutstandingToken, BlacklistedToken, Membership, User, Shopper, Wholesaler
+from .models import OutstandingToken, BlacklistedToken, Membership, User, Shopper, Wholesaler, Building, Floor
 from .validators import PasswordSimilarityValidator
 
 
-USERNAME_REGEX = r'^[a-zA-Z0-9]+$'
+USERNAME_REGEX = r'^[a-zA-Z\d]+$'
 PASSWORD_REGEX = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$'
 NAME_REGEX = r'^[가-힣]+$'
-NICKNAME_REGEX = r'^[a-z0-9._]+$'
-PHONE_REGEX = r'^01[0|1|6|7|8|9][0-9]{7,8}$'
+NICKNAME_REGEX = r'^[a-z\d._]+$'
+MOBILE_NUMBER_REGEX = r'^01[0|1|6|7|8|9]\d{7,8}$'
+PHONE_NUMBER_REGEX = r'^(0(2|3[1-3]|4[1-4]|5[1-5]|6[1-4]|70))\d{7,8}$'
 
 
 def get_token_time(token):
@@ -92,7 +93,7 @@ class ShopperSerializer(UserSerializer):
     membership = MembershipSerializer(required=False)
     name = RegexField(NAME_REGEX, max_length=20)
     nickname = RegexField(NICKNAME_REGEX, min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=Shopper.objects.all())])
-    mobile_number = RegexField(PHONE_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
+    mobile_number = RegexField(MOBILE_NUMBER_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
 
     class Meta:
         model = Shopper
@@ -104,12 +105,27 @@ class ShopperSerializer(UserSerializer):
 
 
 class WholesalerSerializer(UserSerializer):
-    mobile_number = RegexField(PHONE_REGEX)
+    mobile_number = RegexField(MOBILE_NUMBER_REGEX)
+    phone_number = RegexField(PHONE_NUMBER_REGEX)
     company_registration_number = CharField(max_length=12, validators=[UniqueValidator(queryset=Wholesaler.objects.all())])
+    business_registration_image_url = CharField(max_length=200)
 
     class Meta:
         model = Wholesaler
         fields = '__all__'
+
+
+class FloorSerializer(ModelSerializer):
+    class Meta:
+        model = Floor
+        exclude = ['id']
+
+
+class BuildingSerializer(ModelSerializer):
+    floors = FloorSerializer(many=True, read_only=True)
+    class Meta:
+        model = Building
+        exclude = ['id']
 
 
 class UserPasswordSerializer(Serializer):

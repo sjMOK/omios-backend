@@ -138,6 +138,7 @@ class Floor(Model):
 
     class Meta:
         db_table = 'floor'
+        ordering = ['id']
 
 
 class Building(Model):

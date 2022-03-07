@@ -2,11 +2,11 @@ from freezegun import freeze_time
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from common.test.test_cases import ViewTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
-from .factory import get_factory_password, get_factory_authentication_data
-from ..models import BlacklistedToken, User, Shopper, Wholesaler
-from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer
+from .factory import get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory
+from ..models import BlacklistedToken, User, Shopper, Wholesaler, Building
+from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer
 
 
 class TokenViewTestCase(ViewTestCase):
@@ -131,11 +131,11 @@ class ShopperViewTestCase(ViewTestCase):
             "password": "Testtest00"
         }
         self._post()
-        self._user = Shopper.objects.get(username=self._test_data['username'])
+        user = Shopper.objects.get(username=self._test_data['username'])
 
         self._assert_success_with_id_response()
-        self.assertEqual(self._response_data['id'], self._user.id)
-        self.assertTrue(self._user.check_password(self._test_data['password']))
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertTrue(user.check_password(self._test_data['password']))
 
     def test_patch(self):
         self._test_data = {
@@ -145,14 +145,14 @@ class ShopperViewTestCase(ViewTestCase):
             'weight': 70
         }
         self._patch()
-        self._user = Shopper.objects.get(id=self._user.id)
+        user = Shopper.objects.get(id=self._user.id)
 
         self._assert_success_with_id_response()
-        self.assertEqual(self._response_data['id'], self._user.id)
-        self.assertEqual(self._user.email, self._test_data['email'])
-        self.assertEqual(self._user.nickname, self._test_data['nickname'])
-        self.assertEqual(self._user.height, int(self._test_data['height']))
-        self.assertEqual(self._user.weight, self._test_data['weight'])
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertEqual(user.email, self._test_data['email'])
+        self.assertEqual(user.nickname, self._test_data['nickname'])
+        self.assertEqual(user.height, int(self._test_data['height']))
+        self.assertEqual(user.weight, self._test_data['weight'])
 
     def test_patch_with_non_existent_field(self):
         self._test_data = {
@@ -175,16 +175,94 @@ class ShopperViewTestCase(ViewTestCase):
     @freeze_time(FREEZE_TIME)
     def test_delete(self):
         self._delete()
-        self._user = Shopper.objects.get(id=self._user.id)
+        user = Shopper.objects.get(id=self._user.id)
 
         self._assert_success_with_id_response()
-        self.assertEqual(self._response_data['id'], self._user.id)
-        self.assertTrue(not self._user.is_active)
-        self.assertEqual(datetime_to_iso(self._user.deleted_at), FREEZE_TIME)
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertTrue(not user.is_active)
+        self.assertEqual(datetime_to_iso(user.deleted_at), FREEZE_TIME)
 
 
 class WholesalerViewTestCase(ViewTestCase):
-    pass
+    _url = '/user/wholesaler/'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_wholesaler()
+
+    def setUp(self):
+        self._set_authentication()
+
+    def test_get(self):
+        self._get()
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, WholesalerSerializer(instance=self._user).data)
+
+    def test_post(self):
+        self._unset_authentication()
+        self._test_data = {
+            "username": "pippin",
+            "password": "Ahrtmdwn123",
+            "name": "피핀",
+            "mobile_number": "01099887766",
+            "phone_number": "0299887711",
+            "email": "pippin@naver.com",
+            "company_registration_number": "2921300894",
+            "business_registration_image_url": "https://deepy.s3.ap-northeast-2.amazonaws.com/media/business_registration/business_registration_20220305_145614222569.jpeg",
+            "zip_code": "04568",
+            "base_address": "서울특별시 중구 다산로 293 (신당동, 디오트)",
+            "detail_address": "디오트 1층 102호"
+        }
+        self._post()
+        user = Wholesaler.objects.get(username=self._test_data['username'])
+
+        self._assert_success_with_id_response()
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertTrue(user.check_password(self._test_data['password']))
+
+    def test_patch(self):
+        self._test_data = {
+            'mobile_number': '01000000000',
+            'email': 'user@omios.com'
+        }
+        self._patch()
+        user = Wholesaler.objects.get(id=self._user.id)
+
+        self._assert_success_with_id_response()
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertEqual(user.mobile_number, self._test_data['mobile_number'])
+        self.assertEqual(user.email, self._test_data['email'])
+
+    @freeze_time(FREEZE_TIME)
+    def test_delete(self):
+        self._delete()
+        user = Wholesaler.objects.get(id=self._user.id)
+
+        self._assert_success_with_id_response()
+        self.assertEqual(self._response_data['id'], user.id)
+        self.assertTrue(not user.is_active)
+        self.assertEqual(datetime_to_iso(user.deleted_at), FREEZE_TIME)
+
+
+class UploadBusinessRegistrationImageTestCase(ViewTestCase):
+    _url = '/user/wholesaler/business_registration_image/'
+
+    def test_success(self):
+       self._test_image_upload(middle_path='/business_registration/business_registration_')
+
+
+class GetBuildingTestCase(ViewTestCase):
+    _url = '/user/wholesaler/building/'
+
+    def test_sucess(self):
+        floors = FloorFactory.create_batch(3)
+        BuildingFactory(floors=floors)
+        BuildingFactory(floors=floors[0:2])
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, BuildingSerializer(instance=Building.objects.all(), many=True).data)
 
 
 class ChangePasswordTestCase(ViewTestCase):
@@ -217,7 +295,7 @@ class IsUniqueTestCase(ViewTestCase):
     @classmethod
     def setUpTestData(cls):
         cls.__shopper = cls._create_shopper()[0]
-        # cls.__wholesaler = cls._create_wholesaler()
+        cls.__wholesaler = cls._create_wholesaler()[0]
 
     def test_is_unique_username(self):
         self._get({'username': 'unique_username'})
@@ -240,16 +318,24 @@ class IsUniqueTestCase(ViewTestCase):
         self._assert_success_with_is_unique_response(False)
 
     def test_is_unique_wholesaler_name(self):
-        pass
+        self._get({'wholesaler_name': 'unique_name'})
+
+        self._assert_success_with_is_unique_response(True)
 
     def test_is_not_unique_wholesaler_name(self):
-        pass
+        self._get({'wholesaler_name': self.__wholesaler.name})
+
+        self._assert_success_with_is_unique_response(False)
 
     def test_is_unique_wholesaler_company_registration_number(self):
-        pass
+        self._get({'wholesaler_company_registration_number': '012345678901'})
+
+        self._assert_success_with_is_unique_response(True)
 
     def test_is_not_unique_wholesaler_company_registration_number(self):
-        pass
+        self._get({'wholesaler_company_registration_number': self.__wholesaler.company_registration_number})
+
+        self._assert_success_with_is_unique_response(False)
 
     def test_no_parameter_validation(self):
         self._get()

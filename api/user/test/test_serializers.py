@@ -3,12 +3,15 @@ from datetime import datetime
 
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ModelSerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso
-from .factory import get_factory_password, get_factory_authentication_data, UserFactory, ShopperFactory, WholesalerFactory
+from .factory import (
+    get_factory_password, get_factory_authentication_data, 
+    UserFactory, ShopperFactory, WholesalerFactory, FloorFactory, BuildingWithFloorFactory,
+)
 from ..models import OutstandingToken
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
-    UserSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer,
+    UserSerializer, ShopperSerializer, WholesalerSerializer, FloorSerializer, BuildingSerializer, UserPasswordSerializer,
 )
 
 
@@ -127,6 +130,7 @@ class UserSerializerTestCase(ModelSerializerTestCase):
         self.assertTrue(self._user.check_password(original_password))
         self.assertEqual(self._user.created_at, self._user.last_update_password)
 
+
 class ShopperSerializerTestCase(ModelSerializerTestCase):
     fixtures = ['membership']
     _serializer_class = ShopperSerializer
@@ -148,7 +152,49 @@ class ShopperSerializerTestCase(ModelSerializerTestCase):
 
 
 class WholesalerSerializerTestCase(ModelSerializerTestCase):
-    pass
+    _serializer_class = WholesalerSerializer
+
+    def test_model_instance_serialization(self):
+        wholesaler = WholesalerFactory()
+
+        self._test_model_instance_serialization(wholesaler, {
+            **UserSerializer(instance=wholesaler).data,
+            'name': wholesaler.name,
+            'mobile_number': wholesaler.mobile_number,
+            'phone_number': wholesaler.phone_number,
+            'email': wholesaler.email,
+            'company_registration_number': wholesaler.company_registration_number,
+            'business_registration_image_url': wholesaler.business_registration_image_url,
+            'zip_code': wholesaler.zip_code,
+            'base_address': wholesaler.base_address,
+            'detail_address': wholesaler.detail_address,
+            'is_approved': wholesaler.is_approved,
+        })
+
+
+class FloorSerializerTestCase(ModelSerializerTestCase):
+    _serializer_class = FloorSerializer
+
+    def test_model_instance_serialization(self):
+        floor = FloorFactory()
+
+        self._test_model_instance_serialization(floor, {
+            'name': floor.name
+        })
+
+
+class BuildingSerializerTestCase(ModelSerializerTestCase):
+    _serializer_class = BuildingSerializer
+
+    def test_model_instance_serialization(self):
+        building = BuildingWithFloorFactory()
+
+        self._test_model_instance_serialization(building, {
+            'name': building.name,
+            'zip_code': building.zip_code,
+            'base_address': building.base_address,
+            'floors': FloorSerializer(instance=building.floors.all(), many=True).data
+        })
 
 
 class UserPasswordSerializerTestCase(SerializerTestCase):

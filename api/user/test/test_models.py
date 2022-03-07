@@ -5,8 +5,10 @@ from freezegun import freeze_time
 from rest_framework.exceptions import APIException
 
 from common.utils import datetime_to_iso
+from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
-from ..models import Membership, User, Shopper, Wholesaler
+from .factory import ShopperFactory, BuildingFactory, FloorFactory
+from ..models import Membership, User, Shopper, ShopperAddress, Wholesaler, Building, Floor, BuildingFloor
 
 
 class MembershipTestCase(ModelTestCase):
@@ -88,13 +90,13 @@ class ShopperTestCase(ModelTestCase):
     @classmethod
     def setUpTestData(cls):
         cls._test_data = {
+            "username": "shopper",
+            "password": "password",
             "name": "test",
             "birthday": "2017-01-01",
             "gender": 1,
             "email": "testemail@naver.com",
             "mobile_number": "01012345678",
-            "username": "shopper",
-            "password": "password",
         }
         cls._shopper = cls._get_default_model_after_creation()
 
@@ -120,5 +122,116 @@ class ShopperTestCase(ModelTestCase):
         self.assertTrue(shopper.nickname.startswith('omios_'))
 
 
+class ShopperAddressTestCase(ModelTestCase):
+    fixtures = ['membership']
+    _model_class = ShopperAddress
+
+    def setUp(self):
+        self.__shopper = ShopperFactory()
+        self._test_data = {
+            'shopper': self.__shopper,
+            'receiver': '수령자',
+            'mobile_number': '01012345678',
+            'zip_code': '05009',
+            'base_address': '서울시 광진구 능동로19길 47',
+            'detail_address': '화양타워 518호',
+            'is_default': True,
+        }
+
+    def test_create(self):
+        address = self._get_model_after_creation()
+
+        self.assertEqual(address.shopper, self.__shopper)
+        self.assertIsNone(address.name)
+        self.assertEqual(address.receiver, self._test_data['receiver'])
+        self.assertEqual(address.mobile_number, self._test_data['mobile_number'])
+        self.assertIsNone(address.phone_number)
+        self.assertEqual(address.zip_code, self._test_data['zip_code'])
+        self.assertEqual(address.base_address, self._test_data['base_address'])
+        self.assertEqual(address.detail_address, self._test_data['detail_address'])
+        self.assertEqual(address.is_default, self._test_data['is_default'])
+
+
 class WholesalerTestCase(ModelTestCase):
-    pass
+    _model_class = Wholesaler
+
+    def setUp(self):
+        self._test_data = {
+            'username': 'wholesaler',
+            'password': 'password',
+            'name': 'wholesaler_name',
+            'mobile_number': '01012345678',
+            'phone_number': '0212345678',
+            'email': 'testemail@naver.com',
+            'company_registration_number': '111122223333',
+            'business_registration_image_url': 'business_registration/test_image.png',
+            'zip_code': '05009',
+            'base_address': '서울시 광진구 능동로19길 47',
+            'detail_address': '화양타워 518호',
+        }
+
+    def test_create(self):
+        wholesaler = self._get_model_after_creation()
+
+        self.assertIsInstance(wholesaler.user, User)
+        self.assertEqual(wholesaler.name, self._test_data['name'])
+        self.assertEqual(wholesaler.mobile_number, self._test_data['mobile_number'])
+        self.assertEqual(wholesaler.phone_number, self._test_data['phone_number'])
+        self.assertEqual(wholesaler.email, self._test_data['email'])
+        self.assertEqual(wholesaler.company_registration_number, self._test_data['company_registration_number'])
+        self.assertIsInstance(wholesaler.business_registration_image_url.storage, MediaStorage)
+        self.assertEqual(wholesaler.business_registration_image_url.name, self._test_data['business_registration_image_url'])
+        self.assertEqual(wholesaler.zip_code, self._test_data['zip_code'])
+        self.assertEqual(wholesaler.base_address, self._test_data['base_address'])
+        self.assertEqual(wholesaler.detail_address, self._test_data['detail_address'])
+        self.assertTrue(not wholesaler.is_approved)
+
+
+class BuildingTestCase(ModelTestCase):
+    _model_class = Building
+
+    def setUp(self):
+        self._test_data = {
+            'name': '오미오스',
+            'zip_code': '05009',
+            'base_address': '서울시 광진구 능동로19길 47',
+        }
+
+    def test_create(self):
+        building = self._get_model_after_creation()
+
+        self.assertEqual(building.name, self._test_data['name'])
+        self.assertEqual(building.zip_code, self._test_data['zip_code'])
+        self.assertEqual(building.base_address, self._test_data['base_address'])
+
+
+class FloorTestCase(ModelTestCase):
+    _model_class = Floor
+
+    def setUp(self):
+        self._test_data = {
+            'name': '1층',
+        }
+
+    def test_create(self):
+        floor = self._get_model_after_creation()
+
+        self.assertEqual(floor.name, self._test_data['name'])
+
+
+class BuildingFloorTestCase(ModelTestCase):
+    _model_class = BuildingFloor
+
+    def setUp(self):
+        self.__building = BuildingFactory()
+        self.__floor = FloorFactory()
+        self._test_data = {
+            'building': self.__building,
+            'floor': self.__floor,
+        }
+
+    def test_create(self):
+        building_floor = self._get_model_after_creation()
+
+        self.assertEqual(building_floor.building, self.__building)
+        self.assertEqual(building_floor.floor, self.__floor)

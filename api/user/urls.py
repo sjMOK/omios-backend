@@ -1,20 +1,25 @@
 from django.urls import path
 
-from . import documentation
-from .views import upload_business_registration_image
+from .documentation import (
+    decorated_issuing_token_view, decorated_refreshing_token_view, decorated_blacklisting_token_view,
+    decorated_shopper_view, decorated_wholesaler_view, decorated_upload_business_registration_image_view,
+    decorated_get_buildings_view, decorated_user_password_view, decorated_is_unique_view
+)
+
 
 app_name = 'user'
 
 token_urlpatterns = [
-    path('', documentation.decorated_issuing_token_view),
-    path('refresh/', documentation.decorated_refreshing_token_view),
-    path('blacklist/', documentation.decorated_blacklisting_token_view),
+    path('', decorated_issuing_token_view),
+    path('refresh/', decorated_refreshing_token_view),
+    path('blacklist/', decorated_blacklisting_token_view),
 ]
 
 urlpatterns = [
-    path('shopper/', documentation.decorated_shopper_view),
-    path('wholesaler/', documentation.decorated_wholesaler_view),
-    path('wholesaler/business_registration_image/', upload_business_registration_image),
-    path('password/', documentation.decorated_user_password_view),
-    path('unique/', documentation.decorated_is_unique_view),
+    path('shopper/', decorated_shopper_view),
+    path('wholesaler/', decorated_wholesaler_view),
+    path('wholesaler/business_registration_image/', decorated_upload_business_registration_image_view),
+    path('wholesaler/building/', decorated_get_buildings_view),
+    path('password/', decorated_user_password_view),
+    path('unique/', decorated_is_unique_view),
 ]

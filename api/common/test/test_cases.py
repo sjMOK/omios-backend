@@ -1,4 +1,7 @@
 import json
+from unittest.mock import patch
+from PIL import Image
+from tempfile import NamedTemporaryFile
 
 from django.utils.module_loading import import_string
 
@@ -6,6 +9,7 @@ from rest_framework.serializers import ModelSerializer
 from rest_framework.test import APISimpleTestCase, APITestCase
 from rest_framework.exceptions import APIException
 
+from common.utils import BASE_IMAGE_URL
 from user.test.factory import UserFactory, ShopperFactory, WholesalerFactory
 
 
@@ -131,6 +135,20 @@ class ViewTestCase(APITestCase):
             user = cls._create_wholesaler()[0]
         cls._user = user
 
+    def __create_images(self, size):
+        self.__images = []
+        for i in range(size):
+            image = Image.new('RGB', (100,100))
+            file = NamedTemporaryFile(suffix='.jpg' if i % 2 else '.png')
+            image.save(file)
+            self.__images.append(open(file.name, 'rb'))
+
+        return self.__images
+
+    def __delete_images(self):
+        for i in range(len(self.__images)):
+            self.__images[i].close()
+
     def _set_authentication(self):
         self.client.force_authenticate(user=self._user)
 
@@ -154,6 +172,18 @@ class ViewTestCase(APITestCase):
     
     def _delete(self, data={}, *args, **kwargs):
         self.__set_response(self.client.delete(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+
+    @patch('common.storage.MediaStorage.save')
+    def _test_image_upload(self, mock, size=1, middle_path=''):
+        self.__create_images(size)
+        self._post({'image': self.__images})
+        self.__delete_images()
+
+        self._assert_success()
+        self.assertEqual(mock.call_count, size)
+        self.assertEqual(len(self._response_data['image']), size)
+        self.assertTrue(self._response_data['image'][0].startswith(BASE_IMAGE_URL))
+        self.assertIn(middle_path, self._response_data['image'][0])
 
     def __assert_default_response(self, expected_status_code, expected_message):
         self.assertEqual(self._response.status_code, expected_status_code)
