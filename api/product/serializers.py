@@ -494,6 +494,17 @@ class ProductWriteSerializer(ProductSerializer):
 
         return instance
 
+    def update_images(self, product, image_data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(image_data)
+        self.update_many_to_one_fields(product, ProductImages, create_data, update_data, delete_data)
+
+        if product.images.all().count()==0:
+            raise APIException('The product must have at least one image.')
+
+    def update_materials(self, product, material_data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(material_data)
+        self.update_many_to_one_fields(product, ProductMaterial, create_data, update_data, delete_data)
+
     def update_product_colors(self, product, product_colors_data):
         create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(product_colors_data)
 
@@ -535,21 +546,6 @@ class ProductWriteSerializer(ProductSerializer):
             [Option(product_color=product_color, **data) for data in create_data]
         )
 
-    def get_separated_data_by_create_update_delete(self, data_array):
-        create_data = []
-        delete_data = []
-        update_data = []
-
-        for data in data_array:
-            if is_create_data(data):
-                create_data.append(data)
-            elif is_delete_data(data):
-                delete_data.append(data)
-            elif is_update_data:
-                update_data.append(data)
-
-        return (create_data, update_data, delete_data)
-
     def update_many_to_one_fields(self, product, rel_model_class, create_data, update_data, delete_data):
         delete_fields_id = [data['id'] for data in delete_data]
         rel_model_class.objects.filter(product=product, id__in=delete_fields_id).delete()
@@ -574,16 +570,20 @@ class ProductWriteSerializer(ProductSerializer):
         store_fields = set(input_fields) - set(stored_fields)
         m2m_field.add(*store_fields)
 
-    def update_images(self, product, image_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(image_data)
-        self.update_many_to_one_fields(product, ProductImages, create_data, update_data, delete_data)
+    def get_separated_data_by_create_update_delete(self, data_array):
+        create_data = []
+        delete_data = []
+        update_data = []
 
-        if product.images.all().count()==0:
-            raise APIException('The product must have at least one image.')
+        for data in data_array:
+            if is_create_data(data):
+                create_data.append(data)
+            elif is_delete_data(data):
+                delete_data.append(data)
+            elif is_update_data:
+                update_data.append(data)
 
-    def update_materials(self, product, material_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(material_data)
-        self.update_many_to_one_fields(product, ProductMaterial, create_data, update_data, delete_data)
+        return (create_data, update_data, delete_data)
 
 
 class MaterialSerializer(Serializer):
