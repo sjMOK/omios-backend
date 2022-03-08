@@ -125,7 +125,7 @@ def get_all_categories(request):
 @permission_classes([AllowAny])
 def get_main_categories(request):
     queryset = MainCategory.objects.all()
-    serializer = MainCategorySerializer(queryset, many=True, exclude_fields=('id', 'name', 'image_url'))
+    serializer = MainCategorySerializer(queryset, many=True, allow_fields=('id', 'name', 'image_url'))
 
     return get_response(data=serializer.data)
 
@@ -134,7 +134,7 @@ def get_main_categories(request):
 @permission_classes([AllowAny])
 def get_sub_categories_by_main_category(request, id=None):
     main_category = get_object_or_404(MainCategory, id=id)
-    serializer = SubCategorySerializer(main_category.sub_categories.all(), many=True, allow_fields=('id', 'name'))
+    serializer = SubCategorySerializer(main_category.sub_categories.all(), many=True)
 
     return get_response(data=serializer.data)
 
@@ -296,6 +296,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         return get_response(data='product id{0} update success'.format(product.id))
 
     def destroy(self, request, id=None):
