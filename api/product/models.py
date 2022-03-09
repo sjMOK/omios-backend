@@ -69,6 +69,9 @@ class Age(Model):
         db_table = 'age'
         ordering = ['id']
 
+    def __str__(self):
+        return self.name
+
 
 class Thickness(Model):
     id = AutoField(primary_key=True)
@@ -77,6 +80,9 @@ class Thickness(Model):
     class Meta:
         db_table = 'thickness'
         ordering = ['id']
+        
+    def __str__(self):
+        return self.name
 
 
 class SeeThrough(Model):
@@ -87,6 +93,9 @@ class SeeThrough(Model):
         db_table = 'see_through'
         ordering = ['id']
 
+    def __str__(self):
+        return self.name
+
 
 class Flexibility(Model):
     id = AutoField(primary_key=True)
@@ -95,6 +104,9 @@ class Flexibility(Model):
     class Meta:
         db_table = 'flexibility'
         ordering = ['id']
+
+    def __str__(self):
+        return self.name
 
 
 class ProductImages(Model):
@@ -198,6 +210,9 @@ class Style(Model):
         db_table = 'style'
         ordering = ['id']
 
+    def __str__(self):
+        return self.name
+
 
 class LaundryInformation(Model):
     id = AutoField(primary_key=True)
@@ -206,6 +221,9 @@ class LaundryInformation(Model):
     class Meta:
         db_table = 'laundry_information'
         ordering = ['id']
+
+    def __str__(self):
+        return self.name
 
 
 class ProductLaundryInformation(Model):
