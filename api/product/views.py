@@ -311,6 +311,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
+        product.colors.all().update(on_sale=False)
         product.on_sale = False
         product.save(update_fields=('on_sale',))
 
