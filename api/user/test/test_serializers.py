@@ -1,7 +1,7 @@
 from random import randint
 from datetime import datetime
 
-from common.test.test_cases import FunctionTestCase, SerializerTestCase, ModelSerializerTestCase
+from common.test.test_cases import FunctionTestCase, SerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso
 from .factory import (
     get_factory_password, get_factory_authentication_data, 
@@ -64,7 +64,7 @@ class RefreshingTokenSerializerTestCase(SerializerTestCase):
         self.assertIsNotNone(OutstandingToken.objects.get(token=serializer.validated_data['refresh']))
 
 
-class MembershipSerializerTestCase(ModelSerializerTestCase):
+class MembershipSerializerTestCase(SerializerTestCase):
     fixtures = ['membership']
     _serializer_class = MembershipSerializer
 
@@ -76,7 +76,7 @@ class MembershipSerializerTestCase(ModelSerializerTestCase):
         })
 
 
-class UserSerializerTestCase(ModelSerializerTestCase):
+class UserSerializerTestCase(SerializerTestCase):
     _serializer_class = UserSerializer
 
     @classmethod
@@ -131,7 +131,7 @@ class UserSerializerTestCase(ModelSerializerTestCase):
         self.assertEqual(self._user.created_at, self._user.last_update_password)
 
 
-class ShopperSerializerTestCase(ModelSerializerTestCase):
+class ShopperSerializerTestCase(SerializerTestCase):
     fixtures = ['membership']
     _serializer_class = ShopperSerializer
 
@@ -151,7 +151,7 @@ class ShopperSerializerTestCase(ModelSerializerTestCase):
         })
 
 
-class WholesalerSerializerTestCase(ModelSerializerTestCase):
+class WholesalerSerializerTestCase(SerializerTestCase):
     _serializer_class = WholesalerSerializer
 
     def test_model_instance_serialization(self):
@@ -172,7 +172,7 @@ class WholesalerSerializerTestCase(ModelSerializerTestCase):
         })
 
 
-class FloorSerializerTestCase(ModelSerializerTestCase):
+class FloorSerializerTestCase(SerializerTestCase):
     _serializer_class = FloorSerializer
 
     def test_model_instance_serialization(self):
@@ -183,7 +183,7 @@ class FloorSerializerTestCase(ModelSerializerTestCase):
         })
 
 
-class BuildingSerializerTestCase(ModelSerializerTestCase):
+class BuildingSerializerTestCase(SerializerTestCase):
     _serializer_class = BuildingSerializer
 
     def test_model_instance_serialization(self):

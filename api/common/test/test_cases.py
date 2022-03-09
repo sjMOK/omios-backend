@@ -67,9 +67,6 @@ class SerializerTestCase(APITestCase):
         if self._serializer_class is None:
             raise APIException('_serializer_class variable must be written.')
 
-        if issubclass(self._serializer_class, ModelSerializer) and not isinstance(self, ModelSerializerTestCase):
-            raise APIException('Instead of this class, ModelSerializerTestCase must be inherited.')
-
         super().__init__(*args, **kwargs)
 
     def _get_serializer(self, *args, **kwargs):
@@ -87,18 +84,8 @@ class SerializerTestCase(APITestCase):
         self.assertTrue(expected_field in serializer.errors)
         self.assertEqual(serializer.errors[expected_field][0], expected_message)
 
-
-class ModelSerializerTestCase(SerializerTestCase):
-    test_model_instance_serialization = None
-
-    def __init__(self, *args, **kwargs):
-        if self.test_model_instance_serialization is None:
-            raise APIException('test_model_instance_serialization method must be written.')
-
-        super().__init__(*args, **kwargs)
-
     def _test_model_instance_serialization(self, instance, expected_data):  
-        self.assertDictEqual(super()._get_serializer(instance=instance).data, expected_data)
+        self.assertDictEqual(self._serializer_class(instance=instance).data, expected_data)
 
 
 class ViewTestCase(APITestCase):
