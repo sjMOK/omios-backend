@@ -178,19 +178,13 @@ class ProductImagesSerializer(Serializer):
 class ProductMaterialListSerializer(ListSerializer):
     def validate(self, attrs):
         if self.root.instance is not None:
-            update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)].sort()
+            update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)]
+            update_or_delete_attrs_id.sort()
             product_materials_id = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
 
             if update_or_delete_attrs_id != product_materials_id:
                 raise ValidationError(
                     'You must contain all material data that the product has.'
-                )
-
-        update_or_delete_attrs = [attr for attr in attrs if not is_create_data(attr)]
-        if self.root.instance is not None:
-            if len(update_or_delete_attrs) != self.root.instance.materials.all().count():
-                raise ValidationError(
-                    'The number of requested data is different from the number of materials the product has.'
                 )
 
         total_mixing_rate = sum(
