@@ -103,3 +103,10 @@ class LaundryInformationFactory(DjangoModelFactory):
         model = 'product.LaundryInformation'
 
     name = Sequence(lambda num: 'laundry_info_{0}'.format(num))
+
+
+class SizeFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Size'
+
+    name = Sequence(lambda num: 'size_{0}'.format(num))
