@@ -324,17 +324,17 @@ class ProductColorSerializer(Serializer):
 
                 if input_color != stored_color:
                     raise ValidationError('Color data cannot be updated.')
-            
+
             if 'options' in attrs:
                 self.validate_option_size_uniqueness(attrs.get('options'), product_color_id)
 
         elif self.root.partial and is_create_data(attrs):
             validate_require_data_in_partial_update(attrs, self.fields)
-        
+
         display_color_name = attrs.get('display_color_name', None)
         if display_color_name is None and not is_delete_data(attrs):
             attrs['display_color_name'] = attrs.get('color').name
-        
+
         return attrs
 
     def validate_image_url(self, value):
@@ -354,7 +354,7 @@ class ProductColorSerializer(Serializer):
                     raise ValidationError(
                         'The option with the size already exists.'
                     )
-    
+
     def to_representation(self, instance):
         ret = super().to_representation(instance)
         
@@ -485,7 +485,7 @@ class ProductWriteSerializer(ProductSerializer):
         return product
 
     def update(self, instance, validated_data):
-        laundry_informations_data = validated_data.pop('laundry_informations', list())
+        laundry_informations_data = validated_data.pop('laundry_informations', None)
         tags_data = validated_data.pop('tags', None)
         materials_data = validated_data.pop('materials', None)
         product_colors_data = validated_data.pop('colors', None)
@@ -497,14 +497,14 @@ class ProductWriteSerializer(ProductSerializer):
         if tags_data is not None:
             self.update_id_only_m2m_fields(instance.tags, tags_data)
 
-        if laundry_informations_data:
+        if laundry_informations_data is not None:
             self.update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
 
         if product_images_data is not None:
-            self.update_images(instance, product_images_data)
+            self.update_many_to_one_fields(instance, ProductImages, product_images_data)
 
         if materials_data is not None:
-            self.update_materials(instance, materials_data)
+            self.update_many_to_one_fields(instance, ProductMaterial, materials_data)
 
         if product_colors_data is not None:
             self.update_product_colors(instance, product_colors_data)
@@ -512,17 +512,6 @@ class ProductWriteSerializer(ProductSerializer):
         instance.save(update_fields=validated_data.keys())
 
         return instance
-
-    def update_images(self, product, image_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(image_data)
-        self.update_many_to_one_fields(product, ProductImages, create_data, update_data, delete_data)
-
-        if product.images.all().count()==0:
-            raise APIException('The product must have at least one image.')
-
-    def update_materials(self, product, material_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(material_data)
-        self.update_many_to_one_fields(product, ProductMaterial, create_data, update_data, delete_data)
 
     def update_product_colors(self, product, product_colors_data):
         create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(product_colors_data)
@@ -565,7 +554,9 @@ class ProductWriteSerializer(ProductSerializer):
             [Option(product_color=product_color, **data) for data in create_data]
         )
 
-    def update_many_to_one_fields(self, product, rel_model_class, create_data, update_data, delete_data):
+    def update_many_to_one_fields(self, product, rel_model_class, data):
+        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(data)
+
         delete_fields_id = [data['id'] for data in delete_data]
         rel_model_class.objects.filter(product=product, id__in=delete_fields_id).delete()
 
