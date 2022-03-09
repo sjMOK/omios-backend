@@ -2,7 +2,7 @@ from django.db.models import Manager
 
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer, IntegerField, CharField, ImageField,
-    PrimaryKeyRelatedField, URLField, BooleanField,
+    PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField,
 )
 from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError, APIException
@@ -90,10 +90,17 @@ class FlexibilitySerializer(Serializer):
 
 
 class AgeSerializer(Serializer):
+    id = IntegerField(read_only=True)
     name = CharField(max_length=10, read_only=True)
 
 
 class StyleSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)
+
+
+class MaterialSerializer(Serializer):
+    id = IntegerField(read_only=True)
     name = CharField(max_length=20, read_only=True)
 
 
@@ -388,13 +395,13 @@ class ProductSerializer(DynamicFieldsSerializer):
 class ProductReadSerializer(ProductSerializer):
     main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', allow_fields=('id', 'name'))
     sub_category = SubCategorySerializer(read_only=True)
-    style = StyleSerializer(read_only=True)
-    age = AgeSerializer(read_only=True)
-    tags = TagSerializer(read_only=True, many=True)
-    laundry_informations = LaundryInformationSerializer(read_only=True, many=True)
-    thickness = ThicknessSerializer(read_only=True)
-    see_through = SeeThroughSerializer(read_only=True)
-    flexibility = FlexibilitySerializer(read_only=True)
+    style = StringRelatedField(read_only=True)
+    age = StringRelatedField(read_only=True)
+    tags = StringRelatedField(read_only=True, many=True)
+    laundry_informations = StringRelatedField(read_only=True, many=True)
+    thickness = StringRelatedField(read_only=True)
+    see_through = StringRelatedField(read_only=True)
+    flexibility = StringRelatedField(read_only=True)
 
     field_order = [
         'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 
@@ -408,6 +415,8 @@ class ProductReadSerializer(ProductSerializer):
             ret = self.to_representation_retrieve(ret, instance)
         else:
             ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].image_url) if instance.related_images else DEFAULT_IMAGE_URL
+
+        self._sort_dictionary_by_field_name(ret)
 
         return ret
 
@@ -600,8 +609,3 @@ class ProductWriteSerializer(ProductSerializer):
                 update_data.append(data)
 
         return (create_data, update_data, delete_data)
-
-
-class MaterialSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
