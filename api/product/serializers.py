@@ -99,14 +99,36 @@ class StyleSerializer(Serializer):
 
 class ProductImagesListSerializer(ListSerializer):
     def validate(self, attrs):
-        if self.root.instance is not None:
-            update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)].sort()
-            product_images_id = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
+        if self.root.instance is None:
+            return self.validate_create(attrs)
+        else:
+            return self.validate_update(attrs)
 
-            if update_or_delete_attrs_id != product_images_id:
+    def validate_create(self, attrs):
+        if len(attrs) > 10:
+            raise ValidationError(
+                'The product cannot have more than ten images.'
+            )
+
+        sequences = [attr['sequence'] for attr in attrs]
+        sequences.sort()
+        for index, value in enumerate(sequences):
+            if value != (index+1):
                 raise ValidationError(
-                    'You must contain all image data that the product has.'
+                    'The sequence of the images must be ascending from 1 to n.'
                 )
+
+        return attrs
+
+    def validate_update(self, attrs):
+        update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)]
+        update_or_delete_attrs_id.sort()
+        product_images_id = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
+
+        if update_or_delete_attrs_id != product_images_id:
+            raise ValidationError(
+                'You must contain all image data that the product has.'
+            )
 
         create_or_update_attrs = [attr for attr in attrs if not is_delete_data(attr)]
         if len(create_or_update_attrs) > 10:
@@ -118,12 +140,7 @@ class ProductImagesListSerializer(ListSerializer):
                 'The product must have at least one image.'
             )
 
-        urls = [attr['image_url'] for attr in create_or_update_attrs]
         sequences = [attr['sequence'] for attr in create_or_update_attrs]
-
-        if has_duplicate_element(urls):
-            raise ValidationError('Product image_url is duplicated.')
-
         sequences.sort()
         for index, value in enumerate(sequences):
             if value != (index+1):
@@ -132,7 +149,6 @@ class ProductImagesListSerializer(ListSerializer):
                 )
 
         return attrs
-
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(required=False)
