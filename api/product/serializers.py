@@ -99,18 +99,23 @@ class StyleSerializer(Serializer):
 
 class ProductImagesListSerializer(ListSerializer):
     def validate(self, attrs):
-        create_or_update_attrs = [attr for attr in attrs if not is_delete_data(attr)]
-        update_or_delete_attrs = [attr for attr in attrs if not is_create_data(attr)]
-
         if self.root.instance is not None:
-            if len(update_or_delete_attrs) != self.root.instance.images.all().count():
+            update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)].sort()
+            product_images_id = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
+
+            if update_or_delete_attrs_id != product_images_id:
                 raise ValidationError(
-                    'The number of requested data is different from the number of images the product has.'
+                    'You must contain all image data that the product has.'
                 )
 
+        create_or_update_attrs = [attr for attr in attrs if not is_delete_data(attr)]
         if len(create_or_update_attrs) > 10:
             raise ValidationError(
                 'The product cannot have more than ten images.'
+            )
+        elif len(create_or_update_attrs) == 0:
+            raise ValidationError(
+                'The product must have at least one image.'
             )
 
         urls = [attr['image_url'] for attr in create_or_update_attrs]
@@ -138,9 +143,8 @@ class ProductImagesSerializer(Serializer):
         list_serializer_class = ProductImagesListSerializer
 
     def validate(self, attrs):
-        if self.root.partial:
-            if not is_delete_data(attrs):
-                validate_require_data_in_partial_update(attrs, self.fields)
+        if self.root.partial and not is_delete_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
 
         return attrs
 
