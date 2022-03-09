@@ -103,11 +103,21 @@ def get_dynamic_registration_data(request):
         response_data['thickness'] = ThicknessSerializer(thickness, many=True).data
         response_data['see_through'] = SeeThroughSerializer(see_through, many=True).data
         response_data['flexibility'] = FlexibilitySerializer(flexibility, many=True).data
+        response_data['lining'] = [
+            {'name': '있음', 'value': True}, 
+            {'name': '없음', 'value': False}
+        ]
+    else:
+        response_data['thickness'] = None
+        response_data['see_through'] = None
+        response_data['flexibility'] = None
+        response_data['lining'] = None
 
-    response_data['laundry_inforamtion'] = list()
     if sub_category.require_laundry_information:
         laundry_information = LaundryInformation.objects.all()
         response_data['laundry_inforamtion'] = LaundryInformationSerializer(laundry_information, many=True).data
+    else:
+        response_data['laundry_inforamtion'] = list()
         
     return get_response(data=response_data)
 
