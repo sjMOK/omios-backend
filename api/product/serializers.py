@@ -416,13 +416,13 @@ class ProductReadSerializer(ProductSerializer):
         else:
             ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].image_url) if instance.related_images else DEFAULT_IMAGE_URL
 
-        self._sort_dictionary_by_field_name(ret)
-
         return ret
 
     def to_representation_retrieve(self, ret, instance):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
+
+        self._sort_dictionary_by_field_name(ret)
 
         return ret
 
