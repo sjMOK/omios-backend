@@ -113,13 +113,8 @@ class ProductImagesListSerializer(ListSerializer):
                 'The product cannot have more than ten images.'
             )
 
-        sequences = [attr['sequence'] for attr in attrs]
-        sequences.sort()
-        for index, value in enumerate(sequences):
-            if value != (index+1):
-                raise ValidationError(
-                    'The sequence of the images must be ascending from 1 to n.'
-                )
+        sequences = get_list_of_single_item('sequence', attrs)
+        validate_sequence_ascending_order(sequences)
 
         return attrs
 
@@ -143,15 +138,11 @@ class ProductImagesListSerializer(ListSerializer):
                 'The product must have at least one image.'
             )
 
-        sequences = [attr['sequence'] for attr in create_or_update_attrs]
-        sequences.sort()
-        for index, value in enumerate(sequences):
-            if value != (index+1):
-                raise ValidationError(
-                    'The sequence of the images must be ascending from 1 to n.'
-                )
+        sequences = get_list_of_single_item('sequence')
+        validate_sequence_ascending_order(sequences)
 
         return attrs
+
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(required=False)
