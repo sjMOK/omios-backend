@@ -110,3 +110,19 @@ class SizeFactory(DjangoModelFactory):
         model = 'product.Size'
 
     name = Sequence(lambda num: 'size_{0}'.format(num))
+
+
+class MaterialFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Material'
+
+    name = Sequence(lambda num: 'material{0}'.format(num))
+
+
+class ProductImagesFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductImages'
+
+    product = SubFactory(ProductFactory)
+    image_url = 'product/sample/product_1.jpg'
+    sequence = Sequence(lambda num: num)
