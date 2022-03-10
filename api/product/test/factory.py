@@ -61,12 +61,12 @@ class ProductFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Product'
 
-    name = Sequence(lambda num: 'product_{0}'.format(num))
-    price = 35000
     wholesaler = SubFactory(WholesalerFactory)
     sub_category = SubFactory(SubCategoryFactory)
     style = SubFactory(StyleFactory)
     age = SubFactory(AgeFactory)
+    name = Sequence(lambda num: 'product_{0}'.format(num))
+    price = 35000
     thickness = SubFactory(ThicknessFactory)
     see_through = SubFactory(SeeThroughFactory)
     flexibility = SubFactory(FlexibilityFactory)
