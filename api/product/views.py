@@ -108,10 +108,10 @@ def get_dynamic_registration_data(request):
             {'name': '없음', 'value': False}
         ]
     else:
-        response_data['thickness'] = None
-        response_data['see_through'] = None
-        response_data['flexibility'] = None
-        response_data['lining'] = None
+        response_data['thickness'] = []
+        response_data['see_through'] = []
+        response_data['flexibility'] = []
+        response_data['lining'] = []
 
     if sub_category.require_laundry_information:
         laundry_information = LaundryInformation.objects.all()
