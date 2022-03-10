@@ -304,7 +304,10 @@ class ProductViewSet(viewsets.GenericViewSet):
     def partial_update(self, request, id=None):
         product = self.get_object(self.get_queryset())
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
+        
+        if not serializer.is_valid():
+            return get_response(data=serializer.errors)
+        
         serializer.save()
 
         return get_response(data='product id{0} update success'.format(product.id))
