@@ -1,7 +1,7 @@
 from django.db.models import Manager
 
 from rest_framework.serializers import (
-    Serializer, ModelSerializer, ListSerializer, IntegerField, CharField, ImageField,
+    Serializer, ListSerializer, IntegerField, CharField, ImageField,
     PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField,
 )
 from rest_framework.validators import UniqueValidator
@@ -11,9 +11,10 @@ from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.serializers import DynamicFieldsSerializer
 from .validators import validate_url, validate_price_difference
 from .models import (
-    LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Size, Option, Tag, Product, 
+    LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
 )
+
 
 def validate_require_data_in_partial_update(data, fields):
     for key, value in fields.items():
@@ -25,8 +26,8 @@ def has_duplicate_element(array):
         return True
     return False
 
-def is_delete_data(data):
-    if len(data.keys())==1 and 'id' in data:
+def is_create_data(data):
+    if bool(data) and 'id' not in data:
         return True
     return False
 
@@ -35,8 +36,8 @@ def is_update_data(data):
         return True
     return False
 
-def is_create_data(data):
-    if bool(data) and 'id' not in data:
+def is_delete_data(data):
+    if len(data.keys())==1 and 'id' in data:
         return True
     return False
 
@@ -53,20 +54,15 @@ class MainCategorySerializer(DynamicFieldsSerializer):
     sub_category = SubCategorySerializer(read_only=True, many=True, source='sub_categories')
 
 
-class ColorSerializer(ModelSerializer):
-    class Meta:
-        model = Color
-        fields = '__all__'
-
-
-class SizeSerializer(ModelSerializer):
-    class Meta:
-        model = Size
-        fields = '__all__'
-
-
-class TagSerializer(Serializer):
+class ColorSerializer(Serializer):
+    id = IntegerField(read_only=True)
     name = CharField(read_only=True, max_length=20)
+    image_url = ImageField(read_only=True, max_length=200)
+
+
+class SizeSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(read_only=True, max_length=10)
 
 
 class LaundryInformationSerializer(Serializer):
