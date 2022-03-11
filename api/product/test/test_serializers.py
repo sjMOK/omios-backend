@@ -1,24 +1,27 @@
 import random
+from django.test import tag
 
 from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APISimpleTestCase
 
 from common.utils import BASE_IMAGE_URL
-from common.test.test_cases import SerializerTestCase, FunctionTestCase
+from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, ProductWriteSerializer, validate_require_data_in_partial_update, has_duplicate_element, is_delete_data, is_update_data, 
     is_create_data, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer,
     LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, get_list_of_single_item, get_create_or_update_attrs,
-    get_update_or_delete_attrs, ProductImagesListSerializer, ProductMaterialListSerializer
+    get_update_or_delete_attrs, ProductImagesListSerializer, ProductMaterialListSerializer, ProductColorSerializer, OptionSerializer,
 )
 from .factory import (
-    ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory,
+    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory,
     ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory,
-    ProductImagesFactory, ProductMaterialFactory
+    ProductImagesFactory, ProductMaterialFactory, OptionFactory
 )
+
+SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
 
 
 class ValidateRequireDataInPartialUpdateTestCase(FunctionTestCase):
@@ -283,7 +286,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
     def setUpTestData(cls):
         cls.product_images = ProductImagesFactory()
         cls.data = {
-            'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg',
+            'image_url': SAMPLE_PRODUCT_IMAGE_URL,
             'sequence': 1
         }
 
@@ -296,7 +299,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(self.product_images, expected_data)
 
-    def test_desrialization(self):
+    def test_deserialization(self):
         expected_validated_data = {
             'image_url': validate_url(self.data['image_url']),
             'sequence': self.data['sequence']
@@ -305,16 +308,19 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
 
         self.assertDictEqual(serializer.validated_data, expected_validated_data)
 
+    def test_validate_image_url_value(self):
+        serializer = self._get_serializer_after_validation(data=self.data)
+        
+        self.assertEqual(
+            serializer.validated_data['image_url'],
+            validate_url(self.data['image_url'])
+        )
+
     def __test_validate_image_url(self, image_url, expected_message):
         self.data['image_url'] = image_url
         serializer = self._get_serializer(data=self.data)
 
-        self.assertRaisesMessage(
-            ValidationError,
-            expected_message,
-            serializer.is_valid,
-            raise_exception=True
-        )
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def test_validate_image_url_not_starts_with_BASE_IMAGE_URL_failure(self):
         image_url = 'https://omios.com/product/sample/product_1.jpg'
@@ -333,12 +339,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
     def __test_validate_partial_update_does_not_include_all_data(self, data, expected_message):
         serializer = self._get_serializer(self.product_images, data=data, partial=True)
 
-        self.assertRaisesMessage(
-            ValidationError,
-            expected_message,
-            serializer.is_valid,
-            raise_exception=True
-        )
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def test_validate_partial_update_does_not_include_all_data_with_create_data(self):
         key = random.choice(list(self.data.keys()))
@@ -382,12 +383,7 @@ class ProductImagesListSerializerTestCase(SerializerTestCase):
         return data
 
     def __test_validate_raise_validation_error(self, serializer, expected_message):
-        self.assertRaisesMessage(
-            ValidationError,
-            expected_message,
-            serializer.is_valid,
-            raise_exception=True
-        )
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def __test_validate_create_raise_validation_error(self, data, expected_message):
         serializer = self._get_serializer(data=data)
@@ -592,12 +588,7 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
     def __test_validate_partial_update_does_not_include_all_data(self, data, expected_message):
         serializer = self._get_serializer(self.product_material, data=data, partial=True)
 
-        self.assertRaisesMessage(
-            ValidationError,
-            expected_message,
-            serializer.is_valid,
-            raise_exception=True
-        )
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def test_validate_partial_update_does_not_include_all_data_with_create_data(self):
         key = random.choice(list(self.data.keys()))
@@ -681,25 +672,19 @@ class ProductMaterialListSerializerTestCase(SerializerTestCase):
 
         self.assertListEqual(expected_validated_data, serializer.validated_data)
 
-    def __test_validate_raise_validation_error(self, serializer, expected_message):
-        self.assertRaisesMessage(
-            ValidationError,
-            expected_message,
-            serializer.is_valid,
-            raise_exception=True
-        )
-
     def __test_validate_create_raise_validation_error(self, data, expected_message):
         serializer = self._get_serializer(data=data)
-        self.__test_validate_raise_validation_error(serializer, expected_message)
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+        
 
     def __test_validate_update_raise_validation_error(self, data, expected_message):
         data = self.__get_update_data(data)
         serializer = ProductWriteSerializer(
-            self.product, data, partial=True
+            self.product, data=data, partial=True
         )
 
-        self.__test_validate_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def test_validate_create_total_mixing_rates_does_not_match_criteria(self):
         data = self.create_data
