@@ -1,4 +1,6 @@
-from factory import Sequence, LazyAttribute, SubFactory
+import random
+
+from factory import Sequence, LazyAttribute, SubFactory, Faker, lazy_attribute
 from factory.django import DjangoModelFactory
 
 from user.test.factory import WholesalerFactory
@@ -88,14 +90,41 @@ class ColorFactory(DjangoModelFactory):
     image_url = 'color/black.svg'
 
 
+class SizeFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Size'
+
+    name = Sequence(lambda num: 'size_{0}'.format(num))
+
+
 class ProductColorFactory(DjangoModelFactory):
     class Meta:
         model = 'product.ProductColor'
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
-    display_color_name = Sequence(lambda num: 'display_color_name_{0}'.format(num))
+    display_color_name = Faker('color_name')
     image_url = 'product/sample/product_21.jpg'
+
+
+class OptionFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.option'
+
+    product_color = SubFactory(ProductColorFactory)
+    size = Sequence(lambda num: 'size_{0}'.format(num))
+
+    @lazy_attribute
+    def price_difference(self):
+        price = self.product_color.product.price
+        price_difference = price * random.uniform(0, 0.2)
+
+        cnt = 0
+        while price_difference > 10:
+            price_difference //= 10
+            cnt += 1
+
+        return price_difference * (10 ** cnt)
 
 
 class LaundryInformationFactory(DjangoModelFactory):
@@ -103,13 +132,6 @@ class LaundryInformationFactory(DjangoModelFactory):
         model = 'product.LaundryInformation'
 
     name = Sequence(lambda num: 'laundry_info_{0}'.format(num))
-
-
-class SizeFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Size'
-
-    name = Sequence(lambda num: 'size_{0}'.format(num))
 
 
 class MaterialFactory(DjangoModelFactory):
