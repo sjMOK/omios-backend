@@ -359,9 +359,8 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
         )
 
 
-class ProductImagesListSerializerTestCase(SerializerTestCase):
+class ProductImagesListSerializerTestCase(ListSerializerTestCase):
     _serializer_class = ProductImagesSerializer
-    list_serializer_class = ProductImagesListSerializer
 
     @classmethod
     def setUpTestData(cls):
@@ -370,10 +369,7 @@ class ProductImagesListSerializerTestCase(SerializerTestCase):
             ProductImagesFactory(product=cls.product, sequence=i)
             for i in range(1, 6)
         ]
-        cls.length_upper_limit = cls.list_serializer_class.length_upper_limit
-
-    def _get_serializer(self, *args, **kwargs):
-        return super()._get_serializer(many=True, *args, **kwargs)
+        cls.length_upper_limit = cls.get_list_serializer_class().length_upper_limit
 
     def __get_update_data(self, data):
         data = {
@@ -392,7 +388,7 @@ class ProductImagesListSerializerTestCase(SerializerTestCase):
     def __test_validate_update_raise_validation_error(self, data, expected_message):
         data = self.__get_update_data(data)
         serializer = ProductWriteSerializer(
-            self.product, data, partial=True
+            self.product, data=data, partial=True
         )
 
         self.__test_validate_raise_validation_error(serializer, expected_message)
@@ -608,20 +604,19 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
         )
 
 
-class ProductMaterialListSerializerTestCase(SerializerTestCase):
+class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     _serializer_class = ProductMaterialSerializer
-    list_serializer_class = ProductMaterialListSerializer
     materials_num = 5
 
     @classmethod
     def setUpTestData(cls):
-        mixing_rate = cls.list_serializer_class.total_mixing_rate_value / cls.materials_num
+        total_mixing_rate_value = cls.get_list_serializer_class().total_mixing_rate_value
+        mixing_rate = total_mixing_rate_value / cls.materials_num
 
         cls.product = ProductFactory()
-        cls.product_materials = [
-            ProductMaterialFactory(product=cls.product, mixing_rate=mixing_rate)
-            for _ in range(5)
-        ]
+        cls.product_materials = ProductMaterialFactory.create_batch(
+            cls.materials_num, product=cls.product, mixing_rate=mixing_rate
+        )
 
         cls.create_data = [
             {
@@ -637,9 +632,6 @@ class ProductMaterialListSerializerTestCase(SerializerTestCase):
                 'mixing_rate': product_material.mixing_rate
             }for product_material in cls.product_materials
         ]
-
-    def _get_serializer(self, *args, **kwargs):
-        return super()._get_serializer(many=True, *args, **kwargs)
 
     def __get_update_data(self, data):
         data = {
@@ -660,7 +652,7 @@ class ProductMaterialListSerializerTestCase(SerializerTestCase):
 
         self.assertListEqual(expected_data, serializer.data)
 
-    def test_desrialization(self):
+    def test_deserialization(self):
         data = self.create_data
         expected_validated_data = [
             {
@@ -720,7 +712,7 @@ class ProductMaterialListSerializerTestCase(SerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_total_mixing_rates_does_not_match_criteria(self):
+    def test_validate_update_total_mixing_rates_exceed_criteria(self):
         data = self.create_data + self.update_data
 
         for d in data:
@@ -733,7 +725,19 @@ class ProductMaterialListSerializerTestCase(SerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_duplicated_material_name(self):
+    def test_raise_validation_error_total_mixing_rates_less_than_criteria_in_update(self):
+        self.update_data[-1] = {'id': self.update_data[-1]['id']}
+        data = self.create_data + self.update_data
+
+        for d in data:
+            if not is_delete_data(d):
+                d['mixing_rate'] = self.list_serializer_class.total_mixing_rate_value / len(data)
+
+        expected_message = 'The total of material mixing rates must be 100.'
+
+        self.__test_validate_update_raise_validation_error(data, expected_message)
+
+    def test_raise_validation_error_duplicated_material_name_in_update(self):
         data = self.create_data + self.update_data
 
         for d in data:
