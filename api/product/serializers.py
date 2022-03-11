@@ -185,34 +185,36 @@ class ProductImagesSerializer(Serializer):
 
 
 class ProductMaterialListSerializer(ListSerializer):
+    total_mixing_rate_value = 100
+
     def validate(self, attrs):
         if self.root.instance is not None:
-            update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)]
-            update_or_delete_attrs_id.sort()
-            product_materials_id = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
+            update_or_delete_attrs_id_list = get_list_of_single_item(
+                'id', get_update_or_delete_attrs(attrs)
+            )
+            update_or_delete_attrs_id_list.sort()
+            product_materials_id_list = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
 
-            if update_or_delete_attrs_id != product_materials_id:
+            if update_or_delete_attrs_id_list != product_materials_id_list:
                 raise ValidationError(
                     'You must contain all material data that the product has.'
                 )
 
-        total_mixing_rate = sum(
-            [attr['mixing_rate'] for attr in attrs if not is_delete_data(attr)]
+        total_mixing_rates = get_list_of_single_item(
+                'mixing_rate', get_create_or_update_attrs(attrs)
         )
-
-        if total_mixing_rate != 100:
+        if sum(total_mixing_rates) != self.total_mixing_rate_value:
             raise ValidationError('The total of material mixing rates must be 100.')
 
-        materials = [attr.get('material') for attr in attrs]
+        materials = get_list_of_single_item('material', attrs)
         if has_duplicate_element(materials):
-            raise ValidationError('material is duplicated.')
+            raise ValidationError('Material is duplicated.')
 
         return attrs
 
 
 class ProductMaterialSerializer(Serializer):
     id = IntegerField(required=False)
-    product = PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, required=False)
     material = CharField(max_length=20)
     mixing_rate = IntegerField(max_value=100, min_value=1)
 
