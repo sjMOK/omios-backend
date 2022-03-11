@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.serializers import DynamicFieldsSerializer
-from .validators import validate_url, validate_price_difference
+from .validators import validate_url, validate_price_difference, validate_sequence_ascending_order
 from .models import (
     LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
@@ -40,6 +40,17 @@ def is_delete_data(data):
     if len(data.keys())==1 and 'id' in data:
         return True
     return False
+
+def get_create_or_update_attrs(attrs):
+    return [attr for attr in attrs if not is_delete_data(attr)]
+
+def get_update_or_delete_attrs(attrs):
+    return [attr for attr in attrs if not is_create_data(attr)]
+
+def get_list_of_single_item(key, attrs):
+    ret_list = [attr[key] for attr in attrs]
+    
+    return ret_list
 
 
 class SubCategorySerializer(Serializer):
@@ -101,6 +112,8 @@ class MaterialSerializer(Serializer):
 
 
 class ProductImagesListSerializer(ListSerializer):
+    length_upper_limit = 10
+
     def validate(self, attrs):
         if self.root.instance is None:
             return self.validate_create(attrs)
@@ -108,7 +121,7 @@ class ProductImagesListSerializer(ListSerializer):
             return self.validate_update(attrs)
 
     def validate_create(self, attrs):
-        if len(attrs) > 10:
+        if len(attrs) > self.length_upper_limit:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
@@ -119,17 +132,19 @@ class ProductImagesListSerializer(ListSerializer):
         return attrs
 
     def validate_update(self, attrs):
-        update_or_delete_attrs_id = [attr.get('id') for attr in attrs if not is_create_data(attr)]
-        update_or_delete_attrs_id.sort()
-        product_images_id = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
+        update_or_delete_attrs_id_list = get_list_of_single_item(
+            'id', get_update_or_delete_attrs(attrs)
+        )
+        update_or_delete_attrs_id_list.sort()
+        product_images_id_list = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
 
-        if update_or_delete_attrs_id != product_images_id:
+        if update_or_delete_attrs_id_list != product_images_id_list:
             raise ValidationError(
                 'You must contain all image data that the product has.'
             )
 
-        create_or_update_attrs = [attr for attr in attrs if not is_delete_data(attr)]
-        if len(create_or_update_attrs) > 10:
+        create_or_update_attrs = get_create_or_update_attrs(attrs)
+        if len(create_or_update_attrs) > self.length_upper_limit:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
@@ -138,7 +153,7 @@ class ProductImagesListSerializer(ListSerializer):
                 'The product must have at least one image.'
             )
 
-        sequences = get_list_of_single_item('sequence')
+        sequences = get_list_of_single_item('sequence', create_or_update_attrs)
         validate_sequence_ascending_order(sequences)
 
         return attrs
