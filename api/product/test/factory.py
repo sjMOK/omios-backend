@@ -119,6 +119,15 @@ class MaterialFactory(DjangoModelFactory):
     name = Sequence(lambda num: 'material{0}'.format(num))
 
 
+class ProductMaterialFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductMaterial'
+
+    product = SubFactory(ProductFactory)
+    material = Sequence(lambda num: 'material{0}'.format(num))
+    mixing_rate = 100
+
+
 class ProductImagesFactory(DjangoModelFactory):
     class Meta:
         model = 'product.ProductImages'
