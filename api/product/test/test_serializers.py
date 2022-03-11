@@ -749,3 +749,95 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         expected_message = 'Material is duplicated.'
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
+
+
+class OptionSerializerTestCase(SerializerTestCase):
+    _serializer_class = OptionSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        size = SizeFactory()
+        cls.option = OptionFactory(size = size.name)
+        cls.data = {
+            'size': 'Free',
+            'price_difference': 0
+        }
+
+    def test_model_instance_serialization(self):
+        expected_data = {
+            'id': self.option.id, 
+            'size': self.option.size,
+            'price_difference': self.option.price_difference,
+        }
+
+        self._test_model_instance_serialization(self.option, expected_data)
+
+    def test_deserialization(self):
+        expected_validated_data = {
+            'size': self.data['size'],
+            'price_difference': self.data['price_difference']
+        }
+        serializer = self._get_serializer_after_validation(data=self.data)
+
+        self.assertDictEqual(serializer.validated_data, expected_validated_data)
+
+    def test_raise_validation_error_create_data_does_not_include_all_data_in_partial(self):
+        self.data.pop('size')
+        serializer = self._get_serializer(data=self.data, partial=True)
+        expected_message = '{0} field is required.'.format('size')
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_validation_error_update_size_data(self):
+        data = {
+            'id': self.option.id,
+            'size': self.option.size + '_update',
+            'price_difference': self.option.price_difference
+        }
+        serializer = self._get_serializer(data=data, partial=True)
+        expected_message = 'Size data cannot be updated.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+
+class OptionListSerializerTestCase(ListSerializerTestCase):
+    _serializer_class = OptionSerializer
+    options_num = 3
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.product_color = ProductColorFactory()
+        cls.options = OptionFactory.create_batch(size=cls.options_num, product_color=cls.product_color)
+        cls.create_data = [
+            {
+                'size': 'size_{0}'.format(i),
+                'price_difference': random.randint(0, cls.product_color.product.price * 0.2)
+            }
+            for i in range(cls.options_num)
+        ]
+        cls.update_data = [
+            {
+                'id': option.id,
+                'size': option.size,
+                'price_difference': option.price_difference
+            }for option in cls.options
+        ]
+
+    def __test_duplicated_size_data(self, data):
+        index = random.choice(range(1, len(data)))
+        data[index]['size'] = data[0]['size']
+
+        serializer = self._get_serializer(data=data)
+        expected_message = 'size is duplicated.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_validation_error_duplicated_size_data_in_create(self):
+        data = self.create_data
+
+        self.__test_duplicated_size_data(data)
+
+    def test_raise_validation_error_duplicated_size_data_in_update(self):
+        data = self.update_data + self.create_data
+        
+        self.__test_duplicated_size_data(data)
