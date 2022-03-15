@@ -185,13 +185,19 @@ class ProductImagesSerializer(Serializer):
         list_serializer_class = ProductImagesListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and not is_delete_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+        if self.root.partial:
+            return self.__validate_partial_update(attrs)
 
         return attrs
 
     def validate_image_url(self, value):
         return validate_url(value)
+
+    def __validate_partial_update(self, attrs):
+        if not is_delete_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        
+        return attrs
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -258,19 +264,41 @@ class ProductMaterialSerializer(Serializer):
         list_serializer_class = ProductMaterialListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and not is_delete_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+        if self.root.partial:
+            return self.__validate_partial_update(attrs)
 
+        return attrs
+
+    def __validate_partial_update(self, attrs):
+        if not is_delete_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        
         return attrs
 
 
 class OptionListSerializer(ListSerializer):
     def validate(self, attrs):
-        sizes = [attr.get('size') for attr in attrs]
-        if has_duplicate_element(sizes):
-            raise ValidationError("'size' is duplicated.")
+        if self.root.instance is None:
+            return self.__validate_create(attrs)
+        else:
+            return self.__validate_update(attrs)
+
+    def __validate_create(self, attrs):
+        self.__validate_sizes(attrs)
 
         return attrs
+
+    def __validate_update(self, attrs):
+        create_or_update_attrs = get_create_or_update_attrs(attrs)
+        self.__validate_sizes(create_or_update_attrs)
+
+        return attrs
+
+    def __validate_sizes(self, attrs):
+        sizes = get_list_of_single_item('size', attrs)
+
+        if has_duplicate_element(sizes):
+            raise ValidationError('size is duplicated.')
 
 
 class OptionSerializer(Serializer):
@@ -282,17 +310,23 @@ class OptionSerializer(Serializer):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and is_create_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
-        elif self.root.partial and is_update_data(attrs):
-            if 'size' in attrs:
-                input_size = attrs.get('size')
-                stored_size = Option.objects.get(id=attrs.get('id')).size
-
-                if input_size != stored_size:
-                    raise ValidationError('Size data cannot be updated.')
+        if self.root.partial:
+            self.__validate_partial_update(attrs)
 
         return attrs
+
+    def __validate_partial_update(self, attrs):
+        if is_create_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        elif is_update_data(attrs) and 'size' in attrs:
+            self.__validate_size_update(attrs)
+
+    def __validate_size_update(self, attrs):
+        input_size = attrs.get('size', None)
+        stored_size = Option.objects.get(id=attrs.get('id')).size
+
+        if input_size != stored_size:
+            raise ValidationError('Size data cannot be updated.')
 
 
 class ProductColorListSerializer(ListSerializer):
