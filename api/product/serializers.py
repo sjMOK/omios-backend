@@ -125,47 +125,55 @@ class ProductImagesListSerializer(ListSerializer):
 
     def validate(self, attrs):
         if self.root.instance is None:
-            return self.validate_create(attrs)
+            return self.__validate_create(attrs)
         else:
-            return self.validate_update(attrs)
+            return self.__validate_update(attrs)
 
-    def validate_create(self, attrs):
+    def __validate_create(self, attrs):
+        self.__validate_attrs_length(attrs)
+        self.__validate_sequence_ascending_order(attrs)
+
+        return attrs
+
+    def __validate_update(self, attrs):
+        create_or_update_attrs = get_create_or_update_attrs(attrs)
+        update_or_delete_attrs = get_update_or_delete_attrs(attrs)
+
+        self.__validate_attrs_contain_all_data(update_or_delete_attrs)
+        self.__validate_attrs_length(create_or_update_attrs)
+        self.__validate_sequence_ascending_order(create_or_update_attrs)
+
+        return attrs
+
+    def __validate_attrs_length(self, attrs):
         if len(attrs) > self.length_upper_limit:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
-
-        sequences = get_list_of_single_item('sequence', attrs)
-        validate_sequence_ascending_order(sequences)
-
-        return attrs
-
-    def validate_update(self, attrs):
-        update_or_delete_attrs_id_list = get_list_of_single_item(
-            'id', get_update_or_delete_attrs(attrs)
-        )
-        update_or_delete_attrs_id_list.sort()
-        product_images_id_list = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
-
-        if update_or_delete_attrs_id_list != product_images_id_list:
-            raise ValidationError(
-                'You must contain all image data that the product has.'
-            )
-
-        create_or_update_attrs = get_create_or_update_attrs(attrs)
-        if len(create_or_update_attrs) > self.length_upper_limit:
-            raise ValidationError(
-                'The product cannot have more than ten images.'
-            )
-        elif len(create_or_update_attrs) == 0:
+        elif len(attrs) == 0:
             raise ValidationError(
                 'The product must have at least one image.'
             )
 
-        sequences = get_list_of_single_item('sequence', create_or_update_attrs)
-        validate_sequence_ascending_order(sequences)
+    def __validate_sequence_ascending_order(self, attrs):
+        sequences = get_list_of_single_item('sequence', attrs)
+        sequences.sort()
 
-        return attrs
+        for index, value in enumerate(sequences):
+            if value != (index+1):
+                raise ValidationError(
+                    'The sequence of the images must be ascending from 1 to n.'
+                )
+
+    def __validate_attrs_contain_all_data(self, attrs):
+        attrs_id_list = get_list_of_single_item('id', attrs)
+        attrs_id_list.sort()
+        product_images_id_list = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
+
+        if attrs_id_list != product_images_id_list:
+            raise ValidationError(
+                'You must contain all image data that the product has.'
+            )
 
 
 class ProductImagesSerializer(Serializer):
@@ -194,32 +202,51 @@ class ProductImagesSerializer(Serializer):
 
 
 class ProductMaterialListSerializer(ListSerializer):
-    total_mixing_rate_value = 100
+    sum_of_mixing_rates = 100
 
     def validate(self, attrs):
-        if self.root.instance is not None:
-            update_or_delete_attrs_id_list = get_list_of_single_item(
-                'id', get_update_or_delete_attrs(attrs)
-            )
-            update_or_delete_attrs_id_list.sort()
-            product_materials_id_list = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
+        if self.root.instance is None:
+            return self.__validate_create(attrs)
+        else:
+            return self.__validate_update(attrs)
 
-            if update_or_delete_attrs_id_list != product_materials_id_list:
-                raise ValidationError(
-                    'You must contain all material data that the product has.'
-                )
-
-        total_mixing_rates = get_list_of_single_item(
-                'mixing_rate', get_create_or_update_attrs(attrs)
-        )
-        if sum(total_mixing_rates) != self.total_mixing_rate_value:
-            raise ValidationError('The total of material mixing rates must be 100.')
-
-        materials = get_list_of_single_item('material', attrs)
-        if has_duplicate_element(materials):
-            raise ValidationError('Material is duplicated.')
+    def __validate_create(self, attrs):
+        self.__validate_sum_of_mixing_rates(attrs)
+        self.__validate_materials(attrs)
 
         return attrs
+
+    def __validate_update(self, attrs):
+        update_or_delete_attrs = get_update_or_delete_attrs(attrs)
+        create_or_update_attrs = get_create_or_update_attrs(attrs)
+
+        self.__validate_attrs_contain_all_data(update_or_delete_attrs)
+        self.__validate_sum_of_mixing_rates(create_or_update_attrs)
+        self.__validate_materials(create_or_update_attrs)
+
+        return attrs
+
+    def __validate_sum_of_mixing_rates(self, attrs):
+        total_mixing_rates = get_list_of_single_item('mixing_rate', attrs)
+
+        if sum(total_mixing_rates) != self.sum_of_mixing_rates:
+            raise ValidationError('The total of material mixing rates must be 100.')      
+
+    def __validate_materials(self, attrs):
+        materials = get_list_of_single_item('material', attrs)
+
+        if has_duplicate_element(materials):
+            raise ValidationError('Material is duplicated.')
+    
+    def __validate_attrs_contain_all_data(self, attrs):
+        attrs_id_list = get_list_of_single_item('id', attrs)
+        attrs_id_list.sort()
+        product_materials_id_list = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
+
+        if attrs_id_list != product_materials_id_list:
+            raise ValidationError(
+                'You must contain all material data that the product has.'
+            )
 
 
 class ProductMaterialSerializer(Serializer):
