@@ -320,41 +320,38 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
 
-    def test_validate_image_url_not_starts_with_BASE_IMAGE_URL_failure(self):
+    def test_raise_valid_error_image_url_not_starts_with_BASE_IMAGE_URL(self):
         image_url = 'https://omios.com/product/sample/product_1.jpg'
 
         self.__test_validate_image_url(
             image_url, expected_message='Enter a valid BASE_IMAGE_URL.'
         )
 
-    def test_validate_image_url_object_not_found(self):
+    def test_raise_valid_error_image_url_object_not_found(self):
         image_url = BASE_IMAGE_URL + 'product/sample/product_-999.jpg'
 
         self.__test_validate_image_url(
             image_url, expected_message='object not found.'
         )
 
-    def __test_validate_partial_update_does_not_include_all_data(self, data, expected_message):
-        serializer = self._get_serializer(self.product_images, data=data, partial=True)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_validate_partial_update_does_not_include_all_data_with_create_data(self):
+    def test_raise_valid_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
 
-        self.__test_validate_partial_update_does_not_include_all_data(
-            self.data, '{0} field is required.'.format(key)
-        )
+        serializer = self._get_serializer(self.product_images, data=self.data, partial=True)
+        expected_message = '{0} field is required.'.format(key)
 
-    def test_validate_partial_update_does_not_include_all_data_with_update_data(self):
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_error_update_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
         self.data['id'] = 100
 
-        self.__test_validate_partial_update_does_not_include_all_data(
-            self.data, '{0} field is required.'.format(key)
-        )
+        serializer = self._get_serializer(self.product_images, data=self.data, partial=True)
+        expected_message = '{0} field is required.'.format(key)
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
 
 class ProductImagesListSerializerTestCase(ListSerializerTestCase):
@@ -548,27 +545,24 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
         self._test_deserialzation(self.data, expected_validated_data)
 
-    def __test_validate_partial_update_does_not_include_all_data(self, data, expected_message):
-        serializer = self._get_serializer(self.product_material, data=data, partial=True)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_validate_partial_update_does_not_include_all_data_with_create_data(self):
+    def test_raise_valid_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
 
-        self.__test_validate_partial_update_does_not_include_all_data(
-            self.data, '{0} field is required.'.format(key)
-        )
+        serializer = self._get_serializer(self.product_material, data=self.data, partial=True)
+        expected_message = '{0} field is required.'.format(key)
 
-    def test_validate_partial_update_does_not_include_all_data_with_update_data(self):
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+        
+    def test_raise_valid_error_update_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
         self.data['id'] = 100
 
-        self.__test_validate_partial_update_does_not_include_all_data(
-            self.data, '{0} field is required.'.format(key)
-        )
+        serializer = self._get_serializer(self.product_material, data=self.data, partial=True)
+        expected_message = '{0} field is required.'.format(key)
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
 
 class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
@@ -775,12 +769,10 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
 
     def test_raise_validation_error_duplicated_size_data_in_create(self):
         data = self.create_data
-
         self.__test_duplicated_size_data(data)
 
     def test_raise_validation_error_duplicated_size_data_in_update(self):
         data = self.update_data + self.create_data
-        
         self.__test_duplicated_size_data(data)
     
 
