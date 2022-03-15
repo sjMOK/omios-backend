@@ -41,6 +41,15 @@ def is_delete_data(data):
         return True
     return False
 
+def get_create_attrs(attrs):
+    return [attr for attr in attrs if is_create_data(attr)]
+
+def get_update_attrs(attrs):
+    return [attr for attr in attrs if is_update_data(attr)]
+
+def get_delete_attrs(attrs):
+    return [attr for attr in attrs if is_delete_data(attr)]
+
 def get_create_or_update_attrs(attrs):
     return [attr for attr in attrs if not is_delete_data(attr)]
 
