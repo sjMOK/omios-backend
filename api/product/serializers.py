@@ -232,7 +232,7 @@ class OptionListSerializer(ListSerializer):
 class OptionSerializer(Serializer):
     id = IntegerField(required=False)
     size = CharField(max_length=20)
-    price_difference = IntegerField(max_value=100000, min_value=0, required=False)
+    price_difference = IntegerField(max_value=100000, min_value=0)
 
     class Meta:
         list_serializer_class = OptionListSerializer
