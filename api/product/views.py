@@ -306,7 +306,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
         
         if not serializer.is_valid():
-            return get_response(data=serializer.errors)
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
         
         serializer.save()
 
