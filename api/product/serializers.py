@@ -330,6 +330,8 @@ class OptionSerializer(Serializer):
 
 
 class ProductColorListSerializer(ListSerializer):
+    length_upper_limit = 10
+
     def validate(self, attrs):
         if self.root.instance is None:
             return self.validate_create(attrs)
@@ -337,7 +339,7 @@ class ProductColorListSerializer(ListSerializer):
             return self.validate_update(attrs)
 
     def validate_create(self, attrs):
-        if len(attrs) > 10:
+        if len(attrs) > self.length_upper_limit:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
             )
@@ -349,32 +351,40 @@ class ProductColorListSerializer(ListSerializer):
         return attrs
 
     def validate_update(self, attrs):
-        create_data = [attr for attr in attrs if is_create_data(attr)]
-        delete_data = [attr for attr in attrs if is_delete_data(attr)]
+        create_attrs = get_create_attrs(attrs)
+        delete_attrs = get_delete_attrs(attrs)
 
-        len_colors = self.root.instance.colors.filter(on_sale=True).count() + len(create_data) - len(delete_data)
-        if len_colors > 10:
+        len_colors = self.root.instance.colors.filter(on_sale=True).count() + len(create_attrs) - len(delete_attrs)
+        if len_colors > self.length_upper_limit:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
+            )
+        elif len_colors == 0:
+            raise ValidationError(
+                'The product must have at least one color.'
             )
 
         display_color_names = [attr.get('display_color_name') for attr in attrs if 'display_color_name' in attr]
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
 
-        display_color_name_attrs = [
-            attr for attr in attrs if 'display_color_name' in attr
-        ]
-        self.validate_display_color_name_uniqueness(display_color_name_attrs)
+        self.__validate_display_color_name_uniqueness(attrs)
 
         return attrs
 
-    def validate_display_color_name_uniqueness(self, attrs):
-        for attr in attrs:
+    def __validate_display_color_name_uniqueness(self, attrs):
+        delete_attrs_id_list = get_list_of_single_item(
+            'id', get_delete_attrs(attrs)
+        )
+        display_color_name_attrs = [
+            attr for attr in attrs if 'display_color_name' in attr
+        ]
+        
+        for attr in display_color_name_attrs:
             queryset = ProductColor.objects.filter(
                 on_sale=True, product=self.root.instance, 
                 display_color_name=attr.get('display_color_name')
-            )
+            ).exclude(id__in=delete_attrs_id_list)
 
             if is_update_data(attr):
                 queryset = queryset.exclude(id=attr.get('id'))
@@ -403,20 +413,8 @@ class ProductColorSerializer(Serializer):
         list_serializer_class = ProductColorListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and is_update_data(attrs):
-            product_color_id = attrs.get('id')
-            if 'color' in attrs:
-                input_color = attrs.get('color')
-                stored_color = ProductColor.objects.get(id=product_color_id).color
-
-                if input_color != stored_color:
-                    raise ValidationError('Color data cannot be updated.')
-
-            if 'options' in attrs:
-                self.validate_option_size_uniqueness(attrs.get('options'), product_color_id)
-
-        elif self.root.partial and is_create_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+        if self.root.instance is not None:
+            attrs = self.validate_update(attrs)
 
         display_color_name = attrs.get('display_color_name', None)
         if display_color_name is None and 'color' in attrs:
@@ -424,18 +422,44 @@ class ProductColorSerializer(Serializer):
 
         return attrs
 
+    def validate_update(self, attrs):
+        if self.root.partial:
+            return self.__validate_partial_update(attrs)
+
+        return attrs
+
     def validate_image_url(self, value):
         return validate_url(value)
 
-    def validate_option_size_uniqueness(self, attrs, product_color_id):
-        for attr in attrs:
+    def __validate_partial_update(self, attrs):
+        if is_create_data(attrs):
+            validate_require_data_in_partial_update(attrs, self.fields)
+        elif is_update_data(attrs):
+            if 'color' in attrs:
+                self.__validate_color_update(attrs)
+
+            if 'options' in attrs:
+                self.__validate_option_size_uniqueness(attrs.get('options'), attrs.get('id'))
+
+        return attrs
+
+    def __validate_color_update(self, attrs):
+        input_color = attrs.get('color')
+        stored_color = ProductColor.objects.get(id=attrs.get('id')).color
+
+        if input_color != stored_color:
+            raise ValidationError('Color data cannot be updated.')
+
+    def __validate_option_size_uniqueness(self, option_attrs, product_color_id):
+        delete_option_attrs_id_list = get_list_of_single_item(
+            'id', get_delete_attrs(option_attrs)
+        )
+        create_option_attrs = get_create_attrs(option_attrs)
+        for attr in create_option_attrs:
             if 'size' in attr:
                 queryset = Option.objects.filter(
-                    product_color_id=product_color_id, size = attr.get('size')
-                )
-
-                if is_update_data(attr):
-                    queryset = queryset.exclude(id=attr.get('id'))
+                    product_color_id=product_color_id, size=attr.get('size')
+                ).exclude(id__in=delete_option_attrs_id_list)
 
                 if queryset.exists():
                     raise ValidationError(
@@ -625,9 +649,6 @@ class ProductWriteSerializer(ProductSerializer):
             Option.objects.bulk_create(
                 [Option(product_color=product_color, **option_data) for option_data in options_data]
             )
-
-        if product.colors.filter(on_sale=True).count()==0:
-            raise APIException('The product must have at least one color.')
 
     def update_options(self, product_color, options_data):
         create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(options_data)
