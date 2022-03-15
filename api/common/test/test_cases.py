@@ -94,6 +94,12 @@ class SerializerTestCase(APITestCase):
             raise_exception=True
         )
 
+    def _test_deserialzation(self, data, expected_validated_data):
+        serializer = self._get_serializer_after_validation(data=data)
+
+        self.assertDictEqual(expected_validated_data, serializer.validated_data)
+
+
 class ListSerializerTestCase(SerializerTestCase):
     @classmethod
     def get_list_serializer_class(cls):
