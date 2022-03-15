@@ -366,27 +366,16 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
         ]
         cls.length_upper_limit = cls.get_list_serializer_class().length_upper_limit
 
-    def __get_update_data(self, data):
-        data = {
-            'images': data
-        }
-
-        return data
-
-    def __test_validate_raise_validation_error(self, serializer, expected_message):
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
     def __test_validate_create_raise_validation_error(self, data, expected_message):
         serializer = self._get_serializer(data=data)
-        self.__test_validate_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def __test_validate_update_raise_validation_error(self, data, expected_message):
-        data = self.__get_update_data(data)
         serializer = ProductWriteSerializer(
-            self.product, data=data, partial=True
+            self.product, data={'images': data}, partial=True
         )
 
-        self.__test_validate_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def __test_validate_create_wrong_sequence_ascending_order(self, sequences):
         data = [
@@ -410,16 +399,16 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_create_raise_validation_error(data, expected_message)
 
-    def test_validate_create_sequences_not_startswith_one(self):
+    def test_raise_valid_error_sequences_not_startswith_one_in_create(self):
         sequences = range(5)
         self.__test_validate_create_wrong_sequence_ascending_order(sequences)
 
-    def test_validate_create_omitted_sequences(self):
+    def test_raise_valid_error_omitted_sequences_in_create(self):
         sequences = list(range(1, 6))
         sequences.pop(3)
         self.__test_validate_create_wrong_sequence_ascending_order(sequences)
 
-    def test_validate_update_does_not_pass_all_image_data(self):
+    def test_raise_valid_error_does_not_pass_all_image_data_in_update(self):
         data = [
             {
                 'id': product_image.id,
@@ -433,7 +422,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_does_not_pass_exact_image_data(self):
+    def test_raise_valid_error_does_not_pass_exact_image_data_in_update(self):
         data = [
             {
                 'id': random.randint(1, 10000),
@@ -446,7 +435,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_input_data_length_must_more_than_upper_limit(self):
+    def test_raise_valid_error_update_data_length_more_than_upper_limit(self):
         update_data = [
             {
                 'id': product_image.id,
@@ -466,7 +455,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_input_data_length_less_than_zero(self):
+    def test_raise_valid_error_data_length_is_zero(self):
         data = [
             {'id': product_image.id} 
             for product_image in self.product_images
@@ -475,7 +464,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_sequences_not_startswith_one(self):
+    def test_raise_valid_error_sequences_not_startswith_one_in_update(self):
         update_data = [
             {
                 'id': product_image.id,
@@ -495,7 +484,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self.__test_validate_update_raise_validation_error(data, expected_message)
 
-    def test_validate_update_omitted_sequences(self):
+    def test_raise_valid_error_omitted_sequences_in_update(self):
         update_data = [
             {
                 'id': product_image.id,
@@ -601,12 +590,12 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         return data
 
-    def __test_validate_create_raise_validation_error(self, data, expected_message):
+    def __test_raise_valid_error_in_create(self, data, expected_message):
         serializer = self._get_serializer(data=data)
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
         
-    def __test_validate_update_raise_validation_error(self, data, expected_message):
+    def __test_raise_valid_error_in_update(self, data, expected_message):
         data = self.__get_update_data(data)
         serializer = ProductWriteSerializer(
             self.product, data=data, partial=True
@@ -614,54 +603,41 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
 
-    def test_validate_create_total_mixing_rates_does_not_match_criteria(self):
+    def test_raise_valid_error_total_mixing_rates_does_not_match_criteria_in_create(self):
         data = self.create_data
         data[0]['mixing_rate'] += 10
 
         expected_message = 'The total of material mixing rates must be 100.'
 
-        self.__test_validate_create_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_create(data, expected_message)
 
-    def test_validate_create_duplicated_material_name(self):
+    def test_raise_valid_error_duplicated_material_name_in_create(self):
         data = self.create_data
         index = random.choice(range(1, len(data)))
         data[index]['material'] = data[0]['material']
 
         expected_message = 'Material is duplicated.'
 
-        self.__test_validate_create_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_create(data, expected_message)
 
-    def test_validate_update_does_not_pass_all_material_data(self):
+    def test_raise_valid_error_does_not_pass_all_material_data_in_update(self):
         data = self.update_data
         data.pop(random.randint(0, len(data)-1))
 
         expected_message = 'You must contain all material data that the product has.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_update(data, expected_message)
 
-    def test_validate_update_does_not_pass_exact_image_data(self):
+    def test_raise_valid_error_does_not_pass_exact_material_data_in_update(self):
         data = self.update_data
         id_min_value = min([d['id'] for d in data])
         data[0]['id'] = id_min_value - 1
 
         expected_message = 'You must contain all material data that the product has.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_update(data, expected_message)
 
-    def test_validate_update_total_mixing_rates_exceed_criteria(self):
-        data = self.create_data + self.update_data
-
-        for d in data:
-            d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
-
-        index = random.choice(range(len(data)))
-        data[index]['mixing_rate'] += 10
-
-        expected_message = 'The total of material mixing rates must be 100.'
-
-        self.__test_validate_update_raise_validation_error(data, expected_message)
-
-    def test_raise_validation_error_total_mixing_rates_less_than_criteria_in_update(self):
+    def test_raise_valid_error_total_mixing_rates_does_not_match_criteria_in_update(self):
         self.update_data[-1] = {'id': self.update_data[-1]['id']}
         data = self.create_data + self.update_data
 
@@ -671,9 +647,9 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         expected_message = 'The total of material mixing rates must be 100.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_update(data, expected_message)
 
-    def test_raise_validation_error_duplicated_material_name_in_update(self):
+    def test_raise_valid_error_duplicated_material_name_in_update(self):
         data = self.create_data + self.update_data
 
         for d in data:
@@ -684,7 +660,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         expected_message = 'Material is duplicated.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self.__test_raise_valid_error_in_update(data, expected_message)
 
 
 class OptionSerializerTestCase(SerializerTestCase):
@@ -999,7 +975,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
 
-    def test_raise_valid_error_non_unique_display_color_name_in_update_data(self):
+    def test_raise_valid_error_non_unique_display_color_name_in_update_update_data(self):
         data = [
             {
                 'id': self.product_colors[0].id,
@@ -1014,7 +990,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
 
-    def test_raise_valid_error_non_unique_display_color_name_in_create_data(self):
+    def test_raise_valid_error_non_unique_display_color_name_in_update_create_data(self):
         data = [self.create_data[0]]
 
         serializer = ProductWriteSerializer(
