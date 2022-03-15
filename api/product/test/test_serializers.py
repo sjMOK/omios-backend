@@ -1,5 +1,4 @@
-import random
-from django.test import tag
+import random, copy
 
 from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import ValidationError
@@ -9,16 +8,16 @@ from common.utils import BASE_IMAGE_URL
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from ..validators import validate_url
 from ..serializers import (
-    ProductMaterialSerializer, ProductWriteSerializer, validate_require_data_in_partial_update, has_duplicate_element, is_delete_data, is_update_data, 
-    is_create_data, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer,
-    LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, get_list_of_single_item, get_create_or_update_attrs,
-    get_update_or_delete_attrs, ProductImagesListSerializer, ProductMaterialListSerializer, ProductColorSerializer, OptionSerializer,
+    validate_require_data_in_partial_update, has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_list_of_single_item,
+    get_create_or_update_attrs, get_update_or_delete_attrs, ProductMaterialSerializer, ProductWriteSerializer, SubCategorySerializer,
+    MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer,
+    FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, ProductColorSerializer, 
+    OptionSerializer,
 )
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory,
-    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory,
-    ProductImagesFactory, ProductMaterialFactory, OptionFactory
+    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
+    ProductMaterialFactory, OptionFactory,
 )
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
@@ -304,9 +303,8 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
             'image_url': validate_url(self.data['image_url']),
             'sequence': self.data['sequence']
         }
-        serializer = self._get_serializer_after_validation(data=self.data)
 
-        self.assertDictEqual(serializer.validated_data, expected_validated_data)
+        self._test_deserialzation(self.data, expected_validated_data)
 
     def test_validate_image_url_value(self):
         serializer = self._get_serializer_after_validation(data=self.data)
@@ -403,38 +401,8 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
         self.__test_validate_create_raise_validation_error(data, expected_message)
-    
-    def test_serialization(self):
-        expected_data = [
-            {
-                'id': product_image.id,
-                'image_url': BASE_IMAGE_URL + product_image.image_url,
-                'sequence': product_image.sequence,
-            }
-            for product_image in self.product_images
-        ]
-        serializer = self._get_serializer(self.product_images)
 
-        self.assertListEqual(expected_data, serializer.data)
-
-    def test_desrialization(self):
-        data = [
-            {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
-                'sequence': i,
-            }for i in range(1, 11)
-        ]
-        expected_validated_data = [
-            {
-                'image_url': validate_url(d['image_url']),
-                'sequence': d['sequence'],
-            }for d in data
-        ]
-        serializer = self._get_serializer_after_validation(data=data)
-
-        self.assertListEqual(expected_validated_data, serializer.validated_data)
-
-    def test_validate_create_input_data_length_must_more_than_upper_limit(self):
+    def test_raise_valid_error_data_length_more_than_upper_limit_in_create(self):
         data = [
             {
                 'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i+1),
@@ -577,9 +545,8 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
             'material': self.data['material'],
             'mixing_rate': self.data['mixing_rate'],
         }
-        serializer = self._get_serializer_after_validation(data=self.data)
 
-        self.assertDictEqual(expected_validated_data, serializer.validated_data)
+        self._test_deserialzation(self.data, expected_validated_data)
 
     def __test_validate_partial_update_does_not_include_all_data(self, data, expected_message):
         serializer = self._get_serializer(self.product_material, data=data, partial=True)
@@ -610,7 +577,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        total_mixing_rate_value = cls.get_list_serializer_class().total_mixing_rate_value
+        total_mixing_rate_value = cls.get_list_serializer_class().sum_of_mixing_rates
         mixing_rate = total_mixing_rate_value / cls.materials_num
 
         cls.product = ProductFactory()
@@ -640,36 +607,11 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         return data
 
-    def test_serialization(self):
-        serializer = self._get_serializer(self.product_materials)
-        expected_data = [
-            {
-                'id': product_material.id,
-                'material': product_material.material,
-                'mixing_rate': product_material.mixing_rate,
-            }for product_material in self.product_materials
-        ]
-
-        self.assertListEqual(expected_data, serializer.data)
-
-    def test_deserialization(self):
-        data = self.create_data
-        expected_validated_data = [
-            {
-                'material': d['material'],
-                'mixing_rate': d['mixing_rate'],
-            }for d in data
-        ]
-        serializer = self._get_serializer_after_validation(data=data)
-
-        self.assertListEqual(expected_validated_data, serializer.validated_data)
-
     def __test_validate_create_raise_validation_error(self, data, expected_message):
         serializer = self._get_serializer(data=data)
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
         
-
     def __test_validate_update_raise_validation_error(self, data, expected_message):
         data = self.__get_update_data(data)
         serializer = ProductWriteSerializer(
@@ -716,7 +658,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         data = self.create_data + self.update_data
 
         for d in data:
-            d['mixing_rate'] = self.list_serializer_class.total_mixing_rate_value / len(data)
+            d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
 
         index = random.choice(range(len(data)))
         data[index]['mixing_rate'] += 10
@@ -731,7 +673,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
         for d in data:
             if not is_delete_data(d):
-                d['mixing_rate'] = self.list_serializer_class.total_mixing_rate_value / len(data)
+                d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
 
         expected_message = 'The total of material mixing rates must be 100.'
 
@@ -741,7 +683,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         data = self.create_data + self.update_data
 
         for d in data:
-            d['mixing_rate'] = self.list_serializer_class.total_mixing_rate_value / len(data)
+            d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
 
         index = random.choice(range(1, len(data)))
         data[index]['material'] = data[0]['material']
@@ -777,9 +719,8 @@ class OptionSerializerTestCase(SerializerTestCase):
             'size': self.data['size'],
             'price_difference': self.data['price_difference']
         }
-        serializer = self._get_serializer_after_validation(data=self.data)
 
-        self.assertDictEqual(serializer.validated_data, expected_validated_data)
+        self._test_deserialzation(self.data, expected_validated_data)
 
     def test_raise_validation_error_create_data_does_not_include_all_data_in_partial(self):
         self.data.pop('size')
