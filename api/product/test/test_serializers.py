@@ -998,3 +998,124 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         )
         expected_message = 'The product with the display_color_name already exists.'
         self._test_serializer_raise_validation_error(serializer, expected_message)
+
+
+class ProductSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        product = ProductFactory()
+        ProductMaterialFactory(product=product)
+        ProductColorFactory(product=product)
+        ProductImagesFactory(product=product)
+
+        cls.product_id = product.id
+
+    def test_sort_dictionary_by_field_name(self):
+        fields = list(self._get_serializer().get_fields().keys())
+        random.shuffle(fields)
+        self._serializer_class.field_order = fields
+
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product_id)
+        serializer = self._get_serializer(product)
+
+        self.assertListEqual(list(serializer.data.keys()), fields)
+
+
+class ProductReadSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductReadSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.products = ProductFactory.create_batch(size=3)
+        for product in cls.products:
+            ProductMaterialFactory(product=product)
+            ProductColorFactory(product=product)
+            ProductImagesFactory.create_batch(size=3, product=product)
+            laundry_informations = LaundryInformationFactory.create_batch(size=3)
+            tags = TagFactory.create_batch(size=3)
+            product.laundry_informations.add(*laundry_informations)
+            product.tags.add(*tags)
+
+    def __get_expected_data(self, product):
+        expected_data = {
+            'id': product.id,
+            'name': product.name,
+            'price': product.price,
+            'main_category': MainCategorySerializer(
+                product.sub_category.main_category, allow_fields=('id', 'name')
+                ).data,
+            'sub_category': SubCategorySerializer(product.sub_category).data,
+            'style': product.style.name,
+            'age': product.age.name,
+            'tags': [tag.name for tag in product.tags.all()] ,
+            'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
+            'laundry_informations': [info.name for info in product.laundry_informations.all()],
+            'thickness': product.thickness.name,
+            'see_through': product.see_through.name,
+            'flexibility': product.flexibility.name,
+            'lining': product.lining,
+            'images': ProductImagesSerializer(product.images.all(), many=True).data,
+            'colors': ProductColorSerializer(product.colors.all(), many=True).data
+        }
+
+        return expected_data
+
+    def test_model_instance_serialization_detail(self):
+        expected_data = self.__get_expected_data(self.products[0])
+
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.products[0].id)
+        
+        serializer = self._get_serializer(product, context={'detail': True})
+        self.assertDictEqual(serializer.data, expected_data)
+
+    def test_model_instance_serialization_list(self):
+        expected_data = [
+            self.__get_expected_data(product)
+            for product in self.products
+        ]
+        for data in expected_data:
+            data['main_image'] = data['images'][0]['image_url']
+
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        id_list = [product.id for product in self.products]
+        product = Product.objects.prefetch_related(prefetch_images).filter(id__in=id_list)
+        
+        serializer = self._get_serializer(product, many=True, context={'detail': False})
+
+        self.assertListEqual(serializer.data, expected_data)
+
+    def test_default_image_detail(self):
+        product = ProductFactory()
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=product.id)
+        serializer = self._get_serializer(
+            product, allow_fields=('id', 'images'), context={'detail': True}
+        )
+        expected_data = {
+            'id': product.id,
+            'images': [DEFAULT_IMAGE_URL],
+        }
+
+        self.assertDictEqual(serializer.data, expected_data)
+
+    def test_default_image_list(self):
+        products = ProductFactory.create_batch(size=3)
+        id_list = [product.id for product in products]
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        products = Product.objects.prefetch_related(prefetch_images).filter(id__in=id_list)
+        serializer = self._get_serializer(
+            products, allow_fields=('id',), many=True, context={'detail': False}
+        )
+        expected_data = [
+            {
+                'id': product.id,
+                'main_image': DEFAULT_IMAGE_URL,
+            }
+            for product in products
+        ]
+
+        self.assertListEqual(serializer.data, expected_data)
