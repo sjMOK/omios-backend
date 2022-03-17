@@ -536,9 +536,11 @@ class ProductWriteSerializer(ProductSerializer):
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
 
     field_order = [
-            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 
-            'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
+            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 'materials',
+            'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 
+            'images', 'colors',
     ]
+    price_difference_upper_limit_ratio = 0.2
 
     def validate(self, attrs):
         if self.partial and 'price' not in attrs:
@@ -551,16 +553,17 @@ class ProductWriteSerializer(ProductSerializer):
         for product_color in product_colors:
             options_data = product_color.get('options', list())
             for option_data in options_data:
-                validate_price_difference(price, option_data)
+                self.__validate_price_difference(price, option_data)
 
         return attrs
 
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        self._sort_dictionary_by_field_name(ret)
-
-        return ret
+    def __validate_price_difference(self, price, option_data):
+        price_difference = option_data.get('price_difference', 0)
+        if price_difference > price * self.price_difference_upper_limit_ratio:
+            raise ValidationError(
+                'The option price difference must be less than {0}% of the product price.'
+                .format(self.price_difference_upper_limit_ratio * 100)
+            )
     
     def create(self, validated_data):
         laundry_informations = validated_data.pop('laundry_informations', list())
@@ -570,12 +573,7 @@ class ProductWriteSerializer(ProductSerializer):
         images = validated_data.pop('related_images')
 
         product = Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
-
-        Product.laundry_informations.through.objects.bulk_create(
-            [ProductLaundryInformation(product=product, laundry_information=laundry_information) for laundry_information in laundry_informations],
-            ignore_conflicts=True
-        )
-        
+        product.laundry_informations.add(*laundry_informations)
         product.tags.add(*tags)
 
         ProductMaterial.objects.bulk_create(
@@ -608,26 +606,26 @@ class ProductWriteSerializer(ProductSerializer):
             setattr(instance, key, value)
 
         if tags_data is not None:
-            self.update_id_only_m2m_fields(instance.tags, tags_data)
+            self.__update_id_only_m2m_fields(instance.tags, tags_data)
 
         if laundry_informations_data is not None:
-            self.update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
+            self.__update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
 
         if product_images_data is not None:
-            self.update_many_to_one_fields(instance, ProductImages, product_images_data)
+            self.__update_many_to_one_fields(instance, ProductImages, product_images_data)
 
         if materials_data is not None:
-            self.update_many_to_one_fields(instance, ProductMaterial, materials_data)
+            self.__update_many_to_one_fields(instance, ProductMaterial, materials_data)
 
         if product_colors_data is not None:
-            self.update_product_colors(instance, product_colors_data)
+            self.__update_product_colors(instance, product_colors_data)
 
         instance.save(update_fields=validated_data.keys())
 
         return instance
 
-    def update_product_colors(self, product, product_colors_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(product_colors_data)
+    def __update_product_colors(self, product, product_colors_data):
+        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(product_colors_data)
 
         delete_fields_id = [data['id'] for data in delete_data]
         ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False, display_color_name=None)
@@ -640,7 +638,7 @@ class ProductWriteSerializer(ProductSerializer):
 
             if options_data is not None:
                 product_color = ProductColor.objects.get(id=product_color_id)
-                self.update_options(product_color, options_data)
+                self.__update_options(product_color, options_data)
 
         for data in create_data:
             options_data = data.pop('options', None)
@@ -650,8 +648,8 @@ class ProductWriteSerializer(ProductSerializer):
                 [Option(product_color=product_color, **option_data) for option_data in options_data]
             )
 
-    def update_options(self, product_color, options_data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(options_data)
+    def __update_options(self, product_color, options_data):
+        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(options_data)
         
         delete_fields_id = [data['id'] for data in delete_data]
         Option.objects.filter(product_color=product_color, id__in=delete_fields_id).delete()
@@ -664,8 +662,8 @@ class ProductWriteSerializer(ProductSerializer):
             [Option(product_color=product_color, **data) for data in create_data]
         )
 
-    def update_many_to_one_fields(self, product, rel_model_class, data):
-        create_data, update_data, delete_data = self.get_separated_data_by_create_update_delete(data)
+    def __update_many_to_one_fields(self, product, rel_model_class, data):
+        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(data)
 
         delete_fields_id = [data['id'] for data in delete_data]
         rel_model_class.objects.filter(product=product, id__in=delete_fields_id).delete()
@@ -678,7 +676,7 @@ class ProductWriteSerializer(ProductSerializer):
             [rel_model_class(product=product, **data) for data in create_data]
         )
 
-    def update_id_only_m2m_fields(self, m2m_field, validated_fields):
+    def __update_id_only_m2m_fields(self, m2m_field, validated_fields):
         model = m2m_field.model
 
         stored_fields = m2m_field.all()
@@ -690,7 +688,7 @@ class ProductWriteSerializer(ProductSerializer):
         store_fields = set(input_fields) - set(stored_fields)
         m2m_field.add(*store_fields)
 
-    def get_separated_data_by_create_update_delete(self, data_array):
+    def __get_separated_data_by_create_update_delete(self, data_array):
         create_data = []
         delete_data = []
         update_data = []
