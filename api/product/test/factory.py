@@ -42,21 +42,21 @@ class ThicknessFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Thickness'
 
-    name = Sequence(lambda num: 'thickness_{0}'.format(num))
+    name = Sequence(lambda num: 'thick_{0}'.format(num))
     
 
 class SeeThroughFactory(DjangoModelFactory):
     class Meta:
         model = 'product.SeeThrough'
 
-    name = Sequence(lambda num: 'age_{0}'.format(num))
+    name = Sequence(lambda num: 'see_th_{0}'.format(num))
 
 
 class FlexibilityFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Flexibility'
 
-    name = Sequence(lambda num: 'flexibility_{0}'.format(num))
+    name = Sequence(lambda num: 'flex_{0}'.format(num))
 
 
 class ProductFactory(DjangoModelFactory):
@@ -103,7 +103,7 @@ class ProductColorFactory(DjangoModelFactory):
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
-    display_color_name = Faker('color_name')
+    display_color_name = Sequence(lambda num: 'display_cname_{0}'.format(num))
     image_url = 'product/sample/product_21.jpg'
 
 
@@ -124,7 +124,7 @@ class OptionFactory(DjangoModelFactory):
             price_difference //= 10
             cnt += 1
 
-        return price_difference * (10 ** cnt)
+        return int(price_difference * (10 ** cnt))
 
 
 class LaundryInformationFactory(DjangoModelFactory):
