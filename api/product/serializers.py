@@ -1,7 +1,7 @@
 from django.db.models import Manager
 
 from rest_framework.serializers import (
-    Serializer, ListSerializer, IntegerField, CharField, ImageField,
+    Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField,
 )
 from rest_framework.validators import UniqueValidator
@@ -290,7 +290,8 @@ class OptionListSerializer(ListSerializer):
 
     def __validate_update(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
-        self.__validate_sizes(create_or_update_attrs)
+        size_attrs = [attr for attr in create_or_update_attrs if 'size' in attr]
+        self.__validate_sizes(size_attrs)
 
         return attrs
 
