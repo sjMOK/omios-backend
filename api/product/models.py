@@ -126,6 +126,7 @@ class Tag(Model):
 
     class Meta:
         db_table = 'tag'
+        ordering = ['id']
 
     def __str__(self):
         return self.name
