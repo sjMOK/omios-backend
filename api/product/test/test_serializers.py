@@ -1,22 +1,30 @@
 import random, copy
 
+from django.test import tag
+from django.db.models.query import Prefetch
+from django.forms import model_to_dict
+
 from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APISimpleTestCase
 
-from common.utils import BASE_IMAGE_URL
+from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
+from user.test.factory import WholesalerFactory
 from ..validators import validate_url
 from ..serializers import (
     validate_require_data_in_partial_update, has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_list_of_single_item,
-    get_create_or_update_attrs, get_update_or_delete_attrs, ProductMaterialSerializer, ProductWriteSerializer, SubCategorySerializer,
-    MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer,
-    FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, ProductColorSerializer, 
-    OptionSerializer,
+    get_create_or_update_attrs, get_update_or_delete_attrs, ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer,
+    ColorSerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer,
+    FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, OptionSerializer,
+    ProductSerializer, ProductReadSerializer, ProductWriteSerializer,
+)
+from ..models import (
+    Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
 )
 from .factory import (
-    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory,
-    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
+    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
+    TagFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
     ProductMaterialFactory, OptionFactory,
 )
 
@@ -1058,7 +1066,10 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'flexibility': product.flexibility.name,
             'lining': product.lining,
             'images': ProductImagesSerializer(product.images.all(), many=True).data,
-            'colors': ProductColorSerializer(product.colors.all(), many=True).data
+            'colors': ProductColorSerializer(product.colors.all(), many=True).data,
+            'created': datetime_to_iso(product.created),
+            'on_sale': product.on_sale,
+            'code': product.code,
         }
 
         return expected_data
@@ -1119,3 +1130,477 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         ]
 
         self.assertListEqual(serializer.data, expected_data)
+
+
+class ProductWriteSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductWriteSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.product = ProductFactory()
+        for i in range(4):
+            ProductMaterialFactory(product=cls.product, mixing_rate=25)
+
+        product_colors = ProductColorFactory.create_batch(size=3, product=cls.product)
+        for product_color in product_colors:
+            OptionFactory.create_batch(size=3, product_color=product_color)
+
+        for i in range(3):
+            ProductImagesFactory(product=cls.product, sequence=i+1)
+
+        laundry_informations = LaundryInformationFactory.create_batch(size=3)
+        tags = TagFactory.create_batch(size=3)
+        cls.product.laundry_informations.add(*laundry_informations)
+        cls.product.tags.add(*tags)
+
+    def __get_input_data(self):
+        product = ProductFactory()
+        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=3)]
+        tag_id_list.sort()
+        laundry_information_id_list = [
+            laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
+        ]
+        laundry_information_id_list.sort()
+        color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
+
+        data = {
+            'name': 'name',
+            'price': 50000,
+            'sub_category': product.sub_category_id,
+            'style': product.style_id,
+            'age': product.age_id,
+            'tags': tag_id_list,
+            'materials': [
+                {
+                    'material': '가죽',
+                    'mixing_rate': 80,
+                },
+                {
+                    'material': '면', 
+                    'mixing_rate': 20,
+                },
+            ],
+            'laundry_informations': laundry_information_id_list,
+            'thickness': product.thickness_id,
+            'see_through': product.see_through_id,
+            'flexibility': product.flexibility_id,
+            'lining': True,
+            'images': [
+                {
+                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
+                    'sequence': 1
+                },
+                {
+                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_12.jpg',
+                    'sequence': 2
+                },
+                {
+                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_13.jpg',
+                    'sequence': 3
+                }
+            ],
+            'colors': [
+                {
+                    'color': color_id_list[0],
+                    'display_color_name': '다크',
+                    'options': [
+                        {
+                            'size': 'Free',
+                            'price_difference': 0
+                        },
+                        {
+                            'size': 'S',
+                            'price_difference': 0
+                        }
+                    ],
+                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
+                },
+                {
+                    'color': color_id_list[1],
+                    'display_color_name': None,
+                    'options': [
+                        {
+                            'size': 'Free',
+                            'price_difference': 0
+                        },
+                        {
+                            'size': 'S',
+                            'price_difference': 2000
+                        }
+                    ],
+                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
+                }
+            ]
+        }
+
+        return data
+
+    def test_model_instance_serialization(self):
+        expected_data = {
+            'id': self.product.id,
+            'name': self.product.name,
+            'price': self.product.price,
+            'sub_category': self.product.sub_category_id,
+            'style': self.product.style_id,
+            'age': self.product.age_id,
+            'tags': [tag.id for tag in self.product.tags.all()] ,
+            'materials': ProductMaterialSerializer(self.product.materials.all(), many=True).data,
+            'laundry_informations': [info.id for info in self.product.laundry_informations.all()],
+            'thickness': self.product.thickness_id,
+            'see_through': self.product.see_through_id,
+            'flexibility': self.product.flexibility_id,
+            'lining': self.product.lining,
+            'images': ProductImagesSerializer(self.product.images.all(), many=True).data,
+            'colors': ProductColorSerializer(self.product.colors.all(), many=True).data
+        }
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+
+        self._test_model_instance_serialization(product, expected_data)
+
+    def test_deserialzation(self):
+        data = self.__get_input_data()
+
+        material_serializer = ProductMaterialSerializer(data=data['materials'], many=True)
+        material_serializer.is_valid(raise_exception=True)
+
+        image_serializer = ProductImagesSerializer(data=data['images'], many=True)
+        image_serializer.is_valid(raise_exception=True)
+
+        color_serializer = ProductColorSerializer(data=data['colors'], many=True)
+        color_serializer.is_valid(raise_exception=True)
+
+        expected_validated_data = {
+            'name': data['name'],
+            'price': data['price'],
+            'sub_category': SubCategory.objects.get(id=data['sub_category']),
+            'style': Style.objects.get(id=data['style']),
+            'age': Age.objects.get(id=data['age']),
+            'tags': list(Tag.objects.filter(id__in=data['tags'])),
+            'materials': material_serializer.validated_data,
+            'laundry_informations': list(LaundryInformation.objects.filter(id__in=data['laundry_informations'])),
+            'thickness': Thickness.objects.get(id=data['thickness']),
+            'see_through': SeeThrough.objects.get(id=data['see_through']),
+            'flexibility': Flexibility.objects.get(id=data['flexibility']),
+            'lining': data['lining'],
+            'related_images': image_serializer.validated_data,
+            'colors': color_serializer.validated_data,
+        }
+
+        self._test_deserialzation(data, expected_validated_data)
+
+    def test_raise_valid_error_price_difference_exceed_upper_limit(self):
+        upper_limit_ratio = self._serializer_class.price_difference_upper_limit_ratio
+        data = self.__get_input_data()
+        option_data = data['colors'][0]['options']
+        option_data[0]['price_difference'] = data['price'] *(1 +(upper_limit_ratio+0.1))
+
+        serializer = self._get_serializer(data=data)
+        expected_message = \
+            'The option price difference must be less than {0}% of the product price.'.format(upper_limit_ratio * 100)
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_create(self):
+        data = self.__get_input_data()
+        serializer = self._get_serializer_after_validation(
+            data=data, context={'wholesaler': WholesalerFactory()}
+        )
+        product = serializer.save()
+
+        self.assertEqual(product.name, data['name'])
+        self.assertEqual(product.price, data['price'])
+        self.assertEqual(product.sub_category_id, data['sub_category'])
+        self.assertEqual(product.style_id, data['style'])
+        self.assertEqual(product.age_id, data['age'])
+        self.assertEqual(product.thickness_id, data['thickness'])
+        self.assertEqual(product.see_through_id, data['see_through'])
+        self.assertEqual(product.flexibility_id, data['flexibility'])
+        self.assertEqual(product.lining, data['lining'])
+        self.assertListEqual(
+            list(product.tags.all().order_by('id').values_list('id', flat=True)),
+            data['tags']
+        )
+        self.assertListEqual(
+            list(
+                product.materials.all().order_by('id').values('material', 'mixing_rate')
+            ),
+            data['materials']
+        )
+        self.assertListEqual(
+            list(
+                product.laundry_informations.all().order_by('id').values_list('id', flat=True)
+            ),
+            data['laundry_informations']
+        )
+        self.assertListEqual(
+            list(product.images.all().order_by('id').values('image_url', 'sequence')),
+            [
+                {
+                    'image_url': validate_url(data['image_url']),
+                    'sequence': data['sequence'],
+                } for data in data['images']
+            ]
+        )
+        self.assertListEqual(
+            list(
+                product.colors.all().order_by('id').values('color', 'display_color_name', 'image_url')
+            ),
+            [
+                {
+                    'color': data['color'],
+                    'display_color_name': data['display_color_name'] 
+                        if data['display_color_name'] is not None 
+                        else Color.objects.get(id=data['color']).name,
+                    'image_url': validate_url(data['image_url']),
+                }for data in data['colors']
+            ]
+        )
+        self.assertListEqual(
+            list(Option.objects.filter(product_color__product=product).order_by('id')
+            .values('size', 'price_difference')),
+            [
+                option_data for color_data in data['colors'] for option_data in color_data['options']
+            ]
+        )
+
+    def test_update_product_attribute(self):
+        update_data = dict()
+        update_data['name'] = self.product.name + '_update'
+        update_data['price'] = self.product.price + 10000
+        update_data['sub_category'] = SubCategoryFactory().id
+        update_data['style'] = StyleFactory().id
+        update_data['age'] = AgeFactory().id
+        update_data['thickness'] = ThicknessFactory().id
+        update_data['see_through'] = SeeThroughFactory().id
+        update_data['flexibility'] = FlexibilityFactory().id
+        update_data['lining'] = not self.product.lining
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+
+        self.assertEqual(product.name, update_data['name'])
+        self.assertEqual(product.price, update_data['price'])
+        self.assertEqual(product.sub_category_id, update_data['sub_category'])
+        self.assertEqual(product.style_id, update_data['style'])
+        self.assertEqual(product.age_id, update_data['age'])
+        self.assertEqual(product.thickness_id, update_data['thickness'])
+        self.assertEqual(product.see_through_id, update_data['see_through'])
+        self.assertEqual(product.flexibility_id, update_data['flexibility'])
+        self.assertEqual(product.lining, update_data['lining'])
+
+    def test_update_id_only_m2m_fields(self):
+        tags = TagFactory.create_batch(size=2)
+        remaining_tags = random.sample(
+            list(self.product.tags.all().values_list('id', flat=True)), 
+            2
+        )
+        tag_id_list = [tag.id for tag in tags] + remaining_tags
+        tag_id_list.sort()
+
+        update_data = {'tags': tag_id_list}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+
+        self.assertListEqual(
+            list(product.tags.all().order_by('id').values_list('id', flat=True)),
+            tag_id_list
+        )
+
+    def test_update_many_to_one_fields(self):
+        materials = self.product.materials.all()
+        delete_materials = materials[:1]
+        update_materials = materials[1:]
+        create_data = [
+            {
+                'material': 'mat_create',
+            }
+        ]
+        delete_data = list(delete_materials.values('id'))
+        update_data = [
+            {
+                'id': material.id,
+                'material': material.material + '_update',
+                'mixing_rate': material.mixing_rate,
+            }
+            for material in update_materials
+        ]
+        for data in create_data:
+            data['mixing_rate'] = 100 // len(create_data + update_data)
+        for data in update_data:
+            data['mixing_rate'] = 100 // len(create_data + update_data)
+
+        data = {
+            'materials': create_data + update_data + delete_data,
+        }
+        
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        product = serializer.save()
+
+        deleted_id_list = [data['id'] for data in delete_data]
+        updated_id_list = [data['id'] for data in update_data]
+
+        self.assertTrue(not ProductMaterial.objects.filter(id__in=deleted_id_list).exists())
+        self.assertListEqual(
+            list(ProductMaterial.objects.filter(product=product).exclude(id__in=updated_id_list)
+            .values('material', 'mixing_rate')),
+            create_data
+        )
+        self.assertListEqual(
+            list(ProductMaterial.objects.filter(id__in=updated_id_list)
+            .values('id', 'material', 'mixing_rate')),
+            update_data
+        )
+
+    def test_delete_product_colors(self):
+        delete_product_color_id = self.product.colors.latest('id').id
+        data = {
+            'colors': [
+                {'id': delete_product_color_id}
+            ]
+        }
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+        self.assertTrue(
+            not ProductMaterial.objects.filter(id=delete_product_color_id).exists()
+        )
+
+    def test_create_product_colors(self):
+        existing_color_id_list = list(self.product.colors.all().values_list('id', flat=True))
+        create_color_data = self.__get_input_data()['colors']
+        create_option_data = [
+            option_data for color_data in create_color_data for option_data in color_data['options']
+        ]
+        data = {'colors': create_color_data}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+
+        self.assertListEqual(
+            list(
+                ProductColor.objects.filter(product=self.product).exclude(id__in=existing_color_id_list)
+                .order_by('id').values('color', 'display_color_name', 'image_url')
+            ),
+            [
+                {
+                    'color': d['color'],
+                    'display_color_name': d['display_color_name']
+                        if d['display_color_name'] is not None
+                        else Color.objects.get(id=d['color']).name,
+                    'image_url': validate_url(d['image_url']),
+                }for d in data['colors']
+            ]
+        )
+        self.assertListEqual(
+            list(
+                Option.objects.filter(product_color__product=self.product)
+                .exclude(product_color_id__in=existing_color_id_list).order_by('id')
+                .values('size', 'price_difference')
+            ),
+            [
+                {
+                    'size': data['size'],
+                    'price_difference': data['price_difference'],
+                }for data in create_option_data
+            ]
+        )
+
+    def test_update_product_colors_except_options(self):
+        update_color_obj = self.product.colors.latest('id')
+        update_data = {
+            'id': update_color_obj.id,
+            'display_color_name': '_updated',
+            'image_url': SAMPLE_PRODUCT_IMAGE_URL,
+        }
+        data = {'colors': [update_data]}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+
+        updated_color_obj = self.product.colors.get(id=update_color_obj.id)
+        expected_dict = update_data
+        expected_dict['image_url'] = validate_url(expected_dict['image_url'])
+
+        self.assertDictEqual(
+            model_to_dict(updated_color_obj, fields=('id', 'display_color_name', 'image_url')),
+            expected_dict
+        )
+
+    def test_create_option(self):
+        update_color_obj = self.product.colors.latest('id')
+        existing_option_id_list = list(update_color_obj.options.values_list('id', flat=True))
+        update_data = {
+            'id': update_color_obj.id,
+            'options': [
+                {
+                    'size': 'Free',
+                    'price_difference': 0
+                }
+            ]
+        }
+        data = {'colors': [update_data]}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+
+        self.assertListEqual(
+            list(
+                Option.objects.filter(product_color=update_color_obj).exclude(id__in=existing_option_id_list)
+                .order_by('id').values('size', 'price_difference')
+            ),
+            update_data['options']
+        )
+
+    def test_update_option(self):
+        update_color_obj = self.product.colors.latest('id')
+        update_option_obj = update_color_obj.options.latest('id')
+        update_data = {
+            'id': update_color_obj.id,
+            'options': [
+                {
+                    'id': update_option_obj.id,
+                    'price_difference': update_option_obj.price_difference + 500
+                }
+            ]
+        }
+        data = {'colors': [update_data]}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+        updated_option_obj = Option.objects.get(id=update_option_obj.id)
+        
+        self.assertDictEqual(
+            model_to_dict(updated_option_obj, fields=('id', 'price_difference')),
+            update_data['options'][0]
+        )
+
+    @tag('exclude')
+    def test_delete_option(self):
+        update_color_obj = self.product.colors.latest('id')
+        delete_option_id = update_color_obj.options.latest('id').id
+        update_data = {
+            'id': update_color_obj.id,
+            'options': [
+                {
+                    'id': delete_option_id
+                }
+            ]
+        }
+        data = {'colors': [update_data]}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=data, partial=True
+        )
+        serializer.save()
+
+        self.assertTrue(not Option.objects.get(id=delete_option_id).on_sale)
