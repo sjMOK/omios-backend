@@ -484,11 +484,18 @@ class ProductSerializer(DynamicFieldsSerializer):
     colors = ProductColorSerializer(allow_empty=False, many=True)
     images = ProductImagesSerializer(allow_empty=False, many=True, source='related_images')
     
-    def _sort_dictionary_by_field_name(self, ret_dict):
+    def __sort_dictionary_by_field_name(self, ret_dict):
         for field in self.field_order:
-            ret_dict.move_to_end(field, last=True)
+            if field in self.fields:
+                ret_dict.move_to_end(field, last=True)
 
         return ret_dict
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret = self.__sort_dictionary_by_field_name(ret)
+
+        return ret
 
 
 class ProductReadSerializer(ProductSerializer):
@@ -501,10 +508,14 @@ class ProductReadSerializer(ProductSerializer):
     thickness = StringRelatedField(read_only=True)
     see_through = StringRelatedField(read_only=True)
     flexibility = StringRelatedField(read_only=True)
+    created = DateTimeField(read_only=True)
+    on_sale = on_sale = BooleanField(read_only=True)
+    code = CharField(read_only=True)
 
     field_order = [
         'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 
-        'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 'images', 'colors'
+        'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 
+        'lining', 'images', 'colors',
     ]
 
     def to_representation(self, instance):
@@ -513,15 +524,16 @@ class ProductReadSerializer(ProductSerializer):
         if self.context['detail']:
             ret = self.to_representation_retrieve(ret, instance)
         else:
-            ret['main_image'] = (BASE_IMAGE_URL + instance.related_images[0].image_url) if instance.related_images else DEFAULT_IMAGE_URL
+            if instance.related_images:
+                ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
+            else:
+                ret['main_image'] = DEFAULT_IMAGE_URL
 
         return ret
 
     def to_representation_retrieve(self, ret, instance):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
-
-        self._sort_dictionary_by_field_name(ret)
 
         return ret
 
