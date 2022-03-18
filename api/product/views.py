@@ -217,23 +217,23 @@ class ProductViewSet(viewsets.GenericViewSet):
     def filter_queryset(self, queryset):
         query_params = querydict_to_dict(self.request.query_params)
 
-        filterset = {}
+        filter_set = {}
         filter_mapping = {
             'main_category': 'sub_category__main_category_id',
             'sub_category': 'sub_category_id',
-            'minprice': 'price__gte',
-            'maxprice': 'price__lte',
+            'min_price': 'price__gte',
+            'max_price': 'price__lte',
             'color': 'colors__color_id',
         }
 
         for key, value in query_params.items():
             if key in filter_mapping:
                 if isinstance(value, list):
-                    filterset[filter_mapping[key] + '__in'] = value    
+                    filter_set[filter_mapping[key] + '__in'] = value    
                 else:
-                    filterset[filter_mapping[key]] = value
+                    filter_set[filter_mapping[key]] = value
 
-        return queryset.filter(**filterset)                     
+        return queryset.filter(**filter_set)
 
     def sort_queryset(self, queryset):
         sort_mapping = {

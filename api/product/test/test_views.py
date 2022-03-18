@@ -1,5 +1,4 @@
 import random
-
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min
 
@@ -291,6 +290,164 @@ class ProductViewSetTestCase(ViewTestCase):
         ProductImagesFactory.create_batch(size=3, product=product)
 
         return product
+
+
+class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
+    fixtures = ['membership']
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        super(ProductViewSetForShopperTestCase, cls).setUpTestData()
+
+    def setUp(self):
+        self._set_authentication()
+
+    def __get_queryset(self):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        queryset = Product.objects.prefetch_related(prefetch_images).filter(on_sale=True).order_by('-created')
+
+        return queryset
+
+    def __test_list_response(self, queryset, max_price, data={}):
+        allow_fields = ('id', 'name', 'price')
+        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
+        self._get(data)
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], serializer.data)
+        self.assertEqual(self._response_data['max_price'], max_price)
+
+    def test_list(self):
+        queryset = self.__get_queryset()
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        self.__test_list_response(self.__get_queryset(), max_price)      
+
+    def __test_filtering(self, query_params):
+        filter_set = {}
+        filter_mapping = {
+            'main_category': 'sub_category__main_category_id',
+            'sub_category': 'sub_category_id',
+            'min_price': 'price__gte',
+            'max_price': 'price__lte',
+            'color': 'colors__color_id',
+        }
+
+        aggregate_qs = self.__get_queryset()
+        if 'main_category' in query_params:
+            aggregate_qs = aggregate_qs.filter(
+                                **{filter_mapping['main_category']: query_params['main_category']}
+                            )
+        if 'sub_category' in query_params:
+            aggregate_qs = aggregate_qs.filter(
+                                **{filter_mapping['sub_category']: query_params['sub_category']}
+                            )
+        max_price = aggregate_qs.aggregate(max_price=Max('price'))['max_price']
+
+        for key, value in query_params.items():
+            if isinstance(value, list):
+                filter_set[filter_mapping[key] + '__in'] = value
+            else:
+                filter_set[filter_mapping[key]] = value
+
+        queryset = self.__get_queryset().filter(**filter_set)
+        self.__test_list_response(queryset, max_price, data=query_params)
+
+        filtered_products_count = queryset.count()
+        self.assertEqual(self._response_data['count'], filtered_products_count)
+
+    def test_filter_main_category(self):
+        main_category_id = random.choice(self.sub_categories).main_category_id
+
+        self.__test_filtering({'main_category': main_category_id})
+
+    def test_filter_sub_category(self):
+        sub_category_id = random.choice(self.sub_categories).id
+
+        self.__test_filtering({'sub_category': sub_category_id})
+
+    def test_filter_minprice(self):
+        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+
+        self.__test_filtering({'min_price': int(price_avg)})
+
+    def test_filter_maxprice(self):
+        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+
+        self.__test_filtering({'max_price': int(price_avg)})
+
+    def test_filter_color(self):
+        color_id = random.choice(self.colors).id
+
+        self.__test_filtering({'color': color_id})
+
+    def test_filter_color_list(self):
+        colors = random.sample(self.colors, 3)
+        color_id = [color.id for color in colors]
+
+        self.__test_filtering({'color': color_id})
+
+    def test_filter_multiple_key(self):
+        aggregation = Product.objects.all().aggregate(
+                                max_price=Max('price'), min_price=Min('price'), 
+                                avg_price=Avg('price')
+                            )
+
+        product = Product.objects.all().last()
+        color_list = random.sample(list(Color.objects.all()), 2)
+        color_id_list = [color.id for color in color_list]
+        query_params = {
+            'main_category': product.sub_category.main_category_id,
+            'sub_category': product.sub_category_id,
+            'max_price': int((aggregation['max_price'] + aggregation['avg_price']) / 2),
+            'min_price': int((aggregation['min_price'] + aggregation['avg_price']) / 2),
+            'color': color_id_list,
+        }
+
+        self.__test_filtering(query_params)
+
+    def __test_sorting(self, sort_key):
+        sort_mapping = {
+            'price_asc': 'price',
+            'price_dsc': '-price',
+        }
+
+        products = self.__get_queryset().order_by(sort_mapping[sort_key])
+        allow_fields = ('id', 'name', 'price')
+        serializer = ProductReadSerializer(products, many=True, allow_fields=allow_fields, context={'detail': False})
+
+        self._get({'sort': sort_key})
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], serializer.data)
+
+    def test_sort_price_asc(self):
+        self.__test_sorting('price_asc')
+
+    def test_sort_price_desc(self):
+        self.__test_sorting('price_dsc')
+
+    def test_retrieve(self):
+        product_id = self._get_product().id
+        product = self.__get_queryset().get(id=product_id)
+        allow_fields = (
+            'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations',
+            'thickness', 'see_through', 'flexibility', 'lining', 'materials', 'colors', 'images',
+        )
+        serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
+
+        self._url += '{0}/'.format(product.id)
+        self._get()
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, serializer.data)
+
+    def test_search_without_search_word(self):
+        self._url += 'search/'
+        self._get()
+
+        self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
