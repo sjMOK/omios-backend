@@ -157,3 +157,10 @@ class ProductImagesFactory(DjangoModelFactory):
     product = SubFactory(ProductFactory)
     image_url = 'product/sample/product_1.jpg'
     sequence = Sequence(lambda num: num)
+
+
+class KeyWordFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Keyword'
+
+    name = Sequence(lambda num: 'keyword_{0}'.format(num))
