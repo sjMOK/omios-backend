@@ -1079,9 +1079,8 @@ class ProductReadSerializerTestCase(SerializerTestCase):
 
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(prefetch_images).get(id=self.products[0].id)
-        
-        serializer = self._get_serializer(product, context={'detail': True})
-        self.assertDictEqual(serializer.data, expected_data)
+
+        self._test_model_instance_serialization(product, expected_data, context={'detail': True})
 
     def test_model_instance_serialization_list(self):
         expected_data = [

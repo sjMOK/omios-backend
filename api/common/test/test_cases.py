@@ -83,8 +83,9 @@ class SerializerTestCase(APITestCase):
         self.assertTrue(expected_field in serializer.errors)
         self.assertEqual(serializer.errors[expected_field][0], expected_message)
 
-    def _test_model_instance_serialization(self, instance, expected_data):  
-        self.assertDictEqual(self._serializer_class(instance=instance).data, expected_data)
+    def _test_model_instance_serialization(self, instance, expected_data, *args, **kwargs):
+        serializer = self._serializer_class(instance, *args, **kwargs)
+        self.assertDictEqual(serializer.data, expected_data)
 
     def _test_serializer_raise_validation_error(self, serializer, expected_message):
         self.assertRaisesMessage(
