@@ -163,32 +163,42 @@ class ProductViewSet(viewsets.GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
-    default_sorting = '-created'
-    default_fields = ('id', 'name', 'price')
-    additional_fields = {
-        'shopper_list': (),
-        'shopper_detail': (
-            'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 'flexibility',  
-            'lining', 'materials', 'colors', 'images'
-        ),
-        'wholesaler_list': ('created',),
-        'wholesaler_detail': (
-            'colors', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'
-        ),
-    }
-    read_action = ('retrieve', 'list', 'search', 'saler_product')
+    __default_sorting = '-created'
+    __default_fields = ('id', 'name', 'price')
+    __read_action = ('retrieve', 'list', 'search', 'retrieve_for_write')
+    __require_write_serializer_action = ('create', 'partial_update', 'retrieve_for_write')
 
 
     def get_serializer_class(self):
-        if self.action == 'create' or self.action == 'partial_update':
+        if self.action in self.__require_write_serializer_action:
             return ProductWriteSerializer
         return ProductReadSerializer
 
-    def get_allowed_fields(self):
-        request_type = 'detail' if self.detail else 'list'
-        user_action = 'wholesaler_{0}'.format(request_type) if hasattr(self.request.user, 'wholesaler') else 'shopper_{0}'.format(request_type)
+    def __get_allow_fields(self):
+        if hasattr(self.request.user, 'wholesaler'):
+            return self.__default_fields + self.__get_allow_fields_for_wholesaler()
+        else:
+            return self.__default_fields + self.__get_allow_fields_for_shopper()
 
-        return self.default_fields + self.additional_fields[user_action]
+    def __get_allow_fields_for_shopper(self):
+        if self.action == 'list' or self.action == 'search':
+            return ()
+        elif self.action == 'retrieve':
+            return (
+                'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 
+                'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 'images', 'colors',
+            )
+
+    def __get_allow_fields_for_wholesaler(self):
+        if self.action == 'list':
+            return ('created',)
+        elif self.action == 'retrieve':
+            return ('main_category', 'sub_category',)
+        elif self.action == 'retrieve_for_write':
+            return (
+                'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 'flexibility',  
+                'lining', 'manufacturing_country', 'theme', 'materials', 'images', 'colors',
+            )
 
     def get_object(self, queryset):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -209,7 +219,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         else:
             condition = Q(on_sale=True)
 
-        if self.action in self.read_action:
+        if self.action in self.__read_action:
             prefetch_images = Prefetch('images', to_attr='related_images')
             return Product.objects.prefetch_related(prefetch_images).filter(condition)
         return Product.objects.filter(condition)
@@ -240,7 +250,7 @@ class ProductViewSet(viewsets.GenericViewSet):
             'price_asc': 'price',
             'price_dsc': '-price',
         }
-        sort_set = [self.default_sorting]
+        sort_set = [self.__default_sorting]
         sort_key = self.request.query_params.get('sort', None)
 
         if sort_key is not None and sort_key in sort_mapping:
@@ -251,11 +261,12 @@ class ProductViewSet(viewsets.GenericViewSet):
     def get_response_for_list(self, queryset, **extra_data):
         queryset = self.sort_queryset(
             self.filter_queryset(queryset)
-        ).alias(Count('id')).only(*self.default_fields)
+        ).alias(Count('id')).only(*self.__default_fields)
 
         page = self.paginate_queryset(queryset)
+        allow_fields = self.__get_allow_fields()
         serializer = self.get_serializer(
-            page, allow_fields=self.get_allowed_fields(), many=True, context={'detail': self.detail}
+            page, allow_fields=allow_fields, many=True, context={'detail': self.detail, 'field_order': allow_fields}
         )
 
         paginated_response = self.get_paginated_response(serializer.data)
@@ -275,10 +286,15 @@ class ProductViewSet(viewsets.GenericViewSet):
         return self.get_response_for_list(self.get_queryset(), max_price=max_price)
 
     def retrieve(self, request, id=None):
-        queryset = self.get_queryset().select_related('sub_category__main_category', 'style', 'age')
+        queryset = self.get_queryset().select_related(
+            'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
+        )
         product = self.get_object(queryset)
 
-        serializer = self.get_serializer(product, allow_fields=self.get_allowed_fields(), context={'detail': self.detail})
+        allow_fields = self.__get_allow_fields()
+        serializer = self.get_serializer(
+            product, allow_fields=allow_fields, context={'detail': self.detail, 'field_order': allow_fields}
+        )
 
         return get_response(data=serializer.data)
 
