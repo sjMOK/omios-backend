@@ -456,12 +456,12 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
 class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     _serializer_class = ProductMaterialSerializer
-    materials_num = 5
+    materials_num = 2
 
     @classmethod
     def setUpTestData(cls):
-        total_mixing_rate_value = cls.get_list_serializer_class().sum_of_mixing_rates
-        mixing_rate = total_mixing_rate_value / cls.materials_num
+        sum_of_mixing_rates = cls.get_list_serializer_class().sum_of_mixing_rates
+        mixing_rate = sum_of_mixing_rates / cls.materials_num
 
         cls.product = ProductFactory()
         cls.product_materials = ProductMaterialFactory.create_batch(
@@ -513,8 +513,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
     def test_raise_valid_error_duplicated_material_name_in_create(self):
         data = self.create_data
-        index = random.choice(range(1, len(data)))
-        data[index]['material'] = data[0]['material']
+        data[-1]['material'] = data[0]['material']
 
         expected_message = 'Material is duplicated.'
 
@@ -522,7 +521,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
     def test_raise_valid_error_does_not_pass_all_material_data_in_update(self):
         data = self.update_data
-        data.pop(random.randint(0, len(data)-1))
+        data.pop(0)
 
         expected_message = 'You must contain all material data that the product has.'
 
@@ -530,8 +529,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
     def test_raise_valid_error_does_not_pass_exact_material_data_in_update(self):
         data = self.update_data
-        id_min_value = min([d['id'] for d in data])
-        data[0]['id'] = id_min_value - 1
+        data[-1]['id'] += 1
 
         expected_message = 'You must contain all material data that the product has.'
 
@@ -541,9 +539,10 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         self.update_data[-1] = {'id': self.update_data[-1]['id']}
         data = self.create_data + self.update_data
 
+        mixing_rate = self.list_serializer_class.sum_of_mixing_rates / len(data)
         for d in data:
             if not is_delete_data(d):
-                d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
+                d['mixing_rate'] = mixing_rate
 
         expected_message = 'The total of material mixing rates must be 100.'
 
@@ -552,11 +551,11 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     def test_raise_valid_error_duplicated_material_name_in_update(self):
         data = self.create_data + self.update_data
 
+        mixing_rate = self.list_serializer_class.sum_of_mixing_rates / len(data)
         for d in data:
-            d['mixing_rate'] = self.list_serializer_class.sum_of_mixing_rates / len(data)
+            d['mixing_rate'] = mixing_rate
 
-        index = random.choice(range(1, len(data)))
-        data[index]['material'] = data[0]['material']
+        data[-1]['material'] = data[0]['material']
 
         expected_message = 'Material is duplicated.'
 
