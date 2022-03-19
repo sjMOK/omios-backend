@@ -22,11 +22,6 @@ from .models import (
 )
 
 
-def validate_require_data_in_partial_update(data, fields):
-    for key, value in fields.items():
-        if getattr(value, 'required', True) and key not in data:
-            raise ValidationError('{0} field is required.'.format(key))
-
 class SubCategorySerializer(Serializer):
     id = IntegerField(read_only=True)
     name = CharField(read_only=True, max_length=20)
@@ -160,7 +155,7 @@ class ProductImagesSerializer(Serializer):
 
     def __validate_partial_update(self, attrs):
         if not is_delete_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+            validate_all_required_fields_included(attrs, self.fields)
         
         return attrs
 
@@ -236,7 +231,7 @@ class ProductMaterialSerializer(Serializer):
 
     def __validate_partial_update(self, attrs):
         if not is_delete_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+            validate_all_required_fields_included(attrs, self.fields)
         
         return attrs
 
@@ -283,7 +278,7 @@ class OptionSerializer(Serializer):
 
     def __validate_partial_update(self, attrs):
         if is_create_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+            validate_all_required_fields_included(attrs, self.fields)
         elif is_update_data(attrs) and 'size' in attrs:
             self.__validate_size_update(attrs)
 
@@ -399,7 +394,7 @@ class ProductColorSerializer(Serializer):
 
     def __validate_partial_update(self, attrs):
         if is_create_data(attrs):
-            validate_require_data_in_partial_update(attrs, self.fields)
+            validate_all_required_fields_included(attrs, self.fields)
         elif is_update_data(attrs):
             if 'color' in attrs:
                 self.__validate_color_update(attrs)

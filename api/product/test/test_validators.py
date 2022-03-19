@@ -1,5 +1,3 @@
-from django.test import tag
-
 from rest_framework.exceptions import ValidationError
 
 from common.test.test_cases import FunctionTestCase

@@ -1,13 +1,8 @@
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException
 from rest_framework.serializers import Serializer, ModelSerializer, ImageField
 
 from .validators import validate_file_size
 
-
-def validate_require_data_in_partial_update(data, fields):
-    for key, value in fields.items():
-        if getattr(value, 'required') and key not in data:
-            raise ValidationError('{0} field is required.'.format(key))
 
 def has_duplicate_element(array):
     if len(array) != len(set(array)):
