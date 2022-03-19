@@ -41,7 +41,7 @@ def sort_keywords_by_levenshtein_distance(keywords, search_word):
 def get_searchbox_data(request):
     search_word = request.query_params.get('query', None)
 
-    if search_word is None:
+    if search_word == '' or search_word is None:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
     condition = Q(name__contains=search_word)
@@ -324,7 +324,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     @action(detail=False, url_path='search')
     def search(self, request):
         search_word = request.query_params.get('query', None)
-        if search_word is None:
+        if search_word == '' or search_word is None:
             return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
         tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))

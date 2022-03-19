@@ -78,6 +78,11 @@ class GetSearchboxDataTestCase(ViewTestCase):
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
+    def test_search_with_empty_string(self):
+        self._get({'query': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
 
 class GetCommonRegistrationDataTestCase(ViewTestCase):
     _url = '/product/registry-common/'
@@ -448,6 +453,12 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     def test_search_without_search_word(self):
         self._url += 'search/'
         self._get()
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_search_with_empty_string(self):
+        self._url += 'search/'
+        self._get({'query': ''})
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
