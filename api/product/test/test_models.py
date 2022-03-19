@@ -13,7 +13,7 @@ from .factory import (
 )
 
 
-class MainCategoryTest(ModelTestCase):
+class MainCategoryTestCase(ModelTestCase):
     _model_class = MainCategory
     
     def setUp(self):
@@ -29,7 +29,7 @@ class MainCategoryTest(ModelTestCase):
         self.assertEqual(main_category.image_url.name, self._test_data['image_url'])
 
 
-class SubCategoryTest(ModelTestCase):
+class SubCategoryTestCase(ModelTestCase):
     _model_class = SubCategory
 
     @classmethod
@@ -59,7 +59,7 @@ class SubCategoryTest(ModelTestCase):
         )
 
 
-class ProductTest(ModelTestCase):
+class ProductTestCase(ModelTestCase):
     _model_class = Product
 
     @classmethod
@@ -127,7 +127,7 @@ class ProductTest(ModelTestCase):
         self.assertQuerysetEqual(self._product.tags.all(), tags, ordered=False)
 
 
-class AgeTest(ModelTestCase):
+class AgeTestCase(ModelTestCase):
     _model_class = Age
 
     def setUp(self):
@@ -141,7 +141,7 @@ class AgeTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class ThicknessTest(ModelTestCase):
+class ThicknessTestCase(ModelTestCase):
     _model_class = Thickness
 
     def setUp(self):
@@ -155,7 +155,7 @@ class ThicknessTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class SeeThroughTest(ModelTestCase):
+class SeeThroughTestCase(ModelTestCase):
     _model_class = SeeThrough
 
     def setUp(self):
@@ -169,7 +169,7 @@ class SeeThroughTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class FlexibilityTest(ModelTestCase):
+class FlexibilityTestCase(ModelTestCase):
     _model_class = Flexibility
 
     def setUp(self):
@@ -183,7 +183,7 @@ class FlexibilityTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])        
 
 
-class ProductImagesTest(ModelTestCase):
+class ProductImagesTestCase(ModelTestCase):
     _model_class = ProductImages
 
     def setUp(self):
@@ -203,7 +203,7 @@ class ProductImagesTest(ModelTestCase):
         self.assertEqual(product_image.sequence, self._test_data['sequence'])
 
 
-class TagTest(ModelTestCase):
+class TagTestCase(ModelTestCase):
     _model_class = Tag
 
     def setUp(self):
@@ -217,7 +217,7 @@ class TagTest(ModelTestCase):
         self.assertEqual(tag.name, self._test_data['name'])
         
 
-class ColorTest(ModelTestCase):
+class ColorTestCase(ModelTestCase):
     _model_class = Color
 
     def setUp(self):
@@ -233,7 +233,7 @@ class ColorTest(ModelTestCase):
         self.assertEqual(color.image_url.name, self._test_data['image_url'])
 
 
-class ProductColorTest(ModelTestCase):
+class ProductColorTestCase(ModelTestCase):
     _model_class = ProductColor
 
     @classmethod
@@ -263,7 +263,7 @@ class ProductColorTest(ModelTestCase):
         self.assertTrue(product_color.on_sale)
 
 
-class SizeTest(ModelTestCase):
+class SizeTestCase(ModelTestCase):
     _model_class = Size
 
     def setUp(self):
@@ -277,7 +277,7 @@ class SizeTest(ModelTestCase):
         self.assertEqual(size.name, self._test_data['name'])
 
 
-class SubCategorySizeTest(ModelTestCase):
+class SubCategorySizeTestCase(ModelTestCase):
     _model_class = SubCategorySize
 
     def setUp(self):
@@ -295,7 +295,7 @@ class SubCategorySizeTest(ModelTestCase):
         self.assertEqual(sub_category_size.size, self._test_data['size'])
 
 
-class OptionTest(ModelTestCase):
+class OptionTestCase(ModelTestCase):
     _model_class = Option
 
     def setUp(self):
@@ -319,7 +319,7 @@ class OptionTest(ModelTestCase):
         self.assertEqual(option.price_difference, 0)
 
 
-class KeywordTest(ModelTestCase):
+class KeywordTestCase(ModelTestCase):
     _model_class = Keyword
 
     def setUp(self):
@@ -333,7 +333,7 @@ class KeywordTest(ModelTestCase):
         self.assertEqual(keyword.name, self._test_data['name'])
 
 
-class StyleTest(ModelTestCase):
+class StyleTestCase(ModelTestCase):
     _model_class = Style
 
     def setUp(self):
@@ -347,7 +347,7 @@ class StyleTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class LaundryInformationTest(ModelTestCase):
+class LaundryInformationTestCase(ModelTestCase):
     _model_class = LaundryInformation
 
     def setUp(self):
@@ -361,7 +361,7 @@ class LaundryInformationTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class MaterialTest(ModelTestCase):
+class MaterialTestCase(ModelTestCase):
     _model_class = Material
 
     def setUp(self):
@@ -375,7 +375,7 @@ class MaterialTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class ProductMaterialTest(ModelTestCase):
+class ProductMaterialTestCase(ModelTestCase):
     _model_class = ProductMaterial
 
     def setUp(self):
@@ -395,7 +395,7 @@ class ProductMaterialTest(ModelTestCase):
         self.assertEqual(product_material.mixing_rate, self._test_data['mixing_rate'])
 
 
-class ThemeTestCase(ModelTestCase):
+class ThemeTestCaseCase(ModelTestCase):
     _model_class = Theme
 
     def test_create(self):
