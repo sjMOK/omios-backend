@@ -7,8 +7,13 @@ from rest_framework.serializers import (
 from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError
 
-from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.serializers import DynamicFieldsSerializer
+from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
+from common.validators import validate_all_required_fields_included
+from common.serializers import (
+    has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
+    get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item,
+    DynamicFieldsSerializer,
+)
 from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
@@ -21,47 +26,6 @@ def validate_require_data_in_partial_update(data, fields):
     for key, value in fields.items():
         if getattr(value, 'required', True) and key not in data:
             raise ValidationError('{0} field is required.'.format(key))
-
-def has_duplicate_element(array):
-    if len(array) != len(set(array)):
-        return True
-    return False
-
-def is_create_data(data):
-    if bool(data) and 'id' not in data:
-        return True
-    return False
-
-def is_update_data(data):
-    if len(data.keys())>1 and 'id' in data:
-        return True
-    return False
-
-def is_delete_data(data):
-    if len(data.keys())==1 and 'id' in data:
-        return True
-    return False
-
-def get_create_attrs(attrs):
-    return [attr for attr in attrs if is_create_data(attr)]
-
-def get_update_attrs(attrs):
-    return [attr for attr in attrs if is_update_data(attr)]
-
-def get_delete_attrs(attrs):
-    return [attr for attr in attrs if is_delete_data(attr)]
-
-def get_create_or_update_attrs(attrs):
-    return [attr for attr in attrs if not is_delete_data(attr)]
-
-def get_update_or_delete_attrs(attrs):
-    return [attr for attr in attrs if not is_create_data(attr)]
-
-def get_list_of_single_item(key, attrs):
-    ret_list = [attr[key] for attr in attrs]
-    
-    return ret_list
-
 
 class SubCategorySerializer(Serializer):
     id = IntegerField(read_only=True)

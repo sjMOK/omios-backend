@@ -4,17 +4,13 @@ from django.test import tag
 from django.db.models.query import Prefetch
 from django.forms import model_to_dict
 
-from rest_framework.serializers import Serializer, CharField, IntegerField
-from rest_framework.exceptions import ValidationError
-from rest_framework.test import APISimpleTestCase
-
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
-from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
+from common.serializers import is_delete_data
+from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from user.test.factory import WholesalerFactory
 from ..validators import validate_url
 from ..serializers import (
-    validate_require_data_in_partial_update, has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_list_of_single_item,
-    get_create_or_update_attrs, get_update_or_delete_attrs, ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer,
+    ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer,
     ColorSerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer,
     FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, OptionSerializer,
     ProductSerializer, ProductReadSerializer, ProductWriteSerializer,
@@ -30,111 +26,6 @@ from .factory import (
 )
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
-
-
-class ValidateRequireDataInPartialUpdateTestCase(FunctionTestCase):
-    _function = validate_require_data_in_partial_update
-
-    class DummySerializer(Serializer):
-        age_not_required = IntegerField(required=False)
-        name_required = CharField()
-
-    def test(self):
-        data = {}
-        serializer = self.DummySerializer(data=data, partial=True)
-
-        self.assertRaisesRegex(
-            ValidationError,
-            r'name_required field is required.',
-            self._call_function,
-            data=data, fields=serializer.fields
-        )
-
-
-class HasDuplicateElementTestCase(FunctionTestCase):
-    _function = has_duplicate_element
-
-    def test_duplicated_array(self):
-        array = [1, 2, 2, 3]
-
-        self.assertTrue(self._call_function(array))
-
-    def test_not_duplicated_array(self):
-        array = [1, 2, 3]
-
-        self.assertTrue(not self._call_function(array))
-
-
-class IsCreateDeleteUpdateDataTestCases(APISimpleTestCase):
-    def setUp(self):
-        self.create_data = {
-            'name': 'omios',
-            'age': 1,
-        }
-        self.update_data = {
-            'id': 100,
-            'name': 'omios',
-            'age': 1,
-        }
-        self.delete_data = {
-            'id': 100,
-        }
-    
-    def test_is_create_data(self):
-        self.assertTrue(is_create_data(self.create_data))
-        self.assertTrue(not is_create_data(self.update_data))
-        self.assertTrue(not is_create_data(self.delete_data))
-
-    def test_is_update_data(self):
-        self.assertTrue(not is_update_data(self.create_data))
-        self.assertTrue(is_update_data(self.update_data))
-        self.assertTrue(not is_update_data(self.delete_data))
-
-    def test_is_delete_data(self):
-        self.assertTrue(not is_delete_data(self.create_data))
-        self.assertTrue(not is_delete_data(self.update_data))
-        self.assertTrue(is_delete_data(self.delete_data))
-
-
-class GetAttrsTestCase(APISimpleTestCase):
-    def setUp(self):
-        self.create_attrs = [
-            {'name': 'name1', 'age': 1},
-            {'name': 'name2', 'age': 2},
-        ]
-        self.update_attrs = [
-            {'id': 100, 'name': 'name100', 'age': 100},
-            {'id': 101, 'name': 'name101', 'age': 101},
-        ]
-        self.delete_attrs = [
-            {'id': 200},
-            {'id': 201},
-        ]
-        self.attrs = self.create_attrs + self.update_attrs + self.delete_attrs
-    
-    def test_get_create_or_update_attrs(self):
-        create_or_update_attrs = self.create_attrs + self.update_attrs
-
-        self.assertListEqual(get_create_or_update_attrs(self.attrs), create_or_update_attrs)
-
-    def test_get_update_or_delete_attrs(self):
-        update_or_delete_attrs = self.update_attrs + self.delete_attrs
-
-        self.assertListEqual(get_update_or_delete_attrs(self.attrs), update_or_delete_attrs)
-
-
-class GetListOfSingleItem(FunctionTestCase):
-    _function = get_list_of_single_item
-
-    def test(self):
-        attrs = [
-            {'id': 1, 'name': 'name1'},
-            {'id': 2, 'name': 'name2'},
-            {'id': 3, 'name': 'name3'},
-            {'id': 4, 'name': 'name4'},
-        ]
-
-        self.assertEqual(self._call_function('id', attrs), [1, 2, 3, 4])
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):

@@ -1,18 +1,53 @@
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.serializers import Serializer, ModelSerializer, ImageField
 
 from .validators import validate_file_size
 
-from django.core.exceptions import ObjectDoesNotExist
 
+def validate_require_data_in_partial_update(data, fields):
+    for key, value in fields.items():
+        if getattr(value, 'required') and key not in data:
+            raise ValidationError('{0} field is required.'.format(key))
 
-def convert_primary_key_related_field_to_serializer(serializer_class, instance, field, many=False):
-        try:
-            instance = getattr(instance, field)
-        except ObjectDoesNotExist:
-            return None
+def has_duplicate_element(array):
+    if len(array) != len(set(array)):
+        return True
+    return False
 
-        return serializer_class(instance, many=many).data
+def is_create_data(data):
+    if bool(data) and 'id' not in data:
+        return True
+    return False
+
+def is_update_data(data):
+    if len(data.keys()) > 1 and 'id' in data:
+        return True
+    return False
+
+def is_delete_data(data):
+    if len(data.keys()) == 1 and 'id' in data:
+        return True
+    return False
+
+def get_create_attrs(attrs):
+    return [attr for attr in attrs if is_create_data(attr)]
+
+def get_update_attrs(attrs):
+    return [attr for attr in attrs if is_update_data(attr)]
+
+def get_delete_attrs(attrs):
+    return [attr for attr in attrs if is_delete_data(attr)]
+
+def get_create_or_update_attrs(attrs):
+    return [attr for attr in attrs if not is_delete_data(attr)]
+
+def get_update_or_delete_attrs(attrs):
+    return [attr for attr in attrs if not is_create_data(attr)]
+
+def get_list_of_single_item(key, attrs):
+    ret_list = [attr[key] for attr in attrs]
+    
+    return ret_list
 
 
 class SerializerMixin:
