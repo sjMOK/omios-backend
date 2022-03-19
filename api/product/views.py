@@ -6,6 +6,7 @@ from django.http import Http404
 
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
@@ -321,6 +322,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(data={'id': product.id})
 
+    @transaction.atomic
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
         product.colors.all().update(on_sale=False)
@@ -330,10 +332,16 @@ class ProductViewSet(viewsets.GenericViewSet):
         return get_response(data={'id': product.id})
 
     @action(detail=True, url_path='saler')
-    def saler_product(self, request, id=None):
+    def retrieve_for_write(self, request, id=None):
+        if not hasattr(self.request.user, 'wholesaler'):
+            raise PermissionDenied()
+
         queryset = self.get_queryset().select_related('sub_category', 'style', 'age')
         product = self.get_object(queryset)
-        serializer = ProductWriteSerializer(product)
+        allow_fields = self.__get_allow_fields()
+        serializer = self.get_serializer(
+            product, allow_fields=allow_fields, context={'field_order': allow_fields}
+        )
 
         return get_response(data=serializer.data)
 
