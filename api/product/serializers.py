@@ -5,14 +5,15 @@ from rest_framework.serializers import (
     PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField,
 )
 from rest_framework.validators import UniqueValidator
-from rest_framework.exceptions import ValidationError, APIException
+from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.serializers import DynamicFieldsSerializer
-from .validators import validate_url, validate_price_difference, validate_sequence_ascending_order
+from .validators import validate_url
 from .models import (
-    LaundryInformation, ProductLaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
+    LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
+    Theme,
 )
 
 
@@ -486,7 +487,10 @@ class ProductSerializer(DynamicFieldsSerializer):
     manufacturing_country = CharField(max_length=20)
     
     def __sort_dictionary_by_field_name(self, ret_dict):
-        for field in self.field_order:
+        if 'field_order' not in self.context:
+            return ret_dict
+
+        for field in self.context['field_order']:
             if field in self.fields:
                 ret_dict.move_to_end(field, last=True)
 
@@ -513,12 +517,6 @@ class ProductReadSerializer(ProductSerializer):
     created = DateTimeField(read_only=True)
     on_sale = on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
-
-    field_order = [
-        'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 
-        'materials', 'laundry_informations', 'thickness', 'see_through', 'flexibility', 
-        'lining', 'images', 'colors',
-    ]
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -551,11 +549,6 @@ class ProductWriteSerializer(ProductSerializer):
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
-    field_order = [
-            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 'materials',
-            'laundry_informations', 'thickness', 'see_through', 'flexibility', 'lining', 
-            'images', 'colors',
-    ]
     price_difference_upper_limit_ratio = 0.2
 
     def validate(self, attrs):
@@ -564,10 +557,10 @@ class ProductWriteSerializer(ProductSerializer):
         else:
             price = attrs.get('price') 
 
-        product_colors = attrs.get('colors', list())
+        product_colors = attrs.get('colors', [])
 
         for product_color in product_colors:
-            options_data = product_color.get('options', list())
+            options_data = product_color.get('options', [])
             for option_data in options_data:
                 self.__validate_price_difference(price, option_data)
 
@@ -582,8 +575,8 @@ class ProductWriteSerializer(ProductSerializer):
             )
     
     def create(self, validated_data):
-        laundry_informations = validated_data.pop('laundry_informations', list())
-        tags = validated_data.pop('tags', list())
+        laundry_informations = validated_data.pop('laundry_informations', [])
+        tags = validated_data.pop('tags', [])
         materials = validated_data.pop('materials')
         colors = validated_data.pop('colors')
         images = validated_data.pop('related_images')
