@@ -483,6 +483,7 @@ class ProductSerializer(DynamicFieldsSerializer):
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
     images = ProductImagesSerializer(allow_empty=False, many=True, source='related_images')
+    manufacturing_country = CharField(max_length=20)
     
     def __sort_dictionary_by_field_name(self, ret_dict):
         for field in self.field_order:
@@ -508,6 +509,7 @@ class ProductReadSerializer(ProductSerializer):
     thickness = StringRelatedField(read_only=True)
     see_through = StringRelatedField(read_only=True)
     flexibility = StringRelatedField(read_only=True)
+    theme = StringRelatedField(read_only=True)
     created = DateTimeField(read_only=True)
     on_sale = on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
@@ -547,6 +549,7 @@ class ProductWriteSerializer(ProductSerializer):
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
+    theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
     field_order = [
             'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 'materials',

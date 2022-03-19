@@ -1,4 +1,5 @@
 import random
+
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min
 
@@ -15,7 +16,7 @@ from .factory import (
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor,
+    Product, ProductColor, Theme,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
@@ -433,7 +434,8 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         product = self.__get_queryset().get(id=product_id)
         allow_fields = (
             'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations',
-            'thickness', 'see_through', 'flexibility', 'lining', 'materials', 'colors', 'images',
+            'thickness', 'see_through', 'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 
+            'colors', 'images',
         )
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
@@ -489,9 +491,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     def test_retrieve(self):
         product_id = self._get_product().id
         product = self.__get_queryset().get(id=product_id)
-        allow_fields = (
-            'id', 'name', 'price', 'colors', 'code', 'sub_category', 'created', 'on_sale', 'images', 'tags'
-        )
+        allow_fields = ('id', 'name', 'price', 'main_category', 'sub_category')
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
         self._url += '{0}/'.format(product.id)
@@ -531,6 +531,8 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'see_through': SeeThrough.objects.last().id,
             'flexibility': Flexibility.objects.last().id,
             'lining': True,
+            'manufacturing_country': '대한민국',
+            'theme': Theme.objects.last().id,
             'images': [
                 {
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
@@ -607,10 +609,15 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         self.assertTrue(not deleted_product.on_sale)
         self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
 
-    def test_saler(self):
+    def test_retrieve_for_write(self):
         product_id = self._get_product().id
         product = self.__get_queryset().get(id=product_id)
-        serializer = ProductWriteSerializer(product)
+        allow_fields = (
+            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 
+            'see_through', 'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 'images',
+            'colors',
+        )
+        serializer = ProductWriteSerializer(product, allow_fields=allow_fields)
         self._url += '{0}/saler/'.format(product.id)
         self._get()
 

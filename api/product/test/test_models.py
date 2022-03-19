@@ -1,17 +1,14 @@
-from django.test import tag
-
 from freezegun import freeze_time
 from datetime import datetime
-from pdb import set_trace
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from user.test.factory import WholesalerFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImages,
-    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, 
+    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
 )
 from .factory import (
-    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, 
+    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, ThemeFactory, 
     ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory
 )
 
@@ -74,6 +71,7 @@ class ProductTest(ModelTestCase):
         thickness = ThicknessFactory()
         see_through = SeeThroughFactory()
         flexibility = FlexibilityFactory()
+        theme = ThemeFactory()
 
         cls._test_data = {
             'wholesaler': wholesaler,
@@ -85,7 +83,9 @@ class ProductTest(ModelTestCase):
             'thickness': thickness,
             'see_through': see_through,
             'flexibility': flexibility,
-            'lining': True
+            'lining': True,
+            'manufacturing_country': '대한민국',
+            'theme': theme,
         }
 
         cls._product = cls._get_default_model_after_creation()
@@ -100,8 +100,10 @@ class ProductTest(ModelTestCase):
         self.assertEqual(self._product.thickness, self._test_data['thickness'])
         self.assertEqual(self._product.see_through, self._test_data['see_through'])
         self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
-        self.assertTrue(self._product.lining)
-    
+        self.assertEqual(self._product.lining, self._test_data['lining'])
+        self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
+        self.assertEqual(self._product.theme, self._test_data['theme'])
+
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
         product = self._get_model_after_creation()
@@ -386,8 +388,20 @@ class ProductMaterialTest(ModelTestCase):
         }
     
     def test_create(self):
-        style = self._get_model_after_creation()
+        product_material = self._get_model_after_creation()
 
-        self.assertEqual(style.product, self._test_data['product'])
-        self.assertEqual(style.material, self._test_data['material'])
-        self.assertEqual(style.mixing_rate, self._test_data['mixing_rate'])
+        self.assertEqual(product_material.product, self._test_data['product'])
+        self.assertEqual(product_material.material, self._test_data['material'])
+        self.assertEqual(product_material.mixing_rate, self._test_data['mixing_rate'])
+
+
+class ThemeTestCase(ModelTestCase):
+    _model_class = Theme
+
+    def test_create(self):
+        self._test_data = {
+            'name': '파티룩',
+        }
+        theme = self._get_model_after_creation()
+
+        self.assertEqual(theme.name, self._test_data['name'])

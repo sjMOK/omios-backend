@@ -21,10 +21,11 @@ from ..serializers import (
 )
 from ..models import (
     Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
+    Theme,
 )
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
+    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
     ProductMaterialFactory, OptionFactory,
 )
 
@@ -1027,7 +1028,7 @@ class ProductSerializerTestCase(SerializerTestCase):
 
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(prefetch_images).get(id=self.product_id)
-        serializer = self._get_serializer(product)
+        serializer = self._get_serializer(product, context={'field_order': fields})
 
         self.assertListEqual(list(serializer.data.keys()), fields)
 
@@ -1070,6 +1071,8 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'created': datetime_to_iso(product.created),
             'on_sale': product.on_sale,
             'code': product.code,
+            'manufacturing_country': product.manufacturing_country,
+            'theme': product.theme.name,
         }
 
         return expected_data
@@ -1184,6 +1187,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'see_through': product.see_through_id,
             'flexibility': product.flexibility_id,
             'lining': True,
+            'manufacturing_country': product.manufacturing_country,
+            'theme': product.theme_id,
             'images': [
                 {
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
@@ -1249,6 +1254,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'see_through': self.product.see_through_id,
             'flexibility': self.product.flexibility_id,
             'lining': self.product.lining,
+            'manufacturing_country': self.product.manufacturing_country,
+            'theme': self.product.theme_id,
             'images': ProductImagesSerializer(self.product.images.all(), many=True).data,
             'colors': ProductColorSerializer(self.product.colors.all(), many=True).data
         }
@@ -1282,6 +1289,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'see_through': SeeThrough.objects.get(id=data['see_through']),
             'flexibility': Flexibility.objects.get(id=data['flexibility']),
             'lining': data['lining'],
+            'manufacturing_country': data['manufacturing_country'],
+            'theme': Theme.objects.get(id=data['theme']),
             'related_images': image_serializer.validated_data,
             'colors': color_serializer.validated_data,
         }
@@ -1316,6 +1325,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.see_through_id, data['see_through'])
         self.assertEqual(product.flexibility_id, data['flexibility'])
         self.assertEqual(product.lining, data['lining'])
+        self.assertEqual(product.manufacturing_country, data['manufacturing_country'])
+        self.assertEqual(product.theme_id, data['theme'])
         self.assertListEqual(
             list(product.tags.all().order_by('id').values_list('id', flat=True)),
             data['tags']
@@ -1364,7 +1375,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_update_product_attribute(self):
-        update_data = dict()
+        update_data = {}
         update_data['name'] = self.product.name + '_update'
         update_data['price'] = self.product.price + 10000
         update_data['sub_category'] = SubCategoryFactory().id
@@ -1374,6 +1385,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         update_data['see_through'] = SeeThroughFactory().id
         update_data['flexibility'] = FlexibilityFactory().id
         update_data['lining'] = not self.product.lining
+        update_data['manufacturing_country'] = self.product.manufacturing_country + '_update'
+        update_data['theme'] = ThemeFactory().id
         serializer = self._get_serializer_after_validation(
             self.product, data=update_data, partial=True
         )
@@ -1388,6 +1401,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.see_through_id, update_data['see_through'])
         self.assertEqual(product.flexibility_id, update_data['flexibility'])
         self.assertEqual(product.lining, update_data['lining'])
+        self.assertEqual(product.manufacturing_country, update_data['manufacturing_country'])
+        self.assertEqual(product.theme_id, update_data['theme'])
 
     def test_update_id_only_m2m_fields(self):
         tags = TagFactory.create_batch(size=2)

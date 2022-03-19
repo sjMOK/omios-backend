@@ -59,6 +59,13 @@ class FlexibilityFactory(DjangoModelFactory):
     name = Sequence(lambda num: 'flex_{0}'.format(num))
 
 
+class ThemeFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.Theme'
+    
+    name = Sequence(lambda num: 'theme_{0}'.format(num))
+
+
 class ProductFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Product'
@@ -73,6 +80,8 @@ class ProductFactory(DjangoModelFactory):
     see_through = SubFactory(SeeThroughFactory)
     flexibility = SubFactory(FlexibilityFactory)
     lining = True
+    manufacturing_country = Faker('country', locale='ko-KR')
+    theme = SubFactory(ThemeFactory)
 
 
 class TagFactory(DjangoModelFactory):
