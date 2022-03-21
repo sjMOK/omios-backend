@@ -2,7 +2,7 @@ from django.db.models import Manager
 
 from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
-    PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField,
+    PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField, RegexField,
 )
 from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError
@@ -20,6 +20,9 @@ from .models import (
     ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
     Theme,
 )
+
+
+PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
 
 
 class SubCategorySerializer(Serializer):
@@ -437,7 +440,7 @@ class ProductColorSerializer(Serializer):
 
 class ProductSerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=60)
+    name = RegexField(PRODUCT_NAME_REGEX, max_length=100)
     price = IntegerField(max_value=1000000, min_value=0)
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
