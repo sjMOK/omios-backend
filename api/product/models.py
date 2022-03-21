@@ -1,7 +1,6 @@
 from django.db.models import (
-    Model, ForeignKey, ManyToManyField, DO_NOTHING, OneToOneField, 
-    AutoField, CharField, ImageField,  BooleanField, BigAutoField, DateTimeField,
-    IntegerField,
+    Model, ForeignKey, ManyToManyField, DO_NOTHING, AutoField, CharField, ImageField,  BooleanField, 
+    BigAutoField, DateTimeField, IntegerField,
 )
 from django.utils import timezone
 
@@ -53,6 +52,8 @@ class Product(Model):
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
+    manufacturing_country = CharField(max_length=20)
+    theme = ForeignKey('Theme', DO_NOTHING)
 
     class Meta:
         db_table = 'product'
@@ -126,6 +127,7 @@ class Tag(Model):
 
     class Meta:
         db_table = 'tag'
+        ordering = ['id']
 
     def __str__(self):
         return self.name
@@ -254,3 +256,15 @@ class ProductMaterial(Model):
     class Meta:
         db_table = 'product_material'
         unique_together = (('product', 'material'),)
+
+
+class Theme(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        db_table = 'theme'
+        ordering = ['id']
+
+    def __str__(self):
+        return self.name

@@ -5,9 +5,8 @@ from tempfile import NamedTemporaryFile
 
 from django.utils.module_loading import import_string
 
-from rest_framework.serializers import ModelSerializer
 from rest_framework.test import APISimpleTestCase, APITestCase
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 
 from common.utils import BASE_IMAGE_URL
 from user.test.factory import UserFactory, ShopperFactory, WholesalerFactory
@@ -84,8 +83,35 @@ class SerializerTestCase(APITestCase):
         self.assertTrue(expected_field in serializer.errors)
         self.assertEqual(serializer.errors[expected_field][0], expected_message)
 
-    def _test_model_instance_serialization(self, instance, expected_data):  
-        self.assertDictEqual(self._serializer_class(instance=instance).data, expected_data)
+    def _test_model_instance_serialization(self, instance, expected_data, *args, **kwargs):
+        serializer = self._serializer_class(instance, *args, **kwargs)
+        self.assertDictEqual(serializer.data, expected_data)
+
+    def _test_serializer_raise_validation_error(self, serializer, expected_message):
+        self.assertRaisesMessage(
+            ValidationError,
+            expected_message,
+            serializer.is_valid,
+            raise_exception=True
+        )
+
+    def _test_deserialzation(self, data, expected_validated_data):
+        serializer = self._get_serializer_after_validation(data=data)
+
+        self.assertDictEqual(serializer.validated_data, expected_validated_data)
+
+
+class ListSerializerTestCase(SerializerTestCase):
+    @classmethod
+    def get_list_serializer_class(cls):
+        return cls._serializer_class.Meta.list_serializer_class
+
+    def __init__(self, *args, **kwargs):
+        self.list_serializer_class = self._serializer_class.Meta.list_serializer_class
+        super().__init__(*args, **kwargs)
+
+    def _get_serializer(self, *args, **kwargs):
+        return self._serializer_class(many=True, *args, **kwargs)
 
 
 class ViewTestCase(APITestCase):

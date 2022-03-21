@@ -1,22 +1,19 @@
-from django.test import tag
-
 from freezegun import freeze_time
 from datetime import datetime
-from pdb import set_trace
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from user.test.factory import WholesalerFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImages,
-    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, 
+    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
 )
 from .factory import (
-    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, 
+    AgeFactory, LaundryInformationFactory, MainCategoryFactory, StyleFactory, SubCategoryFactory, ProductFactory, TagFactory, ThemeFactory, 
     ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory
 )
 
 
-class MainCategoryTest(ModelTestCase):
+class MainCategoryTestCase(ModelTestCase):
     _model_class = MainCategory
     
     def setUp(self):
@@ -32,7 +29,7 @@ class MainCategoryTest(ModelTestCase):
         self.assertEqual(main_category.image_url.name, self._test_data['image_url'])
 
 
-class SubCategoryTest(ModelTestCase):
+class SubCategoryTestCase(ModelTestCase):
     _model_class = SubCategory
 
     @classmethod
@@ -62,7 +59,7 @@ class SubCategoryTest(ModelTestCase):
         )
 
 
-class ProductTest(ModelTestCase):
+class ProductTestCase(ModelTestCase):
     _model_class = Product
 
     @classmethod
@@ -74,6 +71,7 @@ class ProductTest(ModelTestCase):
         thickness = ThicknessFactory()
         see_through = SeeThroughFactory()
         flexibility = FlexibilityFactory()
+        theme = ThemeFactory()
 
         cls._test_data = {
             'wholesaler': wholesaler,
@@ -85,7 +83,9 @@ class ProductTest(ModelTestCase):
             'thickness': thickness,
             'see_through': see_through,
             'flexibility': flexibility,
-            'lining': True
+            'lining': True,
+            'manufacturing_country': '대한민국',
+            'theme': theme,
         }
 
         cls._product = cls._get_default_model_after_creation()
@@ -100,8 +100,10 @@ class ProductTest(ModelTestCase):
         self.assertEqual(self._product.thickness, self._test_data['thickness'])
         self.assertEqual(self._product.see_through, self._test_data['see_through'])
         self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
-        self.assertTrue(self._product.lining)
-    
+        self.assertEqual(self._product.lining, self._test_data['lining'])
+        self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
+        self.assertEqual(self._product.theme, self._test_data['theme'])
+
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
         product = self._get_model_after_creation()
@@ -125,7 +127,7 @@ class ProductTest(ModelTestCase):
         self.assertQuerysetEqual(self._product.tags.all(), tags, ordered=False)
 
 
-class AgeTest(ModelTestCase):
+class AgeTestCase(ModelTestCase):
     _model_class = Age
 
     def setUp(self):
@@ -139,7 +141,7 @@ class AgeTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class ThicknessTest(ModelTestCase):
+class ThicknessTestCase(ModelTestCase):
     _model_class = Thickness
 
     def setUp(self):
@@ -153,7 +155,7 @@ class ThicknessTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class SeeThroughTest(ModelTestCase):
+class SeeThroughTestCase(ModelTestCase):
     _model_class = SeeThrough
 
     def setUp(self):
@@ -167,7 +169,7 @@ class SeeThroughTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class FlexibilityTest(ModelTestCase):
+class FlexibilityTestCase(ModelTestCase):
     _model_class = Flexibility
 
     def setUp(self):
@@ -181,7 +183,7 @@ class FlexibilityTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])        
 
 
-class ProductImagesTest(ModelTestCase):
+class ProductImagesTestCase(ModelTestCase):
     _model_class = ProductImages
 
     def setUp(self):
@@ -201,7 +203,7 @@ class ProductImagesTest(ModelTestCase):
         self.assertEqual(product_image.sequence, self._test_data['sequence'])
 
 
-class TagTest(ModelTestCase):
+class TagTestCase(ModelTestCase):
     _model_class = Tag
 
     def setUp(self):
@@ -215,7 +217,7 @@ class TagTest(ModelTestCase):
         self.assertEqual(tag.name, self._test_data['name'])
         
 
-class ColorTest(ModelTestCase):
+class ColorTestCase(ModelTestCase):
     _model_class = Color
 
     def setUp(self):
@@ -231,7 +233,7 @@ class ColorTest(ModelTestCase):
         self.assertEqual(color.image_url.name, self._test_data['image_url'])
 
 
-class ProductColorTest(ModelTestCase):
+class ProductColorTestCase(ModelTestCase):
     _model_class = ProductColor
 
     @classmethod
@@ -261,7 +263,7 @@ class ProductColorTest(ModelTestCase):
         self.assertTrue(product_color.on_sale)
 
 
-class SizeTest(ModelTestCase):
+class SizeTestCase(ModelTestCase):
     _model_class = Size
 
     def setUp(self):
@@ -275,7 +277,7 @@ class SizeTest(ModelTestCase):
         self.assertEqual(size.name, self._test_data['name'])
 
 
-class SubCategorySizeTest(ModelTestCase):
+class SubCategorySizeTestCase(ModelTestCase):
     _model_class = SubCategorySize
 
     def setUp(self):
@@ -293,7 +295,7 @@ class SubCategorySizeTest(ModelTestCase):
         self.assertEqual(sub_category_size.size, self._test_data['size'])
 
 
-class OptionTest(ModelTestCase):
+class OptionTestCase(ModelTestCase):
     _model_class = Option
 
     def setUp(self):
@@ -317,7 +319,7 @@ class OptionTest(ModelTestCase):
         self.assertEqual(option.price_difference, 0)
 
 
-class KeywordTest(ModelTestCase):
+class KeywordTestCase(ModelTestCase):
     _model_class = Keyword
 
     def setUp(self):
@@ -331,7 +333,7 @@ class KeywordTest(ModelTestCase):
         self.assertEqual(keyword.name, self._test_data['name'])
 
 
-class StyleTest(ModelTestCase):
+class StyleTestCase(ModelTestCase):
     _model_class = Style
 
     def setUp(self):
@@ -345,7 +347,7 @@ class StyleTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class LaundryInformationTest(ModelTestCase):
+class LaundryInformationTestCase(ModelTestCase):
     _model_class = LaundryInformation
 
     def setUp(self):
@@ -359,7 +361,7 @@ class LaundryInformationTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class MaterialTest(ModelTestCase):
+class MaterialTestCase(ModelTestCase):
     _model_class = Material
 
     def setUp(self):
@@ -373,7 +375,7 @@ class MaterialTest(ModelTestCase):
         self.assertEqual(style.name, self._test_data['name'])
 
 
-class ProductMaterialTest(ModelTestCase):
+class ProductMaterialTestCase(ModelTestCase):
     _model_class = ProductMaterial
 
     def setUp(self):
@@ -386,8 +388,20 @@ class ProductMaterialTest(ModelTestCase):
         }
     
     def test_create(self):
-        style = self._get_model_after_creation()
+        product_material = self._get_model_after_creation()
 
-        self.assertEqual(style.product, self._test_data['product'])
-        self.assertEqual(style.material, self._test_data['material'])
-        self.assertEqual(style.mixing_rate, self._test_data['mixing_rate'])
+        self.assertEqual(product_material.product, self._test_data['product'])
+        self.assertEqual(product_material.material, self._test_data['material'])
+        self.assertEqual(product_material.mixing_rate, self._test_data['mixing_rate'])
+
+
+class ThemeTestCaseCase(ModelTestCase):
+    _model_class = Theme
+
+    def test_create(self):
+        self._test_data = {
+            'name': '파티룩',
+        }
+        theme = self._get_model_after_creation()
+
+        self.assertEqual(theme.name, self._test_data['name'])
