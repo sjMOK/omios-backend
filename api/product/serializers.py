@@ -129,11 +129,9 @@ class ProductImagesListSerializer(ListSerializer):
                 )
 
     def __validate_attrs_contain_all_data(self, attrs):
-        attrs_id_list = get_list_of_single_item('id', attrs)
-        attrs_id_list.sort()
-        product_images_id_list = list(self.root.instance.images.all().order_by('id').values_list('id', flat=True))
-
-        if attrs_id_list != product_images_id_list:
+        id_list = get_list_of_single_item('id', attrs)
+        
+        if self.root.instance.images.exclude(id__in=id_list):
             raise ValidationError(
                 'You must contain all image data that the product has.'
             )
@@ -208,11 +206,9 @@ class ProductMaterialListSerializer(ListSerializer):
             raise ValidationError('Material is duplicated.')
     
     def __validate_attrs_contain_all_data(self, attrs):
-        attrs_id_list = get_list_of_single_item('id', attrs)
-        attrs_id_list.sort()
-        product_materials_id_list = list(self.root.instance.materials.all().order_by('id').values_list('id', flat=True))
+        id_list = get_list_of_single_item('id', attrs)
 
-        if attrs_id_list != product_materials_id_list:
+        if self.root.instance.materials.exclude(id__in=id_list):
             raise ValidationError(
                 'You must contain all material data that the product has.'
             )
@@ -247,21 +243,20 @@ class OptionListSerializer(ListSerializer):
             return self.__validate_update(attrs)
 
     def __validate_create(self, attrs):
-        self.__validate_sizes(attrs)
+        sizes = get_list_of_single_item('size', attrs)
+        self.__validate_sizes(sizes)
 
         return attrs
 
     def __validate_update(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
-        size_attrs = [attr for attr in create_or_update_attrs if 'size' in attr]
-        self.__validate_sizes(size_attrs)
+        sizes = [attr['size'] for attr in create_or_update_attrs if 'size' in attr]
+        self.__validate_sizes(sizes)
 
         return attrs
 
     def __validate_sizes(self, attrs):
-        sizes = get_list_of_single_item('size', attrs)
-
-        if has_duplicate_element(sizes):
+        if has_duplicate_element(attrs):
             raise ValidationError('size is duplicated.')
 
 
@@ -308,7 +303,7 @@ class ProductColorListSerializer(ListSerializer):
                 'The product cannot have more than ten colors.'
             )
 
-        display_color_names = [attr.get('display_color_name') for attr in attrs]
+        display_color_names = get_list_of_single_item('display_color_name', attrs)
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
 
@@ -449,10 +444,8 @@ class ProductSerializer(DynamicFieldsSerializer):
     manufacturing_country = CharField(max_length=20)
     
     def __sort_dictionary_by_field_name(self, ret_dict):
-        if 'field_order' not in self.context:
-            return ret_dict
-
-        for field in self.context['field_order']:
+        field_order = self.context.get('field_order', [])
+        for field in field_order:
             if field in self.fields:
                 ret_dict.move_to_end(field, last=True)
 
