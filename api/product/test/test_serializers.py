@@ -632,35 +632,37 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
         cls.options = OptionFactory.create_batch(size=cls.options_num, product_color=cls.product_color)
         cls.create_data = [
             {
-                'size': 'size_{0}'.format(i),
+                'size': SizeFactory().id,
                 'price_difference': random.randint(0, cls.product_color.product.price * 0.2)
             }
-            for i in range(cls.options_num)
-        ]
-        cls.update_data = [
-            {
-                'id': option.id,
-                'size': option.size,
-                'price_difference': option.price_difference
-            }for option in cls.options
+            for _ in range(cls.options_num)
         ]
 
-    def __test_duplicated_size_data(self, data):
-        index = random.choice(range(1, len(data)))
-        data[index]['size'] = data[0]['size']
+    def test_raise_validation_error_duplicated_size_data_in_create(self):
+        data = self.create_data
+        data[-1]['size'] = data[0]['size']
 
         serializer = self._get_serializer(data=data)
         expected_message = 'size is duplicated.'
 
         self._test_serializer_raise_validation_error(serializer, expected_message)
 
-    def test_raise_validation_error_duplicated_size_data_in_create(self):
-        data = self.create_data
-        self.__test_duplicated_size_data(data)
-
     def test_raise_validation_error_duplicated_size_data_in_update(self):
-        data = self.update_data + self.create_data
-        self.__test_duplicated_size_data(data)
+        self.create_data[-1]['size'] = self.create_data[0]['size']
+        data = self.create_data
+        data = {
+            'colors': [
+                {
+                    'id': self.product_color.id,
+                    'options': data,
+                }
+            ]
+        }
+
+        serializer = ProductWriteSerializer(self.product_color.product, data=data, partial=True)
+        expected_message = 'size is duplicated.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
     
 
 class ProductColorSerializerTestCase(SerializerTestCase):
@@ -926,7 +928,6 @@ class ProductSerializerTestCase(SerializerTestCase):
     def test_sort_dictionary_by_field_name(self):
         fields = list(self._get_serializer().get_fields().keys())
         random.shuffle(fields)
-        self._serializer_class.field_order = fields
 
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(prefetch_images).get(id=self.product_id)
@@ -1373,7 +1374,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             update_data
         )
 
-    def test_delete_product_colors(self):
+    def test_delete_product_colors_in_update(self):
         delete_product_color_id = self.product.colors.latest('id').id
         data = {
             'colors': [
@@ -1388,7 +1389,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             not ProductMaterial.objects.filter(id=delete_product_color_id).exists()
         )
 
-    def test_create_product_colors(self):
+    def test_create_product_colors_in_update(self):
         existing_color_id_list = list(self.product.colors.all().values_list('id', flat=True))
         create_color_data = self.__get_input_data()['colors']
         create_option_data = [
@@ -1451,7 +1452,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             expected_dict
         )
 
-    def test_create_option(self):
+    def test_create_option_in_update(self):
         update_color_obj = self.product.colors.latest('id')
         existing_option_id_list = list(update_color_obj.options.values_list('id', flat=True))
         update_data = {
