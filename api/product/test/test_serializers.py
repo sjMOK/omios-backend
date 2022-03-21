@@ -10,10 +10,9 @@ from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from user.test.factory import WholesalerFactory
 from ..validators import validate_url
 from ..serializers import (
-    ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer,
-    ColorSerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer,
-    FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, ProductImagesSerializer, OptionSerializer,
-    ProductSerializer, ProductReadSerializer, ProductWriteSerializer,
+    ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
+    ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
+    ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
 )
 from ..models import (
     Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
@@ -176,6 +175,19 @@ class MaterialSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(material, expected_data)
+
+
+class TagSerializerTestCase(SerializerTestCase):
+    _serializer_class = TagSerializer
+
+    def test_model_instance_serialization(self):
+        tag = TagFactory()
+        expected_data = {
+            'id': tag.id,
+            'name': tag.name,
+        }
+
+        self._test_model_instance_serialization(tag, expected_data)
 
 
 class ProductImagesSerializerTestCase(SerializerTestCase):

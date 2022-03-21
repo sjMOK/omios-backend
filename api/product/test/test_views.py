@@ -1,7 +1,7 @@
 import random
 
 from django.db.models.query import Prefetch
-from django.db.models import Avg, Max, Min
+from django.db.models import Avg, Max, Min, Count
 
 from faker import Faker
 
@@ -16,15 +16,15 @@ from .factory import (
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme,
+    Product, ProductColor, Theme, Tag,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, ThicknessSerializer, ProductWriteSerializer,
+    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThicknessSerializer, ProductWriteSerializer,
 )
 
 
-class SortKeywordsByLevenshteinDistance(FunctionTestCase):
+class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
     _function = sort_keywords_by_levenshtein_distance
 
     def test(self):
@@ -255,6 +255,39 @@ class GetColorsTestCase(ViewTestCase):
             self._response_data, 
             ColorSerializer(Color.objects.all(), many=True).data
         )
+
+
+class GetTagSearchResultTest(ViewTestCase):
+    _url = '/product/tag/'
+    limiting = 8
+
+    def test_get(self):
+        fake = Faker()
+        search_word = fake.word()
+        TagFactory.create_batch(size=3)
+        TagFactory(name=search_word)
+        TagFactory(name=(fake.word() + search_word))
+        TagFactory(name=(search_word + fake.word()))
+        TagFactory(name=(fake.word() + search_word + fake.word()))
+
+        self._get({'query': search_word})
+        tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:self.limiting]
+
+        self._assert_success()
+        self.assertListEqual(
+            TagSerializer(tags, many=True).data,
+            self._response_data
+        )
+
+    def test_search_without_search_word(self):
+        self._get()
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_search_with_empty_string(self):
+        self._get({'query': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetTestCase(ViewTestCase):

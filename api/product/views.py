@@ -19,7 +19,7 @@ from .models import (
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
-    ColorSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer, 
+    ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer, 
 )
 from .permissions import ProductPermission
 
@@ -151,6 +151,21 @@ def get_sub_categories_by_main_category(request, id=None):
 def get_colors(request):
     queryset = Color.objects.all()
     serializer = ColorSerializer(queryset, many=True)
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_tag_search_result(request):
+    lmiting = 8
+    search_word = request.query_params.get('query', None)
+
+    if search_word == '' or search_word is None:
+        return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
+
+    tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:lmiting]
+    serializer = TagSerializer(tags, many=True)
 
     return get_response(data=serializer.data)
 

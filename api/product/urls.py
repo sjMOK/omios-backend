@@ -4,7 +4,7 @@ from rest_framework.routers import SimpleRouter
 
 from .views import (
     ProductViewSet, get_all_categories, upload_prdocut_image, get_searchbox_data,
-    get_common_registration_data, get_dynamic_registration_data,
+    get_common_registration_data, get_dynamic_registration_data, get_tag_search_result,
     get_main_categories, get_sub_categories_by_main_category, get_colors
 )
 # from .documentation import (
@@ -22,6 +22,7 @@ urlpatterns = [
     path('main-category/', get_main_categories),
     path('main-category/<int:id>/sub-category/', get_sub_categories_by_main_category),
     path('color/', get_colors),
+    path('tag/', get_tag_search_result),
     path('image/', upload_prdocut_image),
     path('searchbox/', get_searchbox_data),
     path('registry-common/', get_common_registration_data),

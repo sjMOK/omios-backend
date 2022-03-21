@@ -83,6 +83,11 @@ class MaterialSerializer(Serializer):
     name = CharField(max_length=20, read_only=True)
 
 
+class TagSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)
+
+
 class ProductImagesListSerializer(ListSerializer):
     length_upper_limit = 10
 
