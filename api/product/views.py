@@ -14,12 +14,13 @@ from common.utils import get_response, querydict_to_dict, levenshtein
 from common.views import upload_image_view
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness,
+    Style, Keyword, Product, Tag, Age, Thickness, Theme,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
-    ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer, 
+    ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
+    ThemeSerializer, 
 )
 from .permissions import ProductPermission
 
@@ -73,6 +74,7 @@ def get_common_registration_data(request):
         'material': MaterialSerializer(Material.objects.all(), many=True).data,
         'style': StyleSerializer(Style.objects.all(), many=True).data,
         'age': AgeSerializer(Age.objects.all(), many=True).data,
+        'theme': ThemeSerializer(Theme.objects.all(), many=True).data,
     }
 
     return get_response(data=response_data)

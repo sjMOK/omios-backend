@@ -12,7 +12,7 @@ from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
-    ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
+    ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
 )
 from ..models import (
     Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
@@ -21,7 +21,7 @@ from ..models import (
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
-    ProductMaterialFactory, OptionFactory,
+    ProductMaterialFactory, OptionFactory, ThemeFactory, 
 )
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
@@ -149,6 +149,19 @@ class AgeSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(age, expected_data)
+
+
+class ThemeSerializerTestCase(SerializerTestCase):
+    _serializer_class = ThemeSerializer
+
+    def test_model_instance_serialization(self):
+        theme = ThemeFactory()
+        expected_data = {
+            'id': theme.id,
+            'name': theme.name,
+        }
+
+        self._test_model_instance_serialization(theme, expected_data)
 
 
 class StyleSerializerTestCase(SerializerTestCase):

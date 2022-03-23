@@ -10,8 +10,8 @@ from common.utils import levenshtein
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
-    ColorFactory, LaundryInformationFactory, MainCategoryFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImagesFactory, 
-    ProductMaterialFactory, SizeFactory, SubCategoryFactory, KeyWordFactory, TagFactory,
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImagesFactory, 
+    ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
@@ -20,7 +20,7 @@ from ..models import (
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThicknessSerializer, ProductWriteSerializer,
+    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer, ProductWriteSerializer,
 )
 
 
@@ -86,6 +86,14 @@ class GetSearchboxDataTestCase(ViewTestCase):
 
 class GetCommonRegistrationDataTestCase(ViewTestCase):
     _url = '/product/registry-common/'
+    
+    @classmethod
+    def setUpTestData(self):
+        ColorFactory()
+        MaterialFactory()
+        StyleFactory()
+        AgeFactory()
+        ThemeFactory()
 
     def test_get(self):
         expected_response_data = {
@@ -93,6 +101,7 @@ class GetCommonRegistrationDataTestCase(ViewTestCase):
             'material': MaterialSerializer(Material.objects.all(), many=True).data,
             'style': StyleSerializer(Style.objects.all(), many=True).data,
             'age': AgeSerializer(Age.objects.all(), many=True).data,
+            'theme': ThemeSerializer(Theme.objects.all(), many=True).data,
         }
         self._get()
 
