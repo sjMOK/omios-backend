@@ -73,6 +73,11 @@ class AgeSerializer(Serializer):
     name = CharField(max_length=10, read_only=True)
 
 
+class ThemeSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(max_length=20, read_only=True)  
+
+
 class StyleSerializer(Serializer):
     id = IntegerField(read_only=True)
     name = CharField(max_length=20, read_only=True)
