@@ -1,13 +1,13 @@
 from django.utils import timezone
 
-from rest_framework.serializers import Serializer, ModelSerializer, ValidationError, CharField, RegexField, DateTimeField
+from rest_framework.serializers import Serializer, ModelSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField, StringRelatedField
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer, TokenBlacklistSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from common.utils import gmt_to_kst
-from .models import OutstandingToken, BlacklistedToken, Membership, User, Shopper, Wholesaler, Building, Floor
+from .models import OutstandingToken, BlacklistedToken, User, Shopper, Wholesaler
 from .validators import PasswordSimilarityValidator
 
 
@@ -59,10 +59,9 @@ class RefreshingTokenSerializer(TokenRefreshSerializer):
         return token
 
 
-class MembershipSerializer(ModelSerializer):
-    class Meta:
-        model = Membership
-        fields = '__all__'
+class MembershipSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(read_only=True)
 
 
 class UserSerializer(ModelSerializer):
@@ -115,17 +114,11 @@ class WholesalerSerializer(UserSerializer):
         fields = '__all__'
 
 
-class FloorSerializer(ModelSerializer):
-    class Meta:
-        model = Floor
-        exclude = ['id']
-
-
-class BuildingSerializer(ModelSerializer):
-    floors = FloorSerializer(many=True, read_only=True)
-    class Meta:
-        model = Building
-        exclude = ['id']
+class BuildingSerializer(Serializer):
+    name = CharField(read_only=True)
+    zip_code = CharField(read_only=True)
+    base_address = CharField(read_only=True)
+    floors = StringRelatedField(many=True, read_only=True)
 
 
 class UserPasswordSerializer(Serializer):

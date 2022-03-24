@@ -5,13 +5,13 @@ from common.test.test_cases import FunctionTestCase, SerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso
 from .factory import (
     get_factory_password, get_factory_authentication_data, 
-    UserFactory, ShopperFactory, WholesalerFactory, FloorFactory, BuildingWithFloorFactory,
+    UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
 )
-from ..models import OutstandingToken
+from ..models import OutstandingToken, Membership, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
-    UserSerializer, ShopperSerializer, WholesalerSerializer, FloorSerializer, BuildingSerializer, UserPasswordSerializer,
+    UserSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, UserPasswordSerializer,
 )
 
 
@@ -69,7 +69,7 @@ class MembershipSerializerTestCase(SerializerTestCase):
     _serializer_class = MembershipSerializer
 
     def test_model_instance_serialization(self):
-        membership = self._serializer_class.Meta.model.objects.get(id=1)
+        membership = Membership.objects.get(id=1)
         self._test_model_instance_serialization(membership, {
             'id': membership.id,
             'name': membership.name,
@@ -172,17 +172,6 @@ class WholesalerSerializerTestCase(SerializerTestCase):
         })
 
 
-class FloorSerializerTestCase(SerializerTestCase):
-    _serializer_class = FloorSerializer
-
-    def test_model_instance_serialization(self):
-        floor = FloorFactory()
-
-        self._test_model_instance_serialization(floor, {
-            'name': floor.name
-        })
-
-
 class BuildingSerializerTestCase(SerializerTestCase):
     _serializer_class = BuildingSerializer
 
@@ -193,7 +182,7 @@ class BuildingSerializerTestCase(SerializerTestCase):
             'name': building.name,
             'zip_code': building.zip_code,
             'base_address': building.base_address,
-            'floors': FloorSerializer(instance=building.floors.all(), many=True).data
+            'floors': [floor.name for floor in Floor.objects.all()]
         })
 
 

@@ -140,6 +140,9 @@ class Floor(Model):
         db_table = 'floor'
         ordering = ['id']
 
+    def __str__(self):
+        return self.name
+
 
 class Building(Model):
     id = AutoField(primary_key=True)
