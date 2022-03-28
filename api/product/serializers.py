@@ -4,7 +4,6 @@ from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField, RegexField,
 )
-from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
@@ -16,10 +15,10 @@ from common.serializers import (
 )
 from .validators import validate_url
 from .models import (
-    LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
-    ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
-    Theme,
+    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImages, Style, Age, Thickness,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
+
 
 
 PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
@@ -27,70 +26,70 @@ PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
 
 class SubCategorySerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
+    name = CharField(read_only=True)
 
 
 class MainCategorySerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20, validators=[UniqueValidator(queryset=MainCategory.objects.all())])
-    image_url = ImageField(read_only=True, max_length=200)
+    name = CharField(read_only=True)
+    image_url = ImageField(read_only=True)
     sub_category = SubCategorySerializer(read_only=True, many=True, source='sub_categories')
 
 
 class ColorSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
-    image_url = ImageField(read_only=True, max_length=200)
+    name = CharField(read_only=True)
+    image_url = ImageField(read_only=True)
 
 
 class SizeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=10)
+    name = CharField(read_only=True)
 
 
 class LaundryInformationSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
+    name = CharField(read_only=True)
 
 
 class ThicknessSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class SeeThroughSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class FlexibilitySerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class AgeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class ThemeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)  
+    name = CharField(read_only=True)  
 
 
 class StyleSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class MaterialSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class TagSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class ProductImagesListSerializer(ListSerializer):
