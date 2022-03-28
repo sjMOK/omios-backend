@@ -208,20 +208,20 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.product_images = ProductImagesFactory()
+        cls.product_image = ProductImagesFactory()
         cls.data = {
-            'image_url': SAMPLE_PRODUCT_IMAGE_URL,
+            'image_url': DEFAULT_IMAGE_URL,
             'sequence': 1
         }
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.product_images.id,
-            'image_url': BASE_IMAGE_URL + self.product_images.image_url,
-            'sequence': self.product_images.sequence,
+            'id': self.product_image.id,
+            'image_url': BASE_IMAGE_URL + self.product_image.image_url,
+            'sequence': self.product_image.sequence,
         }
 
-        self._test_model_instance_serialization(self.product_images, expected_data)
+        self._test_model_instance_serialization(self.product_image, expected_data)
 
     def test_deserialization(self):
         expected_validated_data = {
@@ -231,204 +231,97 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
 
         self._test_deserialzation(self.data, expected_validated_data)
 
-    def test_validate_image_url_value(self):
-        serializer = self._get_serializer_after_validation(data=self.data)
-        
-        self.assertEqual(
-            serializer.validated_data['image_url'],
-            validate_url(self.data['image_url'])
-        )
-
-    def __test_validate_image_url(self, image_url, expected_message):
+    def __test_raise_valiation_error_with_invalid_image_url(self, image_url, expected_message):
         self.data['image_url'] = image_url
-        serializer = self._get_serializer(data=self.data)
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
 
-    def test_raise_valid_error_image_url_not_starts_with_BASE_IMAGE_URL(self):
+    def test_raise_validation_error_image_url_not_starts_with_BASE_IMAGE_URL(self):
         image_url = 'https://omios.com/product/sample/product_1.jpg'
 
-        self.__test_validate_image_url(
+        self.__test_raise_valiation_error_with_invalid_image_url(
             image_url, expected_message='Enter a valid BASE_IMAGE_URL.'
         )
 
-    def test_raise_valid_error_image_url_object_not_found(self):
+    def test_raise_validation_error_image_url_object_not_found(self):
         image_url = BASE_IMAGE_URL + 'product/sample/product_-999.jpg'
 
-        self.__test_validate_image_url(
-            image_url, expected_message='object not found.'
+        self.__test_raise_valiation_error_with_invalid_image_url(
+            image_url, expected_message='Not found.'
         )
 
-    def test_raise_valid_error_create_data_does_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
 
-        serializer = self._get_serializer(self.product_images, data=self.data, partial=True)
         expected_message = '{0} field is required.'.format(key)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_image, data=self.data, partial=True
+        )
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_update_data_does_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
-        self.data['id'] = 100
+        self.data['id'] = self.product_image.id
 
-        serializer = self._get_serializer(self.product_images, data=self.data, partial=True)
         expected_message = '{0} field is required.'.format(key)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_image, data=self.data, partial=True
+        )
 
 
 class ProductImagesListSerializerTestCase(ListSerializerTestCase):
-    _serializer_class = ProductImagesSerializer
+    _child_serializer_class = ProductImagesSerializer
 
     @classmethod
     def setUpTestData(cls):
         cls.product = ProductFactory()
         cls.product_images = [
             ProductImagesFactory(product=cls.product, sequence=i)
-            for i in range(1, 6)
+            for i in range(1, 4)
         ]
-        cls.length_upper_limit = cls.get_list_serializer_class().length_upper_limit
-
-    def __test_validate_create_raise_validation_error(self, data, expected_message):
-        serializer = self._get_serializer(data=data)
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def __test_validate_update_raise_validation_error(self, data, expected_message):
-        serializer = ProductWriteSerializer(
-            self.product, data={'images': data}, partial=True
-        )
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def __test_validate_create_wrong_sequence_ascending_order(self, sequences):
-        data = [
+        cls.data = [
             {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(index+1),
-                'sequence': sequence,
-            }for index, sequence in enumerate(sequences)
+                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
+                'sequence': i
+            } for i in range(1, 4)
         ]
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self.__test_validate_create_raise_validation_error(data, expected_message)
+    def setUp(self):
+        self.length_upper_limit = self._list_serializer_class.length_upper_limit
 
-    def test_raise_valid_error_data_length_more_than_upper_limit_in_create(self):
+    def test_raise_validation_error_data_length_more_than_upper_limit(self):
         data = [
             {
                 'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i+1),
-                'sequence': i,
+                'sequence': i+1,
             } for i in range(self.length_upper_limit + 1)
         ]
         expected_message = 'The product cannot have more than ten images.'
 
-        self.__test_validate_create_raise_validation_error(data, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data)
 
-    def test_raise_valid_error_sequences_not_startswith_one_in_create(self):
-        sequences = range(5)
-        self.__test_validate_create_wrong_sequence_ascending_order(sequences)
+    def test_raise_validation_error_sequences_not_startswith_one(self):
+        for d in self.data:
+            d['sequence'] -= 1
+        expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-    def test_raise_valid_error_omitted_sequences_in_create(self):
-        sequences = list(range(1, 6))
-        sequences.pop(3)
-        self.__test_validate_create_wrong_sequence_ascending_order(sequences)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
 
-    def test_raise_valid_error_does_not_pass_all_image_data_in_update(self):
-        data = [
-            {
-                'id': product_image.id,
-                'image_url': BASE_IMAGE_URL + product_image.image_url, 
-                'sequence': product_image.sequence,
-            }
-            for product_image in self.product_images
-        ]
-        data.pop(random.randint(0, len(data)-1))
-        expected_message = 'You must contain all image data that the product has.'
+    def test_raise_validation_error_omitted_sequences(self):
+        self.data[-1]['sequence'] += 1
+        expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
 
-    def test_raise_valid_error_does_not_pass_exact_image_data_in_update(self):
-        data = [
-            {
-                'id': random.randint(1, 10000),
-                'image_url': BASE_IMAGE_URL + product_image.image_url, 
-                'sequence': product_image.sequence,
-            }
-            for product_image in self.product_images
-        ]
-        expected_message = 'You must contain all image data that the product has.'
-
-        self.__test_validate_update_raise_validation_error(data, expected_message)
-
-    def test_raise_valid_error_update_data_length_more_than_upper_limit(self):
-        update_data = [
-            {
-                'id': product_image.id,
-                'image_url': BASE_IMAGE_URL + product_image.image_url,
-                'sequence': product_image.sequence,
-            }
-            for product_image in self.product_images
-        ]
-        create_data = [
-            {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
-                'sequence': i,
-            } for i in range(len(self.product_images)+1, self.length_upper_limit+2)
-        ]
-        data = update_data + create_data
-        expected_message = 'The product cannot have more than ten images.'
-
-        self.__test_validate_update_raise_validation_error(data, expected_message)
-
-    def test_raise_valid_error_data_length_is_zero(self):
+    def test_raise_validation_error_data_length_is_zero(self):
         data = [
             {'id': product_image.id} 
             for product_image in self.product_images
         ]
         expected_message = 'The product must have at least one image.'
 
-        self.__test_validate_update_raise_validation_error(data, expected_message)
-
-    def test_raise_valid_error_sequences_not_startswith_one_in_update(self):
-        update_data = [
-            {
-                'id': product_image.id,
-                'image_url': BASE_IMAGE_URL + product_image.image_url,
-                'sequence': product_image.sequence - 1,
-            }
-            for product_image in self.product_images
-        ]
-        create_data = [
-            {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
-                'sequence': i,
-            } for i in range(len(self.product_images)+1, self.length_upper_limit)
-        ]
-        data = update_data + create_data
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
-
-        self.__test_validate_update_raise_validation_error(data, expected_message)
-
-    def test_raise_valid_error_omitted_sequences_in_update(self):
-        update_data = [
-            {
-                'id': product_image.id,
-                'image_url': BASE_IMAGE_URL + product_image.image_url,
-                'sequence': product_image.sequence,
-            }
-            for product_image in self.product_images
-        ]
-        create_data = [
-            {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
-                'sequence': i,
-            } for i in range(len(self.product_images)+2, self.length_upper_limit)
-        ]
-
-        data = update_data + create_data
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
-
-        self.__test_validate_update_raise_validation_error(data, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data, partial=True)
 
 
 class ProductMaterialSerializerTestCase(SerializerTestCase):
@@ -451,140 +344,63 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(self.product_material, expected_data)
 
-    def test_deserialization(self):
-        expected_validated_data = {
-            'material': self.data['material'],
-            'mixing_rate': self.data['mixing_rate'],
-        }
-
-        self._test_deserialzation(self.data, expected_validated_data)
-
-    def test_raise_valid_error_create_data_does_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
 
-        serializer = self._get_serializer(self.product_material, data=self.data, partial=True)
         expected_message = '{0} field is required.'.format(key)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_material, data=self.data, partial=True
+        )
         
-    def test_raise_valid_error_update_data_does_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
         self.data['id'] = 100
 
-        serializer = self._get_serializer(self.product_material, data=self.data, partial=True)
         expected_message = '{0} field is required.'.format(key)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_material, data=self.data, partial=True
+        )
 
 
 class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
-    _serializer_class = ProductMaterialSerializer
+    _child_serializer_class = ProductMaterialSerializer
     materials_num = 2
 
     @classmethod
     def setUpTestData(cls):
-        sum_of_mixing_rates = cls.get_list_serializer_class().sum_of_mixing_rates
-        mixing_rate = sum_of_mixing_rates / cls.materials_num
+        total_mixing_rates = cls._child_serializer_class.Meta.list_serializer_class.total_mixing_rates
+        mixing_rate = total_mixing_rates / cls.materials_num
 
         cls.product = ProductFactory()
         cls.product_materials = ProductMaterialFactory.create_batch(
             cls.materials_num, product=cls.product, mixing_rate=mixing_rate
         )
-
-        cls.create_data = [
+        cls.data = [
             {
                 'material': 'material_{0}'.format(i),
                 'mixing_rate': mixing_rate
             }for i in range(cls.materials_num)
         ]
 
-        cls.update_data = [
-            {
-                'id': product_material.id,
-                'material': product_material.material,
-                'mixing_rate': product_material.mixing_rate
-            }for product_material in cls.product_materials
-        ]
-
-    def __get_update_data(self, data):
-        data = {
-            'materials': data
-        }
-
-        return data
-
-    def __test_raise_valid_error_in_create(self, data, expected_message):
-        serializer = self._get_serializer(data=data)
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-        
-    def __test_raise_valid_error_in_update(self, data, expected_message):
-        data = self.__get_update_data(data)
-        serializer = ProductWriteSerializer(
-            self.product, data=data, partial=True
-        )
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_total_mixing_rates_does_not_match_criteria_in_create(self):
-        data = self.create_data
+    def test_raise_validation_error_total_mixing_rates_does_not_match_criteria(self):
+        data = self.data
         data[0]['mixing_rate'] += 10
 
         expected_message = 'The total of material mixing rates must be 100.'
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=data
+        )
 
-        self.__test_raise_valid_error_in_create(data, expected_message)
-
-    def test_raise_valid_error_duplicated_material_name_in_create(self):
-        data = self.create_data
+    def test_raise_validation_error_duplicated_material_name(self):
+        data = self.data
         data[-1]['material'] = data[0]['material']
 
         expected_message = 'Material is duplicated.'
-
-        self.__test_raise_valid_error_in_create(data, expected_message)
-
-    def test_raise_valid_error_does_not_pass_all_material_data_in_update(self):
-        data = self.update_data
-        data.pop(0)
-
-        expected_message = 'You must contain all material data that the product has.'
-
-        self.__test_raise_valid_error_in_update(data, expected_message)
-
-    def test_raise_valid_error_does_not_pass_exact_material_data_in_update(self):
-        data = self.update_data
-        data[-1]['id'] += 1
-
-        expected_message = 'You must contain all material data that the product has.'
-
-        self.__test_raise_valid_error_in_update(data, expected_message)
-
-    def test_raise_valid_error_total_mixing_rates_does_not_match_criteria_in_update(self):
-        self.update_data[-1] = {'id': self.update_data[-1]['id']}
-        data = self.create_data + self.update_data
-
-        mixing_rate = self.list_serializer_class.sum_of_mixing_rates / len(data)
-        for d in data:
-            if not is_delete_data(d):
-                d['mixing_rate'] = mixing_rate
-
-        expected_message = 'The total of material mixing rates must be 100.'
-
-        self.__test_raise_valid_error_in_update(data, expected_message)
-
-    def test_raise_valid_error_duplicated_material_name_in_update(self):
-        data = self.create_data + self.update_data
-
-        mixing_rate = self.list_serializer_class.sum_of_mixing_rates / len(data)
-        for d in data:
-            d['mixing_rate'] = mixing_rate
-
-        data[-1]['material'] = data[0]['material']
-
-        expected_message = 'Material is duplicated.'
-
-        self.__test_raise_valid_error_in_update(data, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=data
+        )
 
 
 class OptionSerializerTestCase(SerializerTestCase):
