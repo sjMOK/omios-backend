@@ -83,11 +83,20 @@ class SerializerTestCase(APITestCase):
         self.assertTrue(expected_field in serializer.errors)
         self.assertEqual(serializer.errors[expected_field][0], expected_message)
 
-    def _test_model_instance_serialization(self, instance, expected_data, *args, **kwargs):
-        serializer = self._serializer_class(instance, *args, **kwargs)
+    def _test_model_instance_serialization(self, instance, expected_data, context={}):
+        serializer = self._serializer_class(instance, context=context)
         self.assertDictEqual(serializer.data, expected_data)
 
     def _test_serializer_raise_validation_error(self, serializer, expected_message):
+        self.assertRaisesMessage(
+            ValidationError,
+            expected_message,
+            serializer.is_valid,
+            raise_exception=True
+        )
+
+    def _test_serializer_raise_validation_error_without_serializer(self, expected_message, *args, **kwargs):
+        serializer = self._get_serializer(*args, **kwargs)
         self.assertRaisesMessage(
             ValidationError,
             expected_message,
@@ -102,12 +111,15 @@ class SerializerTestCase(APITestCase):
 
 
 class ListSerializerTestCase(SerializerTestCase):
-    @classmethod
-    def get_list_serializer_class(cls):
-        return cls._serializer_class.Meta.list_serializer_class
+    _child_serializer_class = None
 
     def __init__(self, *args, **kwargs):
-        self.list_serializer_class = self._serializer_class.Meta.list_serializer_class
+        if self._child_serializer_class is None:
+            raise APIException('_child_serializer_class variable must be written.')
+
+        self._serializer_class = self._child_serializer_class
+        self._list_serializer_class = self._child_serializer_class.Meta.list_serializer_class
+
         super().__init__(*args, **kwargs)
 
     def _get_serializer(self, *args, **kwargs):
