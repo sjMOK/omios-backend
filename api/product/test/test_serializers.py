@@ -323,7 +323,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data, partial=True)
 
-
+@tag('mat')
 class ProductMaterialSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductMaterialSerializer
 
@@ -424,14 +424,6 @@ class OptionSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(self.option, expected_data)
 
-    def test_deserialization(self):
-        expected_validated_data = {
-            'size': self.data['size'],
-            'price_difference': self.data['price_difference']
-        }
-
-        self._test_deserialzation(self.data, expected_validated_data)
-
     def test_raise_validation_error_create_data_does_not_include_all_data_in_partial(self):
         self.data.pop('size')
         serializer = self._get_serializer(data=self.data, partial=True)
@@ -452,7 +444,7 @@ class OptionSerializerTestCase(SerializerTestCase):
 
 
 class OptionListSerializerTestCase(ListSerializerTestCase):
-    _serializer_class = OptionSerializer
+    _child_serializer_class = OptionSerializer
     options_num = 3
 
     @classmethod
@@ -596,13 +588,11 @@ class ProductColorSerializerTestCase(SerializerTestCase):
 
 
 class ProductColorListSerializerTestCase(ListSerializerTestCase):
-    _serializer_class = ProductColorSerializer
+    _child_serializer_class = ProductColorSerializer
     batch_size = 3
 
     @classmethod
     def setUpTestData(cls):
-        cls.length_upper_limit = cls.get_list_serializer_class().length_upper_limit
-
         cls.product = ProductFactory()
         cls.product_colors = ProductColorFactory.create_batch(
             size=cls.batch_size, product=cls.product, display_color_name=None
@@ -629,6 +619,9 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         cls.create_data = copy.deepcopy(cls.update_data)
         for data in cls.create_data:
             data.pop('id')
+
+    def setUp(self):
+        self.length_upper_limit = self._list_serializer_class.length_upper_limit
 
     def test_raise_valid_error_input_data_length_more_than_upper_limit_in_create(self):
         product_colors = ProductColorFactory.create_batch(size=self.length_upper_limit+1)
@@ -875,8 +868,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         for i in range(4):
             ProductMaterialFactory(product=cls.product, mixing_rate=25)
 
-        product_colors = ProductColorFactory.create_batch(size=3, product=cls.product)
-        for product_color in product_colors:
+        cls.product_colors = ProductColorFactory.create_batch(size=3, product=cls.product)
+        for product_color in cls.product_colors:
             OptionFactory.create_batch(size=3, product_color=product_color)
 
         for i in range(3):
@@ -979,7 +972,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'sub_category': self.product.sub_category_id,
             'style': self.product.style_id,
             'age': self.product.age_id,
-            'tags': [tag.id for tag in self.product.tags.all()] ,
+            'tags': TagSerializer(self.product.tags.all(), many=True).data,
             'materials': ProductMaterialSerializer(self.product.materials.all(), many=True).data,
             'laundry_informations': [info.id for info in self.product.laundry_informations.all()],
             'thickness': self.product.thickness_id,
@@ -1028,6 +1021,107 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
 
         self._test_deserialzation(data, expected_validated_data)
+
+    def test_raise_valid_error_does_not_pass_all_image_data(self):
+        data = [
+            {
+                'id': image.id,
+                'image_url': BASE_IMAGE_URL + image.image_url,
+                'sequence': image.sequence,
+            } for image in list(self.product.images.all())[:-1]
+        ]
+
+        serializer = self._get_serializer(self.product, data={'images': data}, partial=True)
+        expected_message = 'You must contain all exact data that the product has.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_error_does_not_pass_excact_image_data(self):
+        data = [
+            {
+                'id': image.id - 1,
+                'image_url': BASE_IMAGE_URL + image.image_url,
+                'sequence': image.sequence,
+            } for image in self.product.images.all()
+        ]
+
+        serializer = self._get_serializer(self.product, data={'images': data}, partial=True)
+        expected_message = 'You must contain all exact data that the product has.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_erorr_does_not_pass_all_material_data(self):
+        data = [
+            {
+                'id': material.id,
+                'material': material.material,
+                'mixing_rate': material.mixing_rate,
+            } for material in list(self.product.materials.all())[:-1]
+        ]
+        data[0]['mixing_rate'] += data[-1]['mixing_rate']
+
+        serializer = self._get_serializer(self.product, data={'materials': data}, partial=True)
+        expected_message = 'You must contain all exact data that the product has.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_erorr_does_not_pass_exact_material_data(self):
+        data = [
+            {
+                'id': material.id - 1,
+                'material': material.material,
+                'mixing_rate': material.mixing_rate,
+            } for material in self.product.materials.all()
+        ]
+
+        serializer = self._get_serializer(self.product, data={'materials': data}, partial=True)
+        expected_message = 'You must contain all exact data that the product has.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_error_color_length_more_than_limit(self):
+        product_colors = ProductColorFactory.create_batch(
+            size = self._serializer_class.color_length_limit + 1, product=self.product, display_color_name=None
+        )
+        for product_color in product_colors:
+            OptionFactory(product_color=product_color)
+        
+        data = [
+            {
+                'display_color_name': product_color.display_color_name,
+                'color': product_color.color.id,
+                'options': [
+                    {
+                        'size': option.size, 
+                        'price_difference': option.price_difference,
+                    }for option in product_color.options.all()
+                ],
+                'image_url': BASE_IMAGE_URL + product_color.image_url,
+            }for product_color in product_colors
+        ]
+        data += [
+            {
+                'id': product_color.id
+            }for product_color in self.product_colors
+        ]
+
+        serializer = self._get_serializer(self.product, data={'colors': data}, partial=True)
+        expected_message = 'The product cannot have more than ten colors.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
+
+    def test_raise_valid_error_pass_non_unique_display_color_name(self):
+        data = [
+            {
+                'id': self.product_colors[0].id,
+                'display_color_name': self.product_colors[1].display_color_name
+            }
+        ]
+
+        serializer = self._get_serializer(self.product, data={'colors': data}, partial=True)
+        expected_message = 'The product with the display_color_name already exists.'
+
+        self._test_serializer_raise_validation_error(serializer, expected_message)
 
     def test_raise_valid_error_price_difference_exceed_upper_limit(self):
         upper_limit_ratio = self._serializer_class.price_difference_upper_limit_ratio
