@@ -516,6 +516,14 @@ class ProductWriteSerializer(ProductSerializer):
 
     price_difference_upper_limit_ratio = 0.2
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        tags = Tag.objects.filter(id__in=ret['tags'])
+        ret['tags'] = TagSerializer(tags, many=True).data
+
+        return ret
+
     def validate(self, attrs):
         if self.partial and 'price' not in attrs:
             price = getattr(self.instance, 'price', 0)

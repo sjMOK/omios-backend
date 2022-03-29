@@ -1163,7 +1163,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'sub_category': self.product.sub_category_id,
             'style': self.product.style_id,
             'age': self.product.age_id,
-            'tags': [tag.id for tag in self.product.tags.all()] ,
+            'tags': TagSerializer(self.product.tags.all(), many=True).data,
             'materials': ProductMaterialSerializer(self.product.materials.all(), many=True).data,
             'laundry_informations': [info.id for info in self.product.laundry_informations.all()],
             'thickness': self.product.thickness_id,
