@@ -323,7 +323,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data, partial=True)
 
-@tag('mat')
+
 class ProductMaterialSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductMaterialSerializer
 
@@ -347,8 +347,8 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
-
         expected_message = '{0} field is required.'.format(key)
+
         self._test_serializer_raise_validation_error_without_serializer(
             expected_message, instance=self.product_material, data=self.data, partial=True
         )
@@ -356,9 +356,9 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
     def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
-        self.data['id'] = 100
-
+        self.data['id'] = self.product_material.id
         expected_message = '{0} field is required.'.format(key)
+
         self._test_serializer_raise_validation_error_without_serializer(
             expected_message, instance=self.product_material, data=self.data, partial=True
         )
@@ -387,8 +387,8 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     def test_raise_validation_error_total_mixing_rates_does_not_match_criteria(self):
         data = self.data
         data[0]['mixing_rate'] += 10
-
         expected_message = 'The total of material mixing rates must be 100.'
+
         self._test_serializer_raise_validation_error_without_serializer(
             expected_message, data=data
         )
@@ -396,8 +396,8 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     def test_raise_validation_error_duplicated_material_name(self):
         data = self.data
         data[-1]['material'] = data[0]['material']
-
         expected_message = 'Material is duplicated.'
+
         self._test_serializer_raise_validation_error_without_serializer(
             expected_message, data=data
         )
@@ -425,22 +425,22 @@ class OptionSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(self.option, expected_data)
 
     def test_raise_validation_error_create_data_does_not_include_all_data_in_partial(self):
-        self.data.pop('size')
-        serializer = self._get_serializer(data=self.data, partial=True)
-        expected_message = '{0} field is required.'.format('size')
+        key = random.choice(list(self.data.keys()))
+        self.data.pop(key)
+        expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=self.data, partial=True
+        )
 
     def test_raise_validation_error_update_size_data(self):
-        data = {
-            'id': self.option.id,
-            'size': self.option.size + '_update',
-            'price_difference': self.option.price_difference
-        }
-        serializer = self._get_serializer(data=data, partial=True)
+        self.data['id'] = self.option.id
+        self.data['size'] = self.data['size'] + '_update'
         expected_message = 'Size data cannot be updated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=self.data, partial=True
+        )
 
 
 class OptionListSerializerTestCase(ListSerializerTestCase):
