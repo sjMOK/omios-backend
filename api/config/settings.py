@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG") == "True"
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '13.209.244.41', 'deepy']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'omios']
 
 
 # Application definition

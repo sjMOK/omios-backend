@@ -1,10 +1,10 @@
 version: "3.3"
 
 services: 
-    deepy:
+    omios:
         build:
             dockerfile: Dockerfile.prod
-        container_name: deepy_webserver
+        container_name: omios_webserver
         expose:
             - "8000"
         env_file: 
@@ -16,8 +16,8 @@ services:
         image: nginx:latest
         container_name: nginx
         ports:
-            - "80:80/tcp"
+            - "8000:80/tcp"
         volumes:
             - ./nginx:/etc/nginx/conf.d
         depends_on:
-            - deepy
+            - omios

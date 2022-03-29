@@ -1,10 +1,10 @@
 version: "3.3"
 
 services:
-    deepy:
+    omios:
         build:
             dockerfile: Dockerfile.dev
-        container_name: deepy_dev
+        container_name: omios_dev
         ports:
             - "8000:8000"
         env_file: 

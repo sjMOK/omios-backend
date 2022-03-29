@@ -13,9 +13,9 @@ handler500 = 'common.views.custom_500_view'
 schema_view = get_schema_view(
    Info(
       # todo 서비스 약관(terms_of_service), 컨텍센터(contact)
-      title="Deepy API", # API 제목
+      title="Omios API", # API 제목
       default_version='v1', # API 버전, Swagger 버전과 다름
-      description="Deepy REST API 문서", # API 설명, markdown 지원
+      description="Omios REST API 문서", # API 설명, markdown 지원
       license=License(name="BSD License"), # license 오브젝트
    ),
    # url="http://13.209.244.41",
