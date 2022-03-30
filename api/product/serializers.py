@@ -33,7 +33,7 @@ class MainCategorySerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
     name = CharField(read_only=True)
     image_url = ImageField(read_only=True)
-    sub_category = SubCategorySerializer(read_only=True, many=True, source='sub_categories')
+    sub_categories = SubCategorySerializer(read_only=True, many=True)
 
 
 class ColorSerializer(Serializer):
@@ -280,7 +280,7 @@ class ProductColorSerializer(Serializer):
     display_color_name = CharField(allow_null=True, max_length=20)
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
-    image_url = CharField(max_length=200)
+    image_url = URLField(max_length=200)
 
     class Meta:
         list_serializer_class = ProductColorListSerializer
@@ -373,7 +373,7 @@ class ProductSerializer(DynamicFieldsSerializer):
 
 
 class ProductReadSerializer(ProductSerializer):
-    main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', allow_fields=('id', 'name'))
+    main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', exclude_fields=('sub_categories',))
     sub_category = SubCategorySerializer(read_only=True)
     style = StringRelatedField(read_only=True)
     age = StringRelatedField(read_only=True)

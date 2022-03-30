@@ -50,7 +50,7 @@ class MainCategorySerializerTestCase(SerializerTestCase):
             'id': main_category.id,
             'name': main_category.name,
             'image_url': main_category.image_url.url,
-            'sub_category': [
+            'sub_categories': [
                 {'id': sub_category.id, 'name': sub_category.name} 
                 for sub_category in main_category.sub_categories.all()
             ],
@@ -779,7 +779,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'name': product.name,
             'price': product.price,
             'main_category': MainCategorySerializer(
-                product.sub_category.main_category, allow_fields=('id', 'name')
+                product.sub_category.main_category, exclude_fields=('sub_categories',)
                 ).data,
             'sub_category': SubCategorySerializer(product.sub_category).data,
             'style': product.style.name,

@@ -49,7 +49,7 @@ def get_searchbox_data(request):
     condition = Q(name__contains=search_word)
 
     main_categories = MainCategory.objects.filter(condition)
-    main_category_serializer = MainCategorySerializer(main_categories, many=True, allow_fields=('id', 'name'))
+    main_category_serializer = MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',))
 
     sub_categories = SubCategory.objects.filter(condition)
     sub_category_serializer = SubCategorySerializer(sub_categories, many=True)
