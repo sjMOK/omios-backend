@@ -1,32 +1,22 @@
 from django.urls import path
 
-from rest_framework.routers import SimpleRouter
-
-from .views import (
-    ProductViewSet, get_all_categories, upload_prdocut_image, get_searchbox_data,
-    get_common_registration_data, get_dynamic_registration_data, get_tag_search_result,
-    get_main_categories, get_sub_categories_by_main_category, get_colors
+from .documentation import (
+    decorated_get_all_categories_view, decorated_get_main_categories_view, decorated_sub_category_view,
+    decorated_get_colors_view, decorated_get_tag_search_result_view, decorated_upload_product_image_view,
+    decorated_get_searchbox_data_view, decorated_get_common_registration_data_view, 
+    decorated_get_dynamic_registration_data_view,
 )
-# from .documentation import (
-#     decorated_main_category_view, decorated_sub_category_view, decorated_color_view,
-# )
-
 
 app_name = 'product'
 
-router = SimpleRouter()
-router.register(r'', ProductViewSet, basename='product')
-
 urlpatterns = [
-    path('category/', get_all_categories),
-    path('main-category/', get_main_categories),
-    path('main-category/<int:id>/sub-category/', get_sub_categories_by_main_category),
-    path('color/', get_colors),
-    path('tag/', get_tag_search_result),
-    path('image/', upload_prdocut_image),
-    path('searchbox/', get_searchbox_data),
-    path('registry-common/', get_common_registration_data),
-    path('registry-dynamic/', get_dynamic_registration_data),
+    path('/categories', decorated_get_all_categories_view),
+    path('/main-categories', decorated_get_main_categories_view),
+    path('/main-categories/<int:id>/sub-categories', decorated_sub_category_view),
+    path('/colors', decorated_get_colors_view),
+    path('/tags', decorated_get_tag_search_result_view),
+    path('/images', decorated_upload_product_image_view),
+    path('/searchboxes', decorated_get_searchbox_data_view),
+    path('/registry-common', decorated_get_common_registration_data_view),
+    path('/registry-dynamic', decorated_get_dynamic_registration_data_view),
 ]
-
-urlpatterns += router.urls

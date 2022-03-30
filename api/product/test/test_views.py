@@ -42,7 +42,7 @@ class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
 
 
 class GetSearchboxDataTestCase(ViewTestCase):
-    _url = '/product/searchbox/'
+    _url = '/products/searchboxes'
 
     @classmethod
     def setUpTestData(cls):
@@ -65,7 +65,7 @@ class GetSearchboxDataTestCase(ViewTestCase):
         sub_categories = SubCategory.objects.filter(name__contains=self.search_query)
         keywords = list(Keyword.objects.filter(name__contains=self.search_query).values_list('name', flat=True))
         expected_response_data = {
-            'main_category': MainCategorySerializer(main_categories, many=True, allow_fields=('id', 'name')).data,
+            'main_category': MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data,
             'sub_category': SubCategorySerializer(sub_categories, many=True).data,
             'keyword': sort_keywords_by_levenshtein_distance(keywords, self.search_query),
         }
@@ -85,7 +85,7 @@ class GetSearchboxDataTestCase(ViewTestCase):
 
 
 class GetCommonRegistrationDataTestCase(ViewTestCase):
-    _url = '/product/registry-common/'
+    _url = '/products/registry-common'
     
     @classmethod
     def setUpTestData(self):
@@ -110,7 +110,7 @@ class GetCommonRegistrationDataTestCase(ViewTestCase):
 
 
 class GetDynamicRegistrationDataTestCase(ViewTestCase):
-    _url = '/product/registry-dynamic/'
+    _url = '/products/registry-dynamic'
 
     @classmethod
     def setUpTestData(cls):
@@ -128,7 +128,7 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
             'see_through': [],
             'flexibility': [],
             'lining': [],
-            'laundry_inforamtion': []
+            'laundry_information': []
         }
         self._get({'sub_category': sub_category.id})
 
@@ -150,7 +150,7 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
                 {'name': '있음', 'value': True},
                 {'name': '없음', 'value': False},
             ],
-            'laundry_inforamtion': []
+            'laundry_information': []
         }
         self._get({'sub_category': sub_category.id})
 
@@ -169,7 +169,7 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
             'see_through': [],
             'flexibility': [],
             'lining': [],
-            'laundry_inforamtion': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
+            'laundry_information': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
         }
         self._get({'sub_category': sub_category.id})
 
@@ -188,7 +188,7 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
                 {'name': '있음', 'value': True},
                 {'name': '없음', 'value': False},
             ],
-            'laundry_inforamtion': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
+            'laundry_information': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
         }
         self._get({'sub_category': sub_category.id})
 
@@ -202,7 +202,7 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
 
 
 class GetAllCategoriesTestCase(ViewTestCase):
-    _url = '/product/category/'
+    _url = '/products/categories'
 
     def test_get(self):
         MainCategoryFactory.create_batch(size=3)
@@ -214,7 +214,7 @@ class GetAllCategoriesTestCase(ViewTestCase):
 
 
 class GetMainCategoriesTestCase(ViewTestCase):
-    _url = '/product/main-category/'
+    _url = '/products/main-categories'
 
     def test_get(self):
         MainCategoryFactory.create_batch(size=3)
@@ -224,12 +224,12 @@ class GetMainCategoriesTestCase(ViewTestCase):
         self._assert_success()
         self.assertListEqual(
             self._response_data, 
-            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_category',)).data
+            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data
         )
 
 
 class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
-    _url = '/product/main-category/'
+    _url = '/products/main-categories'
 
     @classmethod
     def setUpTestData(cls):
@@ -237,7 +237,7 @@ class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
         SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
 
     def test_get(self):
-        self._url += '{0}/sub-category/'.format(self.main_category.id)
+        self._url += '/{0}/sub-categories'.format(self.main_category.id)
         self._get()
 
         self._assert_success()
@@ -248,14 +248,14 @@ class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
 
     def test_get_raise_404(self):
         main_category_id = MainCategory.objects.latest('id').id + 1
-        self._url += '{0}/sub-category/'.format(main_category_id)
+        self._url += '/{0}/sub-categories'.format(main_category_id)
         self._get()
 
         self._assert_failure(404, 'Not found.')
 
 
 class GetColorsTestCase(ViewTestCase):
-    _url = '/product/color/'
+    _url = '/products/colors'
 
     def test_get(self):
         self._get()
@@ -267,7 +267,7 @@ class GetColorsTestCase(ViewTestCase):
 
 
 class GetTagSearchResultTest(ViewTestCase):
-    _url = '/product/tag/'
+    _url = '/products/tags'
     limiting = 8
 
     def test_get(self):
@@ -300,7 +300,7 @@ class GetTagSearchResultTest(ViewTestCase):
 
 
 class ProductViewSetTestCase(ViewTestCase):
-    _url = '/product/'
+    _url = '/products'
 
     @classmethod
     def setUpTestData(cls):
@@ -358,7 +358,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         return queryset
 
     def __test_list_response(self, queryset, max_price, data={}):
-        allow_fields = ('id', 'name', 'price')
+        allow_fields = ('id', 'name', 'price', 'created')
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
         self._get(data)
 
@@ -462,7 +462,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         }
 
         products = self.__get_queryset().order_by(sort_mapping[sort_key])
-        allow_fields = ('id', 'name', 'price')
+        allow_fields = ('id', 'name', 'price', 'created')
         serializer = ProductReadSerializer(products, many=True, allow_fields=allow_fields, context={'detail': False})
 
         self._get({'sort': sort_key})
@@ -479,35 +479,29 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     def test_retrieve(self):
         product_id = self._get_product().id
         product = self.__get_queryset().get(id=product_id)
-        allow_fields = (
-            'id', 'name', 'price', 'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations',
-            'thickness', 'see_through', 'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 
-            'colors', 'images',
-        )
+        allow_fields = '__all__'
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
-        self._url += '{0}/'.format(product.id)
+        self._url += '/{0}'.format(product.id)
         self._get()
 
         self._assert_success()
         self.assertDictEqual(self._response_data, serializer.data)
 
     def test_search_without_search_word(self):
-        self._url += 'search/'
+        self._url += '/search'
         self._get()
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
     def test_search_with_empty_string(self):
-        self._url += 'search/'
+        self._url += '/search'
         self._get({'query': ''})
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
-    _url = '/product/'
-
     @classmethod
     def setUpTestData(cls):
         cls._set_wholesaler()
@@ -544,10 +538,10 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     def test_retrieve(self):
         product_id = self._get_product().id
         product = self.__get_queryset().get(id=product_id)
-        allow_fields = ('id', 'name', 'price', 'main_category', 'sub_category')
+        allow_fields = '__all__'
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
-        self._url += '{0}/'.format(product.id)
+        self._url += '/{0}'.format(product.id)
         self._get()
 
         self._assert_success()
@@ -643,7 +637,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'name': 'name_update',
             'price': 15000
         }
-        self._url += '{0}/'.format(product.id)
+        self._url += '/{0}'.format(product.id)
         self._patch(format='json')
 
         self._assert_success_with_id_response()
@@ -654,7 +648,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def test_destroy(self):
         product = Product.objects.filter(wholesaler=self._user).last()
-        self._url += '{0}/'.format(product.id)
+        self._url += '/{0}'.format(product.id)
         self._delete()
 
         self._assert_success_with_id_response()
@@ -665,13 +659,9 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     def test_retrieve_for_write(self):
         product_id = self._get_product().id
         product = self.__get_queryset().get(id=product_id)
-        allow_fields = (
-            'id', 'name', 'price', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 
-            'see_through', 'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 'images',
-            'colors',
-        )
+        allow_fields = '__all__'
         serializer = ProductWriteSerializer(product, allow_fields=allow_fields)
-        self._url += '{0}/saler/'.format(product.id)
+        self._url += '/{0}/saler'.format(product.id)
         self._get()
 
         self._assert_success()
