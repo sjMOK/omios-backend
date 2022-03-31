@@ -467,7 +467,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     def __test_sorting(self, sort_key):
         sort_mapping = {
             'price_asc': 'price',
-            'price_dsc': '-price',
+            'price_desc': '-price',
         }
 
         products = self.__get_queryset().order_by(sort_mapping[sort_key])
@@ -483,7 +483,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_sorting('price_asc')
 
     def test_sort_price_desc(self):
-        self.__test_sorting('price_dsc')
+        self.__test_sorting('price_desc')
 
     def test_retrieve(self):
         product_id = self._get_product().id

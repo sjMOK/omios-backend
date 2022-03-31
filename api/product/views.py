@@ -243,7 +243,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     def sort_queryset(self, queryset):
         sort_mapping = {
             'price_asc': 'price',
-            'price_dsc': '-price',
+            'price_desc': '-price',
         }
         sort_set = [self.__default_sorting]
         sort_key = self.request.query_params.get('sort', None)
