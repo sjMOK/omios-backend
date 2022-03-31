@@ -4,9 +4,8 @@ from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.exceptions import PermissionDenied
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
@@ -40,8 +39,64 @@ def sort_keywords_by_levenshtein_distance(keywords, search_word):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_searchbox_data(request):
-    search_word = request.query_params.get('query', None)
+def get_all_categories(request):
+    main_categories = MainCategory.objects.prefetch_related(Prefetch('sub_categories')).all()
+    serializer = MainCategorySerializer(main_categories, many=True)
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_main_categories(request):
+    queryset = MainCategory.objects.all()
+    serializer = MainCategorySerializer(queryset, many=True, exclude_fields=('sub_categories',))
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_sub_categories_by_main_category(request, id=None):
+    main_category = get_object_or_404(MainCategory, id=id)
+    serializer = SubCategorySerializer(main_category.sub_categories.all(), many=True)
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_colors(request):
+    queryset = Color.objects.all()
+    serializer = ColorSerializer(queryset, many=True)
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_tag_search_result(request):
+    lmiting = 8
+    search_word = request.query_params.get('search_word', None)
+
+    if search_word == '' or search_word is None:
+        return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
+
+    tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:lmiting]
+    serializer = TagSerializer(tags, many=True)
+
+    return get_response(data=serializer.data)
+
+
+@api_view(['POST'])
+def upload_product_image(request):
+    return upload_image_view(request, 'product', request.user.id)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_related_search_words(request):
+    search_word = request.query_params.get('search_word', None)
 
     if search_word == '' or search_word is None:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
@@ -49,7 +104,7 @@ def get_searchbox_data(request):
     condition = Q(name__contains=search_word)
 
     main_categories = MainCategory.objects.filter(condition)
-    main_category_serializer = MainCategorySerializer(main_categories, many=True, allow_fields=('id', 'name'))
+    main_category_serializer = MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',))
 
     sub_categories = SubCategory.objects.filter(condition)
     sub_category_serializer = SubCategorySerializer(sub_categories, many=True)
@@ -114,67 +169,11 @@ def get_dynamic_registration_data(request):
 
     if sub_category.require_laundry_information:
         laundry_information = LaundryInformation.objects.all()
-        response_data['laundry_inforamtion'] = LaundryInformationSerializer(laundry_information, many=True).data
+        response_data['laundry_information'] = LaundryInformationSerializer(laundry_information, many=True).data
     else:
-        response_data['laundry_inforamtion'] = []
-        
+        response_data['laundry_information'] = []
+
     return get_response(data=response_data)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_all_categories(request):
-    main_categories = MainCategory.objects.all()
-    serializer = MainCategorySerializer(main_categories, many=True)
-
-    return get_response(data=serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_main_categories(request):
-    queryset = MainCategory.objects.all()
-    serializer = MainCategorySerializer(queryset, many=True, exclude_fields=('sub_category',))
-
-    return get_response(data=serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_sub_categories_by_main_category(request, id=None):
-    main_category = get_object_or_404(MainCategory, id=id)
-    serializer = SubCategorySerializer(main_category.sub_categories.all(), many=True)
-
-    return get_response(data=serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_colors(request):
-    queryset = Color.objects.all()
-    serializer = ColorSerializer(queryset, many=True)
-
-    return get_response(data=serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_tag_search_result(request):
-    lmiting = 8
-    search_word = request.query_params.get('query', None)
-
-    if search_word == '' or search_word is None:
-        return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
-
-    tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:lmiting]
-    serializer = TagSerializer(tags, many=True)
-
-    return get_response(data=serializer.data)
-
-
-@api_view(['POST'])
-def upload_prdocut_image(request):
-    return upload_image_view(request, 'product', request.user.id)
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -182,9 +181,9 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     __default_sorting = '-created'
-    __default_fields = ('id', 'name', 'price')
-    __read_action = ('retrieve', 'list', 'search', 'retrieve_for_write')
-    __require_write_serializer_action = ('create', 'partial_update', 'retrieve_for_write')
+    __default_fields = ('id', 'name', 'price', 'created')
+    __read_action = ('retrieve', 'list', 'search')
+    __require_write_serializer_action = ('create', 'partial_update')
 
 
     def get_serializer_class(self):
@@ -193,30 +192,10 @@ class ProductViewSet(viewsets.GenericViewSet):
         return ProductReadSerializer
 
     def __get_allow_fields(self):
-        if hasattr(self.request.user, 'wholesaler'):
-            return self.__default_fields + self.__get_allow_fields_for_wholesaler()
+        if self.detail:
+            return '__all__'
         else:
-            return self.__default_fields + self.__get_allow_fields_for_shopper()
-
-    def __get_allow_fields_for_shopper(self):
-        if self.action == 'list' or self.action == 'search':
-            return ()
-        elif self.action == 'retrieve':
-            return (
-                'main_category', 'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 
-                'flexibility', 'lining', 'manufacturing_country', 'theme', 'materials', 'images', 'colors',
-            )
-
-    def __get_allow_fields_for_wholesaler(self):
-        if self.action == 'list':
-            return ('created',)
-        elif self.action == 'retrieve':
-            return ('main_category', 'sub_category',)
-        elif self.action == 'retrieve_for_write':
-            return (
-                'sub_category', 'style', 'age', 'tags', 'laundry_informations', 'thickness', 'see_through', 'flexibility',  
-                'lining', 'manufacturing_country', 'theme', 'materials', 'images', 'colors',
-            )
+            return self.__default_fields
 
     def get_object(self, queryset):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -247,8 +226,6 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         filter_set = {}
         filter_mapping = {
-            'main_category': 'sub_category__main_category_id',
-            'sub_category': 'sub_category_id',
             'min_price': 'price__gte',
             'max_price': 'price__lte',
             'color': 'colors__color_id',
@@ -276,7 +253,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
-    def get_response_for_list(self, queryset, **extra_data):
+    def __get_response_for_list(self, queryset, **extra_data):
         queryset = self.sort_queryset(
             self.filter_queryset(queryset)
         ).alias(Count('id')).only(*self.__default_fields)
@@ -292,16 +269,35 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(data=paginated_response.data)
 
+    def __get_queryset_after_search(self, queryset, search):
+        tag_id_list = list(Tag.objects.filter(name__contains=search).values_list('id', flat=True))
+        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search)
+
+        queryset = queryset.filter(condition)
+
+        return queryset
+
+    def __initial_filtering(self, queryset, search=None, main_category=None, sub_category=None, **kwargs):
+        if search is not None:
+            queryset = self.__get_queryset_after_search(queryset, search)
+        if main_category is not None:
+            queryset = queryset.filter(sub_category__main_category_id=main_category)
+        if sub_category is not None:
+            queryset = queryset.filter(sub_category_id=sub_category)
+
+        return queryset
+
     def list(self, request):
-        aggregate_qs = self.get_queryset()
-        if 'main_category' in request.query_params:
-            aggregate_qs = aggregate_qs.filter(sub_category__main_category_id=request.query_params.get('main_category'))
-        if 'sub_category' in request.query_params:
-            aggregate_qs = aggregate_qs.filter(sub_category_id=request.query_params.get('sub_category'))
+        if 'search_word' in request.query_params and not request.query_params['search_word']:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
-        max_price = aggregate_qs.aggregate(max_price=Max('price'))['max_price']
+        if 'main_category' in request.query_params and 'sub_category' in request.query_params:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
-        return self.get_response_for_list(self.get_queryset(), max_price=max_price)
+        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        return self.__get_response_for_list(queryset, max_price=max_price)
 
     def retrieve(self, request, id=None):
         queryset = self.get_queryset().select_related(
@@ -347,31 +343,3 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
-
-    @action(detail=True, url_path='saler')
-    def retrieve_for_write(self, request, id=None):
-        if not hasattr(self.request.user, 'wholesaler'):
-            raise PermissionDenied()
-
-        queryset = self.get_queryset().select_related('sub_category', 'style', 'age')
-        product = self.get_object(queryset)
-        allow_fields = self.__get_allow_fields()
-        serializer = self.get_serializer(
-            product, allow_fields=allow_fields, context={'field_order': allow_fields}
-        )
-
-        return get_response(data=serializer.data)
-
-    @action(detail=False, url_path='search')
-    def search(self, request):
-        search_word = request.query_params.get('query', None)
-        if search_word == '' or search_word is None:
-            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
-
-        tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
-        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
-
-        queryset = self.get_queryset().filter(condition)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
-
-        return self.get_response_for_list(queryset, max_price=max_price)

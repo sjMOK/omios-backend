@@ -46,6 +46,7 @@ def get_list_of_single_item(key, attrs):
 
 
 class SerializerMixin:
+    ALL_FIELDS = '__all__'
     def __init__(self, *args, **kwargs):
         if 'allow_fields' in kwargs and 'exclude_fields' in kwargs:
             raise APIException('allow and exclude are incompatible.')
@@ -58,16 +59,17 @@ class SerializerMixin:
 
     def drop_fields(self, allow_fields=None, exclude_fields=None):
         if allow_fields is not None:
-            if not (isinstance(allow_fields, tuple) or isinstance(allow_fields, list)):
-                raise APIException('allow_fields must be tuple or list instance.')
             self.remain_allow_fields(allow_fields)
         elif exclude_fields is not None:
-            if not (isinstance(exclude_fields, tuple) or isinstance(exclude_fields, list)):
-                raise APIException('exclude_fields must be tuple or list instance.')
-            self.exclude_fields(exclude_fields)
+            self.drop_exclude_fields(exclude_fields)
             
 
     def remain_allow_fields(self, allow_fields):
+        if allow_fields == self.ALL_FIELDS:
+            return
+        elif not (isinstance(allow_fields, tuple) or isinstance(allow_fields, list)):
+            raise APIException('allow_fields must be tuple or list instance.')
+
         allow_fields = set(allow_fields)
         existing_fields = set(self.fields)
 
@@ -79,7 +81,10 @@ class SerializerMixin:
         for field in fields:
             self.fields.pop(field)
 
-    def exclude_fields(self, exclude_fields):
+    def drop_exclude_fields(self, exclude_fields):
+        if not (isinstance(exclude_fields, tuple) or isinstance(exclude_fields, list)):
+            raise APIException('exclude_fields must be tuple or list instance.')
+        
         exclude_fields = set(exclude_fields)
         existing_fields = set(self.fields)
 

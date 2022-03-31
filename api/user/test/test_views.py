@@ -1,5 +1,5 @@
 from freezegun import freeze_time
-
+from django.test import tag
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
@@ -30,7 +30,7 @@ class TokenViewTestCase(ViewTestCase):
 
 
 class IssuingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/'
+    _url = '/users/tokens'
 
     @classmethod
     def setUpTestData(cls):
@@ -59,7 +59,7 @@ class IssuingTokenViewTestCase(TokenViewTestCase):
         
 
 class RefreshingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/refresh/'
+    _url = '/users/tokens/refresh'
 
     @classmethod
     def setUpTestData(cls):
@@ -85,7 +85,7 @@ class RefreshingTokenViewTestCase(TokenViewTestCase):
 
 
 class BlacklistingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/blacklist/'        
+    _url = '/users/tokens/blacklist'
 
     @classmethod
     def setUpTestData(cls):
@@ -102,9 +102,9 @@ class BlacklistingTokenViewTestCase(TokenViewTestCase):
         self.assertEqual(BlacklistedToken.objects.get(token__token=self._test_data['refresh']).token.user_id, self._user.id)
 
 
-class ShopperViewTestCase(ViewTestCase):
+class ShopperViewSetTestCase(ViewTestCase):
     fixtures = ['membership']
-    _url = '/user/shopper/'
+    _url = '/users/shoppers'
 
     @classmethod
     def setUpTestData(cls):
@@ -113,13 +113,14 @@ class ShopperViewTestCase(ViewTestCase):
     def setUp(self):
         self._set_authentication()
 
-    def test_get(self):
+    def test_retrieve(self):
+        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
         self.assertDictEqual(self._response_data, ShopperSerializer(instance=self._user).data)
 
-    def test_post(self):
+    def test_create(self):
         self._unset_authentication()
         self._test_data = {
             "name": "테스트",
@@ -137,7 +138,8 @@ class ShopperViewTestCase(ViewTestCase):
         self.assertEqual(self._response_data['id'], user.id)
         self.assertTrue(user.check_password(self._test_data['password']))
 
-    def test_patch(self):
+    def test_partial_update(self):
+        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'nickname': 'patch_test',
@@ -154,7 +156,8 @@ class ShopperViewTestCase(ViewTestCase):
         self.assertEqual(user.height, int(self._test_data['height']))
         self.assertEqual(user.weight, self._test_data['weight'])
 
-    def test_patch_with_non_existent_field(self):
+    def test_partial_update_with_non_existent_field(self):
+        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'non_existent_field': 'test',
@@ -163,7 +166,8 @@ class ShopperViewTestCase(ViewTestCase):
 
         self._assert_failure(400, 'It contains requests for fields that do not exist or cannot be modified.')
 
-    def test_patch_with_non_modifiable_field(self):
+    def test_partial_update_with_non_modifiable_field(self):
+        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'nickname': 'patch_error_test',
             'password': 'test',
@@ -173,7 +177,8 @@ class ShopperViewTestCase(ViewTestCase):
         self._assert_failure(400, 'It contains requests for fields that do not exist or cannot be modified.')
 
     @freeze_time(FREEZE_TIME)
-    def test_delete(self):
+    def test_destroy(self):
+        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Shopper.objects.get(id=self._user.id)
 
@@ -183,8 +188,8 @@ class ShopperViewTestCase(ViewTestCase):
         self.assertEqual(datetime_to_iso(user.deleted_at), FREEZE_TIME)
 
 
-class WholesalerViewTestCase(ViewTestCase):
-    _url = '/user/wholesaler/'
+class WholesalerViewSetTestCase(ViewTestCase):
+    _url = '/users/wholesalers'
 
     @classmethod
     def setUpTestData(cls):
@@ -193,13 +198,14 @@ class WholesalerViewTestCase(ViewTestCase):
     def setUp(self):
         self._set_authentication()
 
-    def test_get(self):
+    def test_retrieve(self):
+        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
         self.assertDictEqual(self._response_data, WholesalerSerializer(instance=self._user).data)
 
-    def test_post(self):
+    def test_create(self):
         self._unset_authentication()
         self._test_data = {
             "username": "pippin",
@@ -221,7 +227,8 @@ class WholesalerViewTestCase(ViewTestCase):
         self.assertEqual(self._response_data['id'], user.id)
         self.assertTrue(user.check_password(self._test_data['password']))
 
-    def test_patch(self):
+    def test_partial_update(self):
+        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'mobile_number': '01000000000',
             'email': 'user@omios.com'
@@ -235,7 +242,8 @@ class WholesalerViewTestCase(ViewTestCase):
         self.assertEqual(user.email, self._test_data['email'])
 
     @freeze_time(FREEZE_TIME)
-    def test_delete(self):
+    def test_destroy(self):
+        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Wholesaler.objects.get(id=self._user.id)
 
@@ -246,14 +254,14 @@ class WholesalerViewTestCase(ViewTestCase):
 
 
 class UploadBusinessRegistrationImageTestCase(ViewTestCase):
-    _url = '/user/wholesaler/business_registration_image/'
+    _url = '/users/wholesalers/business_registration_images'
 
     def test_success(self):
        self._test_image_upload(middle_path='/business_registration/business_registration_')
 
 
 class GetBuildingTestCase(ViewTestCase):
-    _url = '/user/wholesaler/building/'
+    _url = '/users/wholesalers/buildings'
 
     def test_sucess(self):
         floors = FloorFactory.create_batch(3)
@@ -266,7 +274,7 @@ class GetBuildingTestCase(ViewTestCase):
 
 
 class ChangePasswordTestCase(ViewTestCase):
-    _url = '/user/password/'
+    _url = '/users/passwords'
 
     @classmethod
     def setUpTestData(cls):
@@ -290,7 +298,7 @@ class ChangePasswordTestCase(ViewTestCase):
 
 class IsUniqueTestCase(ViewTestCase):
     fixtures = ['membership']
-    _url = '/user/unique/'
+    _url = '/users/unique'
 
     @classmethod
     def setUpTestData(cls):

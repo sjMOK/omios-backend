@@ -7,7 +7,7 @@ from .serializers import (
     MembershipSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet,
     upload_business_registration_image, get_buildings, change_password, is_unique,
 )
 
@@ -88,18 +88,40 @@ class DecoratedRefreshingTokenView(RefreshingTokenView):
         return super().post(request, *args, **kwargs)
 
 
-class DecoreatedWholesalerDetailView(WholesalerView):
-    def get(self, request):
-        return super().get(request)
+class DecoratedShopperViewSet(ShopperViewSet):
+    @swagger_auto_schema(**get_response(Shopper()), operation_description='Shopper 데이터 가져오기')
+    def retrieve(self, request, id=None):
+        return super().retrieve(request, id)
 
-    def post(self, request):
-        return super().post(request)
+    @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
+    def create(self, request):
+        return super().create(request)
 
-    def patch(self, request):
-        return super().patch(request)
+    @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
+    def partial_update(self, request, id=None):
+        return super().partial_update(request, id)
 
-    def delete(self, request):
-        return super().delete(request)
+    @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
+    def destroy(self, request, id=None):
+        return super().destroy(request, id)
+
+
+class DecoratedWholesalerViewSet(WholesalerViewSet):
+    @swagger_auto_schema(**get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기')
+    def retrieve(self, request, id=None):
+        return super().retrieve(request, id)
+
+    @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
+    def create(self, request):
+        return super().create(request)
+
+    @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
+    def partial_update(self, request, id=None):
+        return super().partial_update(request, id)
+
+    @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
+    def destroy(self, request, id=None):
+        return super().destroy(request, id)
 
 
 decorated_issuing_token_view = swagger_auto_schema(
@@ -113,26 +135,6 @@ decorated_refreshing_token_view = swagger_auto_schema(
 decorated_blacklisting_token_view = swagger_auto_schema(
     method='POST', request_body=RefreshingTokenRequest, **get_response(code=201), operation_description='refresh 토큰 폐기 (로그아웃)'
 )(BlacklistingTokenView.as_view())
-
-decorated_shopper_view = swagger_auto_schema(
-    method='GET', **get_response(Shopper()), operation_description='Shopper 데이터 가져오기'
-)(swagger_auto_schema(
-    method='POST', request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입'
-)(swagger_auto_schema(
-    method='PATCH', request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정'
-)(swagger_auto_schema(
-    method='DELETE', **get_response(), operation_description='Shopper 회원탈퇴'
-)(ShopperView.as_view()))))
-
-decorated_wholesaler_view = swagger_auto_schema(
-    method='GET', **get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기'
-)(swagger_auto_schema(
-    method='POST', request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
-)(swagger_auto_schema(
-    method='PATCH', request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정'
-)(swagger_auto_schema(
-    method='DELETE', **get_response(), operation_description='Wholesaler 회원탈퇴'
-)(DecoreatedWholesalerDetailView.as_view()))))
 
 decorated_upload_business_registration_image_view = swagger_auto_schema(
     method='POST', request_body=Image, **get_response(Image(), 201), security=[], operation_description='사업자 등록증 이미지 업로드\n요청 시에는 파일 전체를 보내야 함\n응답 시에는 저장된 url을 반환'

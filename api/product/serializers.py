@@ -4,7 +4,6 @@ from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField, RegexField,
 )
-from rest_framework.validators import UniqueValidator
 from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
@@ -16,110 +15,95 @@ from common.serializers import (
 )
 from .validators import validate_url
 from .models import (
-    LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, 
-    ProductImages, Style, Age, Thickness, SeeThrough, Flexibility, ProductMaterial, ProductColor,
-    Theme,
+    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImages, Style, Age, Thickness,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
 
 
+
 PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
+PRODUCT_IMAGE_MAX_LENGTH = 10
+PRODUCT_COLOR_MAX_LENGTH = 10
 
 
 class SubCategorySerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
+    name = CharField(read_only=True)
 
 
 class MainCategorySerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20, validators=[UniqueValidator(queryset=MainCategory.objects.all())])
-    image_url = ImageField(read_only=True, max_length=200)
-    sub_category = SubCategorySerializer(read_only=True, many=True, source='sub_categories')
+    name = CharField(read_only=True)
+    image_url = ImageField(read_only=True)
+    sub_categories = SubCategorySerializer(read_only=True, many=True)
 
 
 class ColorSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
-    image_url = ImageField(read_only=True, max_length=200)
+    name = CharField(read_only=True)
+    image_url = ImageField(read_only=True)
 
 
 class SizeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=10)
+    name = CharField(read_only=True)
 
 
 class LaundryInformationSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(read_only=True, max_length=20)
+    name = CharField(read_only=True)
 
 
 class ThicknessSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class SeeThroughSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class FlexibilitySerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class AgeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=10, read_only=True)
+    name = CharField(read_only=True)
 
 
 class ThemeSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)  
+    name = CharField(read_only=True)  
 
 
 class StyleSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class MaterialSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class TagSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = CharField(max_length=20, read_only=True)
+    name = CharField(read_only=True)
 
 
 class ProductImagesListSerializer(ListSerializer):
-    length_upper_limit = 10
-
     def validate(self, attrs):
-        if self.root.instance is None:
-            return self.__validate_create(attrs)
-        else:
-            return self.__validate_update(attrs)
-
-    def __validate_create(self, attrs):
-        self.__validate_attrs_length(attrs)
-        self.__validate_sequence_ascending_order(attrs)
-
-        return attrs
-
-    def __validate_update(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
-        update_or_delete_attrs = get_update_or_delete_attrs(attrs)
-
-        self.__validate_attrs_contain_all_data(update_or_delete_attrs)
         self.__validate_attrs_length(create_or_update_attrs)
         self.__validate_sequence_ascending_order(create_or_update_attrs)
 
         return attrs
 
     def __validate_attrs_length(self, attrs):
-        if len(attrs) > self.length_upper_limit:
+        if len(attrs) > PRODUCT_IMAGE_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
@@ -138,14 +122,6 @@ class ProductImagesListSerializer(ListSerializer):
                     'The sequence of the images must be ascending from 1 to n.'
                 )
 
-    def __validate_attrs_contain_all_data(self, attrs):
-        id_list = get_list_of_single_item('id', attrs)
-        
-        if self.root.instance.images.exclude(id__in=id_list):
-            raise ValidationError(
-                'You must contain all image data that the product has.'
-            )
-
 
 class ProductImagesSerializer(Serializer):
     id = IntegerField(required=False)
@@ -156,72 +132,43 @@ class ProductImagesSerializer(Serializer):
         list_serializer_class = ProductImagesListSerializer
 
     def validate(self, attrs):
-        if self.root.partial:
-            return self.__validate_partial_update(attrs)
+        if self.root.partial and not is_delete_data(attrs):
+            validate_all_required_fields_included(attrs, self.fields)
 
         return attrs
 
     def validate_image_url(self, value):
         return validate_url(value)
 
-    def __validate_partial_update(self, attrs):
-        if not is_delete_data(attrs):
-            validate_all_required_fields_included(attrs, self.fields)
-        
-        return attrs
-
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        
+
         ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
 
         return ret
 
 
 class ProductMaterialListSerializer(ListSerializer):
-    sum_of_mixing_rates = 100
+    total_mixing_rates = 100
 
     def validate(self, attrs):
-        if self.root.instance is None:
-            return self.__validate_create(attrs)
-        else:
-            return self.__validate_update(attrs)
-
-    def __validate_create(self, attrs):
-        self.__validate_sum_of_mixing_rates(attrs)
-        self.__validate_materials(attrs)
-
-        return attrs
-
-    def __validate_update(self, attrs):
-        update_or_delete_attrs = get_update_or_delete_attrs(attrs)
         create_or_update_attrs = get_create_or_update_attrs(attrs)
-
-        self.__validate_attrs_contain_all_data(update_or_delete_attrs)
-        self.__validate_sum_of_mixing_rates(create_or_update_attrs)
         self.__validate_materials(create_or_update_attrs)
+        self.__validate_total_mixing_rates(create_or_update_attrs)
 
         return attrs
 
-    def __validate_sum_of_mixing_rates(self, attrs):
+    def __validate_total_mixing_rates(self, attrs):
         total_mixing_rates = get_list_of_single_item('mixing_rate', attrs)
 
-        if sum(total_mixing_rates) != self.sum_of_mixing_rates:
-            raise ValidationError('The total of material mixing rates must be 100.')      
+        if sum(total_mixing_rates) != self.total_mixing_rates:
+            raise ValidationError('The total of material mixing rates must be 100.')
 
     def __validate_materials(self, attrs):
         materials = get_list_of_single_item('material', attrs)
 
         if has_duplicate_element(materials):
             raise ValidationError('Material is duplicated.')
-    
-    def __validate_attrs_contain_all_data(self, attrs):
-        id_list = get_list_of_single_item('id', attrs)
-
-        if self.root.instance.materials.exclude(id__in=id_list):
-            raise ValidationError(
-                'You must contain all material data that the product has.'
-            )
 
 
 class ProductMaterialSerializer(Serializer):
@@ -233,15 +180,9 @@ class ProductMaterialSerializer(Serializer):
         list_serializer_class = ProductMaterialListSerializer
 
     def validate(self, attrs):
-        if self.root.partial:
-            return self.__validate_partial_update(attrs)
-
-        return attrs
-
-    def __validate_partial_update(self, attrs):
-        if not is_delete_data(attrs):
+        if self.root.partial and not is_delete_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
-        
+
         return attrs
 
 
@@ -299,8 +240,6 @@ class OptionSerializer(Serializer):
 
 
 class ProductColorListSerializer(ListSerializer):
-    length_upper_limit = 10
-
     def validate(self, attrs):
         if self.root.instance is None:
             return self.validate_create(attrs)
@@ -308,7 +247,7 @@ class ProductColorListSerializer(ListSerializer):
             return self.validate_update(attrs)
 
     def validate_create(self, attrs):
-        if len(attrs) > self.length_upper_limit:
+        if len(attrs) > PRODUCT_COLOR_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
             )
@@ -320,48 +259,11 @@ class ProductColorListSerializer(ListSerializer):
         return attrs
 
     def validate_update(self, attrs):
-        create_attrs = get_create_attrs(attrs)
-        delete_attrs = get_delete_attrs(attrs)
-
-        len_colors = self.root.instance.colors.filter(on_sale=True).count() + len(create_attrs) - len(delete_attrs)
-        if len_colors > self.length_upper_limit:
-            raise ValidationError(
-                'The product cannot have more than ten colors.'
-            )
-        elif len_colors == 0:
-            raise ValidationError(
-                'The product must have at least one color.'
-            )
-
         display_color_names = [attr.get('display_color_name') for attr in attrs if 'display_color_name' in attr]
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
 
-        self.__validate_display_color_name_uniqueness(attrs)
-
         return attrs
-
-    def __validate_display_color_name_uniqueness(self, attrs):
-        delete_attrs_id_list = get_list_of_single_item(
-            'id', get_delete_attrs(attrs)
-        )
-        display_color_name_attrs = [
-            attr for attr in attrs if 'display_color_name' in attr
-        ]
-        
-        for attr in display_color_name_attrs:
-            queryset = ProductColor.objects.filter(
-                on_sale=True, product=self.root.instance, 
-                display_color_name=attr.get('display_color_name')
-            ).exclude(id__in=delete_attrs_id_list)
-
-            if is_update_data(attr):
-                queryset = queryset.exclude(id=attr.get('id'))
-
-            if queryset.exists():
-                raise ValidationError(
-                    'The product with the display_color_name already exists.'
-                )
 
     def to_representation(self, data):
         iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
@@ -376,7 +278,7 @@ class ProductColorSerializer(Serializer):
     display_color_name = CharField(allow_null=True, max_length=20)
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
-    image_url = CharField(max_length=200)
+    image_url = URLField(max_length=200)
 
     class Meta:
         list_serializer_class = ProductColorListSerializer
@@ -469,18 +371,18 @@ class ProductSerializer(DynamicFieldsSerializer):
 
 
 class ProductReadSerializer(ProductSerializer):
-    main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', allow_fields=('id', 'name'))
+    main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', exclude_fields=('sub_categories',))
     sub_category = SubCategorySerializer(read_only=True)
-    style = StringRelatedField(read_only=True)
-    age = StringRelatedField(read_only=True)
-    tags = StringRelatedField(read_only=True, many=True)
-    laundry_informations = StringRelatedField(read_only=True, many=True)
-    thickness = StringRelatedField(read_only=True)
-    see_through = StringRelatedField(read_only=True)
-    flexibility = StringRelatedField(read_only=True)
-    theme = StringRelatedField(read_only=True)
+    style = StyleSerializer(read_only=True)
+    age = AgeSerializer(read_only=True)
+    tags = TagSerializer(read_only=True, many=True)
+    laundry_informations = LaundryInformationSerializer(read_only=True, many=True)
+    thickness = ThicknessSerializer(read_only=True)
+    see_through = SeeThroughSerializer(read_only=True)
+    flexibility = FlexibilitySerializer(read_only=True)
+    theme = ThemeSerializer(read_only=True)
     created = DateTimeField(read_only=True)
-    on_sale = on_sale = BooleanField(read_only=True)
+    on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
 
     def to_representation(self, instance):
@@ -514,15 +416,8 @@ class ProductWriteSerializer(ProductSerializer):
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     theme = PrimaryKeyRelatedField(queryset=Theme.objects.all(), allow_null=True)
 
+    color_length_limit = 10
     price_difference_upper_limit_ratio = 0.2
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-
-        tags = Tag.objects.filter(id__in=ret['tags'])
-        ret['tags'] = TagSerializer(tags, many=True).data
-
-        return ret
 
     def validate(self, attrs):
         if self.partial and 'price' not in attrs:
@@ -538,6 +433,71 @@ class ProductWriteSerializer(ProductSerializer):
                 self.__validate_price_difference(price, option_data)
 
         return attrs
+
+    def validate_images(self, attrs):
+        if self.instance is not None:
+            update_or_delete_attrs = get_update_or_delete_attrs(attrs)
+            self.__validate_pass_all_exact_data(update_or_delete_attrs, self.instance.images)
+
+        return attrs
+
+    def validate_materials(self, attrs):
+        if self.instance is not None:
+            update_or_delete_attrs = get_update_or_delete_attrs(attrs)
+            self.__validate_pass_all_exact_data(update_or_delete_attrs, self.instance.materials)
+
+        return attrs
+
+    def validate_colors(self, attrs):
+        if self.instance is not None:
+            self.__validate_color_length(attrs)
+            self.__validate_display_color_name_uniqueness(attrs)
+
+        return attrs
+
+    def __validate_color_length(self, attrs):
+        create_attrs = get_create_attrs(attrs)
+        delete_attrs = get_delete_attrs(attrs)
+
+        len_colors = self.instance.colors.filter(on_sale=True).count() + len(create_attrs) - len(delete_attrs)
+        if len_colors > PRODUCT_COLOR_MAX_LENGTH:
+            raise ValidationError(
+                'The product cannot have more than ten colors.'
+            )
+        elif len_colors == 0:
+            raise ValidationError(
+                'The product must have at least one color.'
+            )
+
+    def __validate_display_color_name_uniqueness(self, attrs):
+        delete_attrs_id_list = get_list_of_single_item(
+            'id', get_delete_attrs(attrs)
+        )
+        display_color_name_attrs = [
+            attr for attr in attrs if 'display_color_name' in attr
+        ]
+
+        for attr in display_color_name_attrs:
+            queryset = ProductColor.objects.filter(
+                on_sale=True, product=self.instance,
+                display_color_name=attr.get('display_color_name')
+            ).exclude(id__in=delete_attrs_id_list)
+
+            if is_update_data(attr):
+                queryset = queryset.exclude(id=attr.get('id'))
+
+            if queryset.exists():
+                raise ValidationError(
+                    'The product with the display_color_name already exists.'
+                )
+    
+    def __validate_pass_all_exact_data(self, attrs, related_manager):
+        id_list = get_list_of_single_item('id', attrs)
+
+        if related_manager.exclude(id__in=id_list):
+            raise ValidationError(
+                'You must contain all exact data that the product has.'
+            )
 
     def __validate_price_difference(self, price, option_data):
         price_difference = option_data.get('price_difference', 0)

@@ -2,6 +2,7 @@ from django.db.models.query import Prefetch
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
+from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
@@ -40,19 +41,19 @@ class BlacklistingTokenView(TokenView):
         return response
 
 
-class UserView(APIView):
+class UserViewSet(GenericViewSet):
     permission_classes = [IsAuthenticatedExceptCreate]
+    lookup_field = 'id'
+    lookup_value_regex = r'[0-9]+'
 
-    def _get_model_instance(self, user):
-        return user
-
-    def get(self, request):
-        serializer = self._serializer_class(instance=self._get_model_instance(request.user))
+    def retrieve(self, request, id=None):
+        user = self.get_object()
+        serializer = self.get_serializer(instance=user)
 
         return get_response(data=serializer.data)
 
-    def post(self, request):
-        serializer = self._serializer_class(data=request.data)
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
         
@@ -60,11 +61,12 @@ class UserView(APIView):
 
         return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
 
-    def patch(self, request):
+    def partial_update(self, request, id=None):
         if set(request.data).difference(self._patchable_fields):
             return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
-
-        serializer = self._serializer_class(instance=self._get_model_instance(request.user), data=request.data, partial=True)
+        
+        user = self.get_object()
+        serializer = self.get_serializer(instance=user, data=request.data, partial=True)
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
@@ -72,28 +74,28 @@ class UserView(APIView):
 
         return get_response(data={'id': request.user.id})
 
-    def delete(self, request):
-        user = request.user
+    def destroy(self, request, id=None):
+        user = self.get_object()
         user.is_active = False
         user.save(update_fields=['is_active'])
 
         return get_response(data={'id': user.id})
 
 
-class ShopperView(UserView):
-    _serializer_class = ShopperSerializer
+class ShopperViewSet(UserViewSet):
+    serializer_class = ShopperSerializer
     _patchable_fields = set(['email', 'nickname', 'height', 'weight'])
 
-    def _get_model_instance(self, user):
-        return user.shopper
+    def get_queryset(self):
+        return Shopper.objects.filter(is_active=True)
 
 
-class WholesalerView(UserView):
-    _serializer_class = WholesalerSerializer
+class WholesalerViewSet(UserViewSet):
+    serializer_class = WholesalerSerializer
     _patchable_fields = ['mobile_number', 'email']
 
-    def _get_model_instance(self, user):
-        return user.wholesaler
+    def get_queryset(self):
+        return Wholesaler.objects.filter(is_active=True)
 
 
 @api_view(['POST'])

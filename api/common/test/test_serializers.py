@@ -131,6 +131,12 @@ class SerializerMixinTestCase(APISimpleTestCase):
 
         self.assertSetEqual(set(test_serializer.fields), set(serializer.fields) - set(self.exclude_fields))
 
+    def test_allow_all_fields(self):
+        serializer = self.serializer_class()
+        test_serializer = self.test_serializer_class(allow_fields='__all__')
+
+        self.assertSetEqual(set(test_serializer.fields), set(serializer.fields))
+
     def test_allow_fields_and_excludes_fields_are_incompatible(self):
         self.assertRaisesRegex(
             APIException, 
