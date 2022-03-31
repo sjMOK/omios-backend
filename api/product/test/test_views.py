@@ -60,7 +60,7 @@ class GetRelatedSearchWordssTestCase(ViewTestCase):
             KeyWordFactory(name=fake.word()+cls.search_query+fake.word())
 
     def test_success(self):
-        self._get({'query': self.search_query})
+        self._get({'search_word': self.search_query})
         main_categories = MainCategory.objects.filter(name__contains=self.search_query)
         sub_categories = SubCategory.objects.filter(name__contains=self.search_query)
         keywords = list(Keyword.objects.filter(name__contains=self.search_query).values_list('name', flat=True))
@@ -79,7 +79,7 @@ class GetRelatedSearchWordssTestCase(ViewTestCase):
         self._assert_failure(400, 'Unable to search with empty string.')
 
     def test_search_with_empty_string(self):
-        self._get({'query': ''})
+        self._get({'search_word': ''})
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
@@ -279,7 +279,7 @@ class GetTagSearchResultTest(ViewTestCase):
         TagFactory(name=(search_word + fake.word()))
         TagFactory(name=(fake.word() + search_word + fake.word()))
 
-        self._get({'query': search_word})
+        self._get({'search_word': search_word})
         tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:self.limiting]
 
         self._assert_success()
@@ -294,7 +294,7 @@ class GetTagSearchResultTest(ViewTestCase):
         self._assert_failure(400, 'Unable to search with empty string.')
 
     def test_search_with_empty_string(self):
-        self._get({'query': ''})
+        self._get({'search_word': ''})
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
@@ -447,7 +447,6 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         color_id_list = [color.id for color in color_list]
         query_params = {
             'main_category': product.sub_category.main_category_id,
-            'sub_category': product.sub_category_id,
             'max_price': int((aggregation['max_price'] + aggregation['avg_price']) / 2),
             'min_price': int((aggregation['min_price'] + aggregation['avg_price']) / 2),
             'color': color_id_list,

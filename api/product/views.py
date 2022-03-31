@@ -4,9 +4,8 @@ from django.db.models import Q, Count, Max
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.exceptions import PermissionDenied
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
@@ -78,7 +77,7 @@ def get_colors(request):
 @permission_classes([AllowAny])
 def get_tag_search_result(request):
     lmiting = 8
-    search_word = request.query_params.get('query', None)
+    search_word = request.query_params.get('search_word', None)
 
     if search_word == '' or search_word is None:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
