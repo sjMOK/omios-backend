@@ -375,14 +375,14 @@ class ProductSerializer(DynamicFieldsSerializer):
 class ProductReadSerializer(ProductSerializer):
     main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', exclude_fields=('sub_categories',))
     sub_category = SubCategorySerializer(read_only=True)
-    style = StringRelatedField(read_only=True)
-    age = StringRelatedField(read_only=True)
-    tags = StringRelatedField(read_only=True, many=True)
-    laundry_informations = StringRelatedField(read_only=True, many=True)
-    thickness = StringRelatedField(read_only=True)
-    see_through = StringRelatedField(read_only=True)
-    flexibility = StringRelatedField(read_only=True)
-    theme = StringRelatedField(read_only=True)
+    style = StyleSerializer(read_only=True)
+    age = AgeSerializer(read_only=True)
+    tags = TagSerializer(read_only=True, many=True)
+    laundry_informations = LaundryInformationSerializer(read_only=True, many=True)
+    thickness = ThicknessSerializer(read_only=True)
+    see_through = SeeThroughSerializer(read_only=True)
+    flexibility = FlexibilitySerializer(read_only=True)
+    theme = ThemeSerializer(read_only=True)
     created = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
@@ -420,14 +420,6 @@ class ProductWriteSerializer(ProductSerializer):
 
     color_length_limit = 10
     price_difference_upper_limit_ratio = 0.2
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-
-        tags = Tag.objects.filter(id__in=ret['tags'])
-        ret['tags'] = TagSerializer(tags, many=True).data
-
-        return ret
 
     def validate(self, attrs):
         if self.partial and 'price' not in attrs:

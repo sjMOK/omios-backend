@@ -782,14 +782,14 @@ class ProductReadSerializerTestCase(SerializerTestCase):
                 product.sub_category.main_category, exclude_fields=('sub_categories',)
                 ).data,
             'sub_category': SubCategorySerializer(product.sub_category).data,
-            'style': product.style.name,
-            'age': product.age.name,
-            'tags': [tag.name for tag in product.tags.all()] ,
+            'style': StyleSerializer(product.style).data,
+            'age': AgeSerializer(product.age).data,
+            'tags': TagSerializer(product.tags.all(), many=True).data,
             'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
-            'laundry_informations': [info.name for info in product.laundry_informations.all()],
-            'thickness': product.thickness.name,
-            'see_through': product.see_through.name,
-            'flexibility': product.flexibility.name,
+            'laundry_informations': LaundryInformationSerializer(product.laundry_informations.all(), many=True).data,
+            'thickness': ThicknessSerializer(product.thickness).data,
+            'see_through': SeeThroughSerializer(product.see_through).data,
+            'flexibility': FlexibilitySerializer(product.flexibility).data,
             'lining': product.lining,
             'images': ProductImagesSerializer(product.images.all(), many=True).data,
             'colors': ProductColorSerializer(product.colors.all(), many=True).data,
@@ -797,7 +797,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'on_sale': product.on_sale,
             'code': product.code,
             'manufacturing_country': product.manufacturing_country,
-            'theme': product.theme.name,
+            'theme': ThemeSerializer(product.theme).data,
         }
 
         return expected_data
@@ -963,31 +963,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
 
         return data
-
-    def test_model_instance_serialization(self):
-        expected_data = {
-            'id': self.product.id,
-            'name': self.product.name,
-            'price': self.product.price,
-            'sub_category': self.product.sub_category_id,
-            'style': self.product.style_id,
-            'age': self.product.age_id,
-            'tags': TagSerializer(self.product.tags.all(), many=True).data,
-            'materials': ProductMaterialSerializer(self.product.materials.all(), many=True).data,
-            'laundry_informations': [info.id for info in self.product.laundry_informations.all()],
-            'thickness': self.product.thickness_id,
-            'see_through': self.product.see_through_id,
-            'flexibility': self.product.flexibility_id,
-            'lining': self.product.lining,
-            'manufacturing_country': self.product.manufacturing_country,
-            'theme': self.product.theme_id,
-            'images': ProductImagesSerializer(self.product.images.all(), many=True).data,
-            'colors': ProductColorSerializer(self.product.colors.all(), many=True).data
-        }
-        prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
-
-        self._test_model_instance_serialization(product, expected_data)
 
     def test_deserialzation(self):
         data = self.__get_input_data()
