@@ -5,7 +5,6 @@ from django.db.models.query import Prefetch
 from django.forms import model_to_dict
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
-from common.serializers import is_delete_data
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from user.test.factory import WholesalerFactory
 from ..validators import validate_url
@@ -15,10 +14,7 @@ from ..serializers import (
     ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
-from ..models import (
-    Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
-    Theme,
-)
+from ..models import Product, ProductColor, Color, Option, ProductMaterial
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
@@ -235,7 +231,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
     def __test_raise_valiation_error_with_invalid_image_url(self, image_url, expected_message):
         self.data['image_url'] = image_url
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
+        self._test_serializer_raise_validation_error(expected_message, data=self.data)
 
     def test_raise_validation_error_image_url_not_starts_with_BASE_IMAGE_URL(self):
         image_url = 'https://omios.com/product/sample/product_1.jpg'
@@ -256,7 +252,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
         self.data.pop(key)
 
         expected_message = '{0} field is required.'.format(key)
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_image, data=self.data, partial=True
         )
 
@@ -266,7 +262,7 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
         self.data['id'] = self.product_image.id
 
         expected_message = '{0} field is required.'.format(key)
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_image, data=self.data, partial=True
         )
 
@@ -297,20 +293,20 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
         ]
         expected_message = 'The product cannot have more than ten images.'
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data)
+        self._test_serializer_raise_validation_error(expected_message, data=data)
 
     def test_raise_validation_error_sequences_not_startswith_one(self):
         for d in self.data:
             d['sequence'] -= 1
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
+        self._test_serializer_raise_validation_error(expected_message, data=self.data)
 
     def test_raise_validation_error_omitted_sequences(self):
         self.data[-1]['sequence'] += 1
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=self.data)
+        self._test_serializer_raise_validation_error(expected_message, data=self.data)
 
     def test_raise_validation_error_data_length_is_zero(self):
         data = [
@@ -319,7 +315,7 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
         ]
         expected_message = 'The product must have at least one image.'
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data, partial=True)
+        self._test_serializer_raise_validation_error(expected_message, data=data, partial=True)
 
 
 class ProductMaterialSerializerTestCase(SerializerTestCase):
@@ -347,7 +343,7 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
         self.data.pop(key)
         expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_material, data=self.data, partial=True
         )
         
@@ -357,7 +353,7 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
         self.data['id'] = self.product_material.id
         expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_material, data=self.data, partial=True
         )
 
@@ -387,7 +383,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         data[0]['mixing_rate'] += 10
         expected_message = 'The total of material mixing rates must be 100.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=data
         )
 
@@ -396,7 +392,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         data[-1]['material'] = data[0]['material']
         expected_message = 'Material is duplicated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=data
         )
 
@@ -427,7 +423,7 @@ class OptionSerializerTestCase(SerializerTestCase):
         self.data.pop(key)
         expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=self.data, partial=True
         )
 
@@ -436,7 +432,7 @@ class OptionSerializerTestCase(SerializerTestCase):
         self.data['size'] = self.data['size'] + '_update'
         expected_message = 'Size data cannot be updated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=self.data, partial=True
         )
 
@@ -462,14 +458,14 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
         data[-1]['size'] = data[0]['size']
         expected_message = 'size is duplicated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data)
+        self._test_serializer_raise_validation_error(expected_message, data=data)
 
     def test_raise_validation_error_duplicated_size_data_in_update(self):
         self.create_data[-1]['size'] = self.create_data[0]['size']
         data = self.create_data
         expected_message = 'size is duplicated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=data, partial=True
         )
     
@@ -529,7 +525,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         self.data['color'] = color.id
         expected_message = 'Color data cannot be updated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_color, data=self.data, partial=True
         )
 
@@ -538,7 +534,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         self.data.pop(key)
         expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_color, data=self.data, partial=True
         )
 
@@ -551,7 +547,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         self.data['options'] = [new_option_data]
         expected_message = 'The option with the size already exists.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_color, data=self.data, partial=True
         )
 
@@ -610,7 +606,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         ]
         expected_message = 'The product cannot have more than ten colors.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=data
         )
 
@@ -618,7 +614,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         self.create_data[-1]['display_color_name'] = self.create_data[0]['display_color_name']
         expected_message = 'display_color_name is duplicated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=self.create_data
         )
 
@@ -626,7 +622,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         self.update_data[-1]['display_color_name'] = self.update_data[0]['display_color_name']
         expected_message = 'display_color_name is duplicated.'
 
-        self._test_serializer_raise_validation_error_without_serializer(
+        self._test_serializer_raise_validation_error(
             expected_message, data=self.update_data, partial=True
         )
 
