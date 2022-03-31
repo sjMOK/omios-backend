@@ -191,6 +191,7 @@ class Option(Model):
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
     size = CharField(max_length=20)
     price_difference = IntegerField(default=0)
+    on_sale = BooleanField(default=True)
 
     class Meta:
         db_table = 'option'

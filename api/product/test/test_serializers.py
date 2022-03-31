@@ -1108,8 +1108,9 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             self.product, data=data, partial=True
         )
         serializer.save()
+        self.assertTrue(not ProductColor.objects.get(id=delete_product_color_id).on_sale)
         self.assertTrue(
-            not ProductMaterial.objects.filter(id=delete_product_color_id).exists()
+            not Option.objects.filter(product_color_id=delete_product_color_id, on_sale=True).exists()
         )
 
     def test_create_product_colors_in_update(self):
@@ -1225,7 +1226,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             update_data['options'][0]
         )
 
-    @tag('exclude')
     def test_delete_option(self):
         update_color_obj = self.product.colors.latest('id')
         delete_option_id = update_color_obj.options.latest('id').id

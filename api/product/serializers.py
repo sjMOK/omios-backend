@@ -210,6 +210,13 @@ class OptionListSerializer(ListSerializer):
         if has_duplicate_element(attrs):
             raise ValidationError('size is duplicated.')
 
+    def to_representation(self, data):
+        iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
+
+        return [
+            self.child.to_representation(item) for item in iterable
+        ]
+
 
 class OptionSerializer(Serializer):
     id = IntegerField(required=False)
@@ -571,6 +578,7 @@ class ProductWriteSerializer(ProductSerializer):
 
         delete_fields_id = [data['id'] for data in delete_data]
         ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False, display_color_name=None)
+        Option.objects.filter(product_color__product=product, product_color_id__in=delete_fields_id).update(on_sale=False)
 
         for data in update_data:
             options_data = data.pop('options', None)
@@ -594,7 +602,7 @@ class ProductWriteSerializer(ProductSerializer):
         create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(options_data)
         
         delete_fields_id = [data['id'] for data in delete_data]
-        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).delete()
+        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).update(on_sale=False)
 
         for data in update_data:
             field_id = data.pop('id')

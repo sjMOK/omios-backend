@@ -652,3 +652,4 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         deleted_product = Product.objects.get(id=self._response_data['id'])
         self.assertTrue(not deleted_product.on_sale)
         self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not Option.objects.filter(product_color__product=deleted_product, on_sale=True).exists())
