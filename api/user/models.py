@@ -96,11 +96,11 @@ class Shopper(User):
         super().save(*args, **kwargs)
 
 
-class ShopperAddress(Model):
+class ShopperShippingAddress(Model):
     id = BigAutoField(primary_key=True)
     shopper = ForeignKey('Shopper', DO_NOTHING)
     name = CharField(max_length=20, null=True)
-    receiver = CharField(max_length=20)
+    receiver_name = CharField(max_length=20)
     mobile_number = CharField(max_length=11)
     phone_number = CharField(max_length=11, null=True)
     zip_code = CharField(max_length=5)
@@ -109,7 +109,7 @@ class ShopperAddress(Model):
     is_default = BooleanField()
 
     class Meta:
-        db_table = 'shopper_address'
+        db_table = 'shopper_shipping_address'
 
 
 class Wholesaler(User):
