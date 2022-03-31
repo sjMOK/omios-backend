@@ -183,8 +183,8 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_value_regex = r'[0-9]+'
     __default_sorting = '-created'
     __default_fields = ('id', 'name', 'price', 'created')
-    __read_action = ('retrieve', 'list', 'search', 'retrieve_for_write')
-    __require_write_serializer_action = ('create', 'partial_update', 'retrieve_for_write')
+    __read_action = ('retrieve', 'list', 'search')
+    __require_write_serializer_action = ('create', 'partial_update')
 
 
     def get_serializer_class(self):
@@ -327,20 +327,6 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
-
-    @action(detail=True, url_path='saler')
-    def retrieve_for_write(self, request, id=None):
-        if not hasattr(self.request.user, 'wholesaler'):
-            raise PermissionDenied()
-
-        queryset = self.get_queryset().select_related('sub_category', 'style', 'age')
-        product = self.get_object(queryset)
-        allow_fields = self.__get_allow_fields()
-        serializer = self.get_serializer(
-            product, allow_fields=allow_fields, context={'field_order': allow_fields}
-        )
-
-        return get_response(data=serializer.data)
 
     @action(detail=False, url_path='search')
     def search(self, request):

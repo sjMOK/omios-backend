@@ -655,14 +655,3 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         deleted_product = Product.objects.get(id=self._response_data['id'])
         self.assertTrue(not deleted_product.on_sale)
         self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
-
-    def test_retrieve_for_write(self):
-        product_id = self._get_product().id
-        product = self.__get_queryset().get(id=product_id)
-        allow_fields = '__all__'
-        serializer = ProductWriteSerializer(product, allow_fields=allow_fields)
-        self._url += '/{0}/saler'.format(product.id)
-        self._get()
-
-        self._assert_success()
-        self.assertDictEqual(self._response_data, serializer.data)

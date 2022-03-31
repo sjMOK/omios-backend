@@ -152,11 +152,6 @@ class DecoratedProductViewSet(ProductViewSet):
     def destroy(self, request, id=None):
         return super().destroy(request, id)
 
-    @swagger_auto_schema(**get_response(ProductWriteSerializer()), operation_description='수정을 위한 등록된 상품의 정보를 조회')
-    @action(detail=True, url_path='saler')
-    def retrieve_for_write(self, request, id=None):
-        return super().retrieve_for_write(request, id)
-
     @swagger_auto_schema(
         query_serializer=SearchQuerySerializer, **get_response(ProductListResponse()),
         operation_description='검색어(문자열)로 상품 검색\nquery 필수, 빈 문자열 허용하지 않음\n\n' + list_description + shopper_token_discription
