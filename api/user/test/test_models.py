@@ -8,7 +8,7 @@ from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
 from .factory import ShopperFactory, BuildingFactory, FloorFactory
-from ..models import Membership, User, Shopper, ShopperAddress, Wholesaler, Building, Floor, BuildingFloor
+from ..models import Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor
 
 
 class MembershipTestCase(ModelTestCase):
@@ -124,13 +124,13 @@ class ShopperTestCase(ModelTestCase):
 
 class ShopperAddressTestCase(ModelTestCase):
     fixtures = ['membership']
-    _model_class = ShopperAddress
+    _model_class = ShopperShippingAddress
 
     def setUp(self):
         self.__shopper = ShopperFactory()
         self._test_data = {
             'shopper': self.__shopper,
-            'receiver': '수령자',
+            'receiver_name': '수령자',
             'mobile_number': '01012345678',
             'zip_code': '05009',
             'base_address': '서울시 광진구 능동로19길 47',
@@ -143,7 +143,7 @@ class ShopperAddressTestCase(ModelTestCase):
 
         self.assertEqual(address.shopper, self.__shopper)
         self.assertIsNone(address.name)
-        self.assertEqual(address.receiver, self._test_data['receiver'])
+        self.assertEqual(address.receiver_name, self._test_data['receiver_name'])
         self.assertEqual(address.mobile_number, self._test_data['mobile_number'])
         self.assertIsNone(address.phone_number)
         self.assertEqual(address.zip_code, self._test_data['zip_code'])
