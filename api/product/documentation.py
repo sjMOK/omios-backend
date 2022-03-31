@@ -14,7 +14,7 @@ from .serializers import (
 from .views import (
     ProductViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_searchbox_data, get_common_registration_data, get_dynamic_registration_data,
+    upload_product_image, get_related_search_word, get_common_registration_data, get_dynamic_registration_data,
 )
 
 
@@ -185,9 +185,9 @@ decorated_upload_product_image_view = swagger_auto_schema(
     method='POST', request_body=Image, **get_response(Image(), 201), operation_description='상품 이미지 업로드\n요청 시에는 파일 전체를 보내야 함\n응답 시에는 저장된 url을 반환'
 )(upload_product_image)
 
-decorated_get_searchbox_data_view = swagger_auto_schema(
+decorated_get_related_search_words_view = swagger_auto_schema(
     method='GET', query_serializer=SearchQuerySerializer, **get_response(SearchBoxResponse()), security=[], operation_description='검색어(문자열)와 유사한 메인 카테고리, 서브 카테고리, 키워드 데이터 GET\nquery 필수, 빈 문자열 허용하지 않음.'
-)(get_searchbox_data)
+)(get_related_search_words)
 
 decorated_get_common_registration_data_view = swagger_auto_schema(
     method='GET', **get_response(RegistryCommonResponse()), security=[], operation_description='상품 등록 시 필요한 공통(정적) 데이터 가져오기'

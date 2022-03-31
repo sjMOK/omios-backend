@@ -41,8 +41,8 @@ class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
         self.assertListEqual(keywords_leven_distances, result_leven_distances)
 
 
-class GetSearchboxDataTestCase(ViewTestCase):
-    _url = '/products/searchboxes'
+class GetRelatedSearchWordssTestCase(ViewTestCase):
+    _url = '/products/related-search-words'
 
     @classmethod
     def setUpTestData(cls):

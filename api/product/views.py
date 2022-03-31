@@ -96,8 +96,8 @@ def upload_product_image(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_searchbox_data(request):
-    search_word = request.query_params.get('query', None)
+def get_related_search_words(request):
+    search_word = request.query_params.get('search_word', None)
 
     if search_word == '' or search_word is None:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
