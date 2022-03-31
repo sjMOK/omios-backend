@@ -152,14 +152,6 @@ class DecoratedProductViewSet(ProductViewSet):
     def destroy(self, request, id=None):
         return super().destroy(request, id)
 
-    @swagger_auto_schema(
-        query_serializer=SearchQuerySerializer, **get_response(ProductListResponse()),
-        operation_description='검색어(문자열)로 상품 검색\nquery 필수, 빈 문자열 허용하지 않음\n\n' + list_description + shopper_token_discription
-    )
-    @action(detail=False, url_path='search')
-    def search(self, request):
-        return super().search(request)
-
 
 decorated_get_all_categories_view = swagger_auto_schema(
     method='GET', **get_response(MainCategorySerializer(many=True)), security=[], operation_description='모든 메인 카테고리와 서브 카테고리 가져오기'

@@ -455,6 +455,16 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         self.__test_filtering(query_params)
 
+    def test_search_with_empty_string(self):
+        self._get({'search_word': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_failure_filter_with_main_category_and_sub_category_at_once(self):
+        self._get({'main_category': 1, 'sub_category': 1})
+
+        self._assert_failure(400, 'You cannot filter main_category and sub_category at once.')
+
     def __test_sorting(self, sort_key):
         sort_mapping = {
             'price_asc': 'price',
@@ -487,18 +497,6 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         self._assert_success()
         self.assertDictEqual(self._response_data, serializer.data)
-
-    def test_search_without_search_word(self):
-        self._url += '/search'
-        self._get()
-
-        self._assert_failure(400, 'Unable to search with empty string.')
-
-    def test_search_with_empty_string(self):
-        self._url += '/search'
-        self._get({'query': ''})
-
-        self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):

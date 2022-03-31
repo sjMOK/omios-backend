@@ -227,8 +227,6 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         filter_set = {}
         filter_mapping = {
-            'main_category': 'sub_category__main_category_id',
-            'sub_category': 'sub_category_id',
             'min_price': 'price__gte',
             'max_price': 'price__lte',
             'color': 'colors__color_id',
@@ -256,7 +254,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
-    def get_response_for_list(self, queryset, **extra_data):
+    def __get_response_for_list(self, queryset, **extra_data):
         queryset = self.sort_queryset(
             self.filter_queryset(queryset)
         ).alias(Count('id')).only(*self.__default_fields)
@@ -272,16 +270,35 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(data=paginated_response.data)
 
+    def __get_queryset_after_search(self, queryset, search):
+        tag_id_list = list(Tag.objects.filter(name__contains=search).values_list('id', flat=True))
+        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search)
+
+        queryset = queryset.filter(condition)
+
+        return queryset
+
+    def __initial_filtering(self, queryset, search=None, main_category=None, sub_category=None, **kwargs):
+        if search is not None:
+            queryset = self.__get_queryset_after_search(queryset, search)
+        if main_category is not None:
+            queryset = queryset.filter(sub_category__main_category_id=main_category)
+        if sub_category is not None:
+            queryset = queryset.filter(sub_category_id=sub_category)
+
+        return queryset
+
     def list(self, request):
-        aggregate_qs = self.get_queryset()
-        if 'main_category' in request.query_params:
-            aggregate_qs = aggregate_qs.filter(sub_category__main_category_id=request.query_params.get('main_category'))
-        if 'sub_category' in request.query_params:
-            aggregate_qs = aggregate_qs.filter(sub_category_id=request.query_params.get('sub_category'))
+        if 'search_word' in request.query_params and not request.query_params['search_word']:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
-        max_price = aggregate_qs.aggregate(max_price=Max('price'))['max_price']
+        if 'main_category' in request.query_params and 'sub_category' in request.query_params:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
-        return self.get_response_for_list(self.get_queryset(), max_price=max_price)
+        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        return self.__get_response_for_list(queryset, max_price=max_price)
 
     def retrieve(self, request, id=None):
         queryset = self.get_queryset().select_related(
@@ -327,17 +344,3 @@ class ProductViewSet(viewsets.GenericViewSet):
         product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
-
-    @action(detail=False, url_path='search')
-    def search(self, request):
-        search_word = request.query_params.get('query', None)
-        if search_word == '' or search_word is None:
-            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
-
-        tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
-        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
-
-        queryset = self.get_queryset().filter(condition)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
-
-        return self.get_response_for_list(queryset, max_price=max_price)
