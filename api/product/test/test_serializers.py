@@ -460,33 +460,23 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
     def test_raise_validation_error_duplicated_size_data_in_create(self):
         data = self.create_data
         data[-1]['size'] = data[0]['size']
-
-        serializer = self._get_serializer(data=data)
         expected_message = 'size is duplicated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(expected_message, data=data)
 
     def test_raise_validation_error_duplicated_size_data_in_update(self):
         self.create_data[-1]['size'] = self.create_data[0]['size']
         data = self.create_data
-        data = {
-            'colors': [
-                {
-                    'id': self.product_color.id,
-                    'options': data,
-                }
-            ]
-        }
-
-        serializer = ProductWriteSerializer(self.product_color.product, data=data, partial=True)
         expected_message = 'size is duplicated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=data, partial=True
+        )
     
 
 class ProductColorSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductColorSerializer
-    options_num = 4
+    options_num = 3
 
     @classmethod
     def setUpTestData(cls):
@@ -516,21 +506,6 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         }
         self._test_model_instance_serialization(self.product_color, expected_data)
 
-    def test_deserialization(self):
-        expected_validated_data = {
-            'display_color_name': self.data['display_color_name'],
-            'color': self.product_color.color,
-            'options': [
-                {
-                    'size': option.size,
-                    'price_difference': option.price_difference
-                }for option in self.options
-            ],
-            'image_url': validate_url(self.data['image_url']),
-        }
-
-        self._test_deserialzation(self.data, expected_validated_data)
-
     def test_default_display_color_name(self):
         self.data['display_color_name'] = None
         serializer = self._get_serializer_after_validation(data=self.data)
@@ -548,41 +523,37 @@ class ProductColorSerializerTestCase(SerializerTestCase):
             validate_url(self.data['image_url'])
         )
 
-    def test_raise_valid_error_update_color_data(self):
+    def test_raise_validation_error_update_color_data(self):
         color = ColorFactory()
         self.data['id'] = self.product_color.id
         self.data['color'] = color.id
-
-        serializer = self._get_serializer(self.product_color, data=self.data, partial=True)
         expected_message = 'Color data cannot be updated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_color, data=self.data, partial=True
+        )
 
-    def test_raise_valid_error_create_data_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_create_data_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
         self.data.pop(key)
-
-        serializer = self._get_serializer(
-            self.product_color, data=self.data, partial=True
-        )
         expected_message = '{0} field is required.'.format(key)
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_color, data=self.data, partial=True
+        )
 
-    def test_raise_valid_error_create_non_unique_size_in_partial(self):
+    def test_raise_validation_error_update_non_unique_size_in_partial(self):
         self.data['id'] = self.product_color.id
         new_option_data = {
             'size': self.options[1].size,
             'price_difference': 0,
         }
         self.data['options'] = [new_option_data]
-
-        serializer = self._get_serializer(
-            self.product_color, data=self.data, partial=True
-        )
         expected_message = 'The option with the size already exists.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, instance=self.product_color, data=self.data, partial=True
+        )
 
 
 class ProductColorListSerializerTestCase(ListSerializerTestCase):
@@ -596,7 +567,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
             size=cls.batch_size, product=cls.product, display_color_name=None
         )
         for product_color in cls.product_colors:
-            OptionFactory.create_batch(size=cls.batch_size, product_color=product_color)
+            OptionFactory(product_color=product_color)
 
         cls.update_data = [
             {
@@ -621,7 +592,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
     def test_raise_validation_error_input_data_length_more_than_upper_limit(self):
         product_colors = ProductColorFactory.create_batch(size=PRODUCT_COLOR_MAX_LENGTH+1)
         for product_color in product_colors:
-            OptionFactory.create_batch(size=self.batch_size, product_color=product_color)
+            OptionFactory(product_color=product_color)
 
         data = [
             {
@@ -637,97 +608,27 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
             }for product_color in product_colors
         ]
-
-        serializer = self._get_serializer(data=data)
         expected_message = 'The product cannot have more than ten colors.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_input_data_length_more_than_upper_limit_in_update(self):
-        product = ProductFactory()
-        product_colors = ProductColorFactory.create_batch(
-            size=self.length_upper_limit+1, product=product, display_color_name=None
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=data
         )
-        for product_color in product_colors:
-            OptionFactory.create_batch(size=self.batch_size, product_color=product_color)
 
-        data = [
-            {
-                'id': product_color.id,
-                'display_color_name': product_color.display_color_name,
-                'color': product_color.color.id,
-                'options': [
-                    {
-                        'id': option.id,
-                        'size': option.size, 
-                        'price_difference': option.price_difference,
-                    }for option in product_color.options.all()
-                ],
-                'image_url': BASE_IMAGE_URL + product_color.image_url,
-            }for product_color in product_colors
-        ]
-
-        serializer = ProductWriteSerializer(product, data={'colors': data})
-        expected_message = 'The product cannot have more than ten colors.'
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_input_data_length_is_zero(self):
-        data = [
-            {'id': product_color.id}
-            for product_color in self.product_colors
-        ]
-
-        serializer = ProductWriteSerializer(
-            self.product, data={'colors': data}, partial=True
-        )
-        expected_message = 'The product must have at least one color.'
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_display_color_name_duplicated_in_create(self):
-        index = random.choice(range(1, len(self.create_data)))
-        self.create_data[index]['display_color_name'] = self.create_data[0]['display_color_name']
-
-        serializer = self._get_serializer(data=self.create_data)
+    def test_raise_validation_error_display_color_name_duplicated_in_create(self):
+        self.create_data[-1]['display_color_name'] = self.create_data[0]['display_color_name']
         expected_message = 'display_color_name is duplicated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_display_color_name_duplicated_in_update(self):
-        index = random.choice(range(1, len(self.update_data)))
-        self.update_data[index]['display_color_name'] = self.update_data[0]['display_color_name']
-
-        serializer = ProductWriteSerializer(
-            self.product, data={'colors': self.update_data}, partial=True
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=self.create_data
         )
+
+    def test_raise_validation_error_display_color_name_duplicated_in_update(self):
+        self.update_data[-1]['display_color_name'] = self.update_data[0]['display_color_name']
         expected_message = 'display_color_name is duplicated.'
 
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_non_unique_display_color_name_in_update_update_data(self):
-        data = [
-            {
-                'id': self.product_colors[0].id,
-                'display_color_name': self.product_colors[1].display_color_name
-            }
-        ]
-
-        serializer = ProductWriteSerializer(
-            self.product, data={'colors': data}, partial=True
+        self._test_serializer_raise_validation_error_without_serializer(
+            expected_message, data=self.update_data, partial=True
         )
-        expected_message = 'The product with the display_color_name already exists.'
-
-        self._test_serializer_raise_validation_error(serializer, expected_message)
-
-    def test_raise_valid_error_non_unique_display_color_name_in_update_create_data(self):
-        data = [self.create_data[0]]
-
-        serializer = ProductWriteSerializer(
-            self.product, data = {'colors': data}, partial=True
-        )
-        expected_message = 'The product with the display_color_name already exists.'
-        self._test_serializer_raise_validation_error(serializer, expected_message)
 
 
 class ProductSerializerTestCase(SerializerTestCase):
