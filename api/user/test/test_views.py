@@ -1,5 +1,5 @@
 from freezegun import freeze_time
-
+from django.test import tag
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
@@ -30,7 +30,7 @@ class TokenViewTestCase(ViewTestCase):
 
 
 class IssuingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/'
+    _url = '/users/tokens'
 
     @classmethod
     def setUpTestData(cls):
@@ -59,7 +59,7 @@ class IssuingTokenViewTestCase(TokenViewTestCase):
         
 
 class RefreshingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/refresh/'
+    _url = '/users/tokens/refresh'
 
     @classmethod
     def setUpTestData(cls):
@@ -85,7 +85,7 @@ class RefreshingTokenViewTestCase(TokenViewTestCase):
 
 
 class BlacklistingTokenViewTestCase(TokenViewTestCase):
-    _url = '/token/blacklist/'        
+    _url = '/users/tokens/blacklist'
 
     @classmethod
     def setUpTestData(cls):
@@ -246,14 +246,14 @@ class WholesalerViewTestCase(ViewTestCase):
 
 
 class UploadBusinessRegistrationImageTestCase(ViewTestCase):
-    _url = '/user/wholesaler/business_registration_image/'
+    _url = '/users/wholesalers/business_registration_images'
 
     def test_success(self):
        self._test_image_upload(middle_path='/business_registration/business_registration_')
 
 
 class GetBuildingTestCase(ViewTestCase):
-    _url = '/user/wholesaler/building/'
+    _url = '/users/wholesalers/buildings'
 
     def test_sucess(self):
         floors = FloorFactory.create_batch(3)
@@ -266,7 +266,7 @@ class GetBuildingTestCase(ViewTestCase):
 
 
 class ChangePasswordTestCase(ViewTestCase):
-    _url = '/user/password/'
+    _url = '/users/passwords'
 
     @classmethod
     def setUpTestData(cls):
@@ -290,7 +290,7 @@ class ChangePasswordTestCase(ViewTestCase):
 
 class IsUniqueTestCase(ViewTestCase):
     fixtures = ['membership']
-    _url = '/user/unique/'
+    _url = '/users/unique'
 
     @classmethod
     def setUpTestData(cls):
