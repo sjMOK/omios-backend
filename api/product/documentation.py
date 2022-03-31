@@ -1,6 +1,5 @@
 from django.db import transaction
 
-from rest_framework.decorators import action
 from rest_framework.serializers import Serializer, CharField, ListField, BooleanField, IntegerField, URLField
 from drf_yasg.utils import swagger_auto_schema
 

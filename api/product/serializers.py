@@ -210,18 +210,12 @@ class OptionListSerializer(ListSerializer):
         if has_duplicate_element(attrs):
             raise ValidationError('size is duplicated.')
 
-    def to_representation(self, data):
-        iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
-
-        return [
-            self.child.to_representation(item) for item in iterable
-        ]
-
 
 class OptionSerializer(Serializer):
     id = IntegerField(required=False)
     size = CharField(max_length=20)
     price_difference = IntegerField(max_value=100000, min_value=0)
+    on_sale = BooleanField(read_only=True)
 
     class Meta:
         list_serializer_class = OptionListSerializer
@@ -272,13 +266,6 @@ class ProductColorListSerializer(ListSerializer):
 
         return attrs
 
-    def to_representation(self, data):
-        iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
-
-        return [
-            self.child.to_representation(item) for item in iterable
-        ]
-
 
 class ProductColorSerializer(Serializer):
     id = IntegerField(required=False)
@@ -286,6 +273,7 @@ class ProductColorSerializer(Serializer):
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
     image_url = URLField(max_length=200)
+    on_sale = BooleanField(read_only=True)
 
     class Meta:
         list_serializer_class = ProductColorListSerializer

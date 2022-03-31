@@ -414,6 +414,7 @@ class OptionSerializerTestCase(SerializerTestCase):
             'id': self.option.id, 
             'size': self.option.size,
             'price_difference': self.option.price_difference,
+            'on_sale': self.option.on_sale,
         }
 
         self._test_model_instance_serialization(self.option, expected_data)
@@ -499,6 +500,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
             'color': self.product_color.color.id,
             'options': OptionSerializer(self.options, many=True).data,
             'image_url': BASE_IMAGE_URL + self.product_color.image_url,
+            'on_sale': self.product_color.on_sale,
         }
         self._test_model_instance_serialization(self.product_color, expected_data)
 
