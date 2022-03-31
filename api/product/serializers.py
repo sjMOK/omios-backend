@@ -22,6 +22,8 @@ from .models import (
 
 
 PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
+PRODUCT_IMAGE_MAX_LENGTH = 10
+PRODUCT_COLOR_MAX_LENGTH = 10
 
 
 class SubCategorySerializer(Serializer):
@@ -93,8 +95,6 @@ class TagSerializer(Serializer):
 
 
 class ProductImagesListSerializer(ListSerializer):
-    length_upper_limit = 10
-
     def validate(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
         self.__validate_attrs_length(create_or_update_attrs)
@@ -103,7 +103,7 @@ class ProductImagesListSerializer(ListSerializer):
         return attrs
 
     def __validate_attrs_length(self, attrs):
-        if len(attrs) > self.length_upper_limit:
+        if len(attrs) > PRODUCT_IMAGE_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
@@ -240,8 +240,6 @@ class OptionSerializer(Serializer):
 
 
 class ProductColorListSerializer(ListSerializer):
-    length_upper_limit = 10
-
     def validate(self, attrs):
         if self.root.instance is None:
             return self.validate_create(attrs)
@@ -249,7 +247,7 @@ class ProductColorListSerializer(ListSerializer):
             return self.validate_update(attrs)
 
     def validate_create(self, attrs):
-        if len(attrs) > self.length_upper_limit:
+        if len(attrs) > PRODUCT_COLOR_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
             )
@@ -462,7 +460,7 @@ class ProductWriteSerializer(ProductSerializer):
         delete_attrs = get_delete_attrs(attrs)
 
         len_colors = self.instance.colors.filter(on_sale=True).count() + len(create_attrs) - len(delete_attrs)
-        if len_colors > self.color_length_limit:
+        if len_colors > PRODUCT_COLOR_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
             )

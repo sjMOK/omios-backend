@@ -13,6 +13,7 @@ from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
+    PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import (
     Product, ProductColor, SubCategory, Style, Age, Tag, LaundryInformation, SeeThrough, Flexibility, Color, Thickness, Option, ProductMaterial,
@@ -287,15 +288,12 @@ class ProductImagesListSerializerTestCase(ListSerializerTestCase):
             } for i in range(1, 4)
         ]
 
-    def setUp(self):
-        self.length_upper_limit = self._list_serializer_class.length_upper_limit
-
     def test_raise_validation_error_data_length_more_than_upper_limit(self):
         data = [
             {
                 'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i+1),
                 'sequence': i+1,
-            } for i in range(self.length_upper_limit + 1)
+            } for i in range(PRODUCT_IMAGE_MAX_LENGTH + 1)
         ]
         expected_message = 'The product cannot have more than ten images.'
 
@@ -620,11 +618,8 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         for data in cls.create_data:
             data.pop('id')
 
-    def setUp(self):
-        self.length_upper_limit = self._list_serializer_class.length_upper_limit
-
-    def test_raise_valid_error_input_data_length_more_than_upper_limit_in_create(self):
-        product_colors = ProductColorFactory.create_batch(size=self.length_upper_limit+1)
+    def test_raise_validation_error_input_data_length_more_than_upper_limit(self):
+        product_colors = ProductColorFactory.create_batch(size=PRODUCT_COLOR_MAX_LENGTH+1)
         for product_color in product_colors:
             OptionFactory.create_batch(size=self.batch_size, product_color=product_color)
 
