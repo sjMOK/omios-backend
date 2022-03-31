@@ -11,13 +11,13 @@ from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
-    ProductImagesSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
+    ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImagesFactory,
+    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ThemeFactory, 
 )
 
@@ -200,12 +200,12 @@ class TagSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(tag, expected_data)
 
 
-class ProductImagesSerializerTestCase(SerializerTestCase):
-    _serializer_class = ProductImagesSerializer
+class ProductImageSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductImageSerializer
 
     @classmethod
     def setUpTestData(cls):
-        cls.product_image = ProductImagesFactory()
+        cls.product_image = ProductImageFactory()
         cls.data = {
             'image_url': DEFAULT_IMAGE_URL,
             'sequence': 1
@@ -267,14 +267,14 @@ class ProductImagesSerializerTestCase(SerializerTestCase):
         )
 
 
-class ProductImagesListSerializerTestCase(ListSerializerTestCase):
-    _child_serializer_class = ProductImagesSerializer
+class ProductImageListSerializerTestCase(ListSerializerTestCase):
+    _child_serializer_class = ProductImageSerializer
 
     @classmethod
     def setUpTestData(cls):
         cls.product = ProductFactory()
         cls.product_images = [
-            ProductImagesFactory(product=cls.product, sequence=i)
+            ProductImageFactory(product=cls.product, sequence=i)
             for i in range(1, 4)
         ]
         cls.data = [
@@ -653,7 +653,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         cls.product = ProductFactory()
         ProductMaterialFactory(product=cls.product)
         ProductColorFactory(product=cls.product)
-        ProductImagesFactory.create_batch(size=3, product=cls.product)
+        ProductImageFactory.create_batch(size=3, product=cls.product)
         laundry_informations = LaundryInformationFactory.create_batch(size=3)
         tags = TagFactory.create_batch(size=3)
         cls.product.laundry_informations.add(*laundry_informations)
@@ -667,7 +667,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'lining': product.lining,
             'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
             'colors': ProductColorSerializer(product.colors.all(), many=True).data,
-            'images': ProductImagesSerializer(product.images.all(), many=True).data,
+            'images': ProductImageSerializer(product.images.all(), many=True).data,
             'manufacturing_country': product.manufacturing_country,
             'main_category': MainCategorySerializer(
                 product.sub_category.main_category, exclude_fields=('sub_categories',)
@@ -752,7 +752,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             OptionFactory.create_batch(size=2, product_color=product_color)
 
         for i in range(2):
-            ProductImagesFactory(product=cls.product, sequence=i+1)
+            ProductImageFactory(product=cls.product, sequence=i+1)
 
         laundry_informations = LaundryInformationFactory.create_batch(size=2)
         tags = TagFactory.create_batch(size=2)

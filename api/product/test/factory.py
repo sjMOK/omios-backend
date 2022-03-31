@@ -159,9 +159,9 @@ class ProductMaterialFactory(DjangoModelFactory):
     mixing_rate = 100
 
 
-class ProductImagesFactory(DjangoModelFactory):
+class ProductImageFactory(DjangoModelFactory):
     class Meta:
-        model = 'product.ProductImages'
+        model = 'product.ProductImage'
 
     product = SubFactory(ProductFactory)
     image_url = 'product/sample/product_1.jpg'

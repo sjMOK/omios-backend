@@ -4,7 +4,7 @@ from datetime import datetime
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
 from user.test.factory import WholesalerFactory
 from ..models import (
-    MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImages,
+    MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
     Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
 )
 from .factory import (
@@ -184,7 +184,7 @@ class FlexibilityTestCase(ModelTestCase):
 
 
 class ProductImagesTestCase(ModelTestCase):
-    _model_class = ProductImages
+    _model_class = ProductImage
 
     def setUp(self):
         product = ProductFactory()

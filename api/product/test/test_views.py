@@ -10,13 +10,13 @@ from common.utils import levenshtein
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImagesFactory, 
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
     ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme, Tag,
+    Product, ProductColor, Theme, Tag, Option,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
@@ -335,7 +335,7 @@ class ProductViewSetTestCase(ViewTestCase):
         for product_color in product_colors:
             OptionFactory.create_batch(size=2, product_color=product_color)
 
-        ProductImagesFactory.create_batch(size=3, product=product)
+        ProductImageFactory.create_batch(size=3, product=product)
 
         return product
 

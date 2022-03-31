@@ -8,7 +8,7 @@ from common.documentation import Image, get_response
 from .serializers import (
     SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer,
     SeeThroughSerializer, FlexibilitySerializer, AgeSerializer, ThemeSerializer, ColorSerializer, StyleSerializer,
-    MaterialSerializer, TagSerializer, ProductImagesSerializer, ProductMaterialSerializer, OptionSerializer, 
+    MaterialSerializer, TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
     ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer,
 )
 from .views import (
@@ -77,7 +77,7 @@ class ProductCreateRequest(ProductWriteSerializer):
         id = None  
 
 
-    class ProductImageCreateRequest(ProductImagesSerializer):
+    class ProductImageCreateRequest(ProductImageSerializer):
         id = None
 
 

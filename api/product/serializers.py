@@ -15,7 +15,7 @@ from common.serializers import (
 )
 from .validators import validate_url
 from .models import (
-    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImages, Style, Age, Thickness,
+    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
     SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
 
@@ -94,7 +94,7 @@ class TagSerializer(Serializer):
     name = CharField(read_only=True)
 
 
-class ProductImagesListSerializer(ListSerializer):
+class ProductImageListSerializer(ListSerializer):
     def validate(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
         self.__validate_attrs_length(create_or_update_attrs)
@@ -123,13 +123,13 @@ class ProductImagesListSerializer(ListSerializer):
                 )
 
 
-class ProductImagesSerializer(Serializer):
+class ProductImageSerializer(Serializer):
     id = IntegerField(required=False)
     image_url = URLField(max_length=200)
     sequence = IntegerField()
 
     class Meta:
-        list_serializer_class = ProductImagesListSerializer
+        list_serializer_class = ProductImageListSerializer
 
     def validate(self, attrs):
         if self.root.partial and not is_delete_data(attrs):
@@ -359,7 +359,7 @@ class ProductSerializer(DynamicFieldsSerializer):
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
-    images = ProductImagesSerializer(allow_empty=False, many=True, source='related_images')
+    images = ProductImageSerializer(allow_empty=False, many=True, source='related_images')
     manufacturing_country = CharField(max_length=20)
     
     def __sort_dictionary_by_field_name(self, ret_dict):
@@ -538,8 +538,8 @@ class ProductWriteSerializer(ProductSerializer):
                 [Option(product_color=product_color, **option_data) for option_data in options]
             )
 
-        ProductImages.objects.bulk_create(
-            [ProductImages(product=product, **image_data) for image_data in images]
+        ProductImage.objects.bulk_create(
+            [ProductImage(product=product, **image_data) for image_data in images]
         )
 
         return product
@@ -561,7 +561,7 @@ class ProductWriteSerializer(ProductSerializer):
             self.__update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
 
         if product_images_data is not None:
-            self.__update_many_to_one_fields(instance, ProductImages, product_images_data)
+            self.__update_many_to_one_fields(instance, ProductImage, product_images_data)
 
         if materials_data is not None:
             self.__update_many_to_one_fields(instance, ProductMaterial, materials_data)
