@@ -14,7 +14,7 @@ from .serializers import (
 from .views import (
     ProductViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_related_search_word, get_common_registration_data, get_dynamic_registration_data,
+    upload_product_image, get_related_search_words, get_common_registration_data, get_dynamic_registration_data,
 )
 
 
@@ -24,7 +24,17 @@ thickness, see_through, flexibility, lining, laundry_information 빈 리스트�
 
 
 class SearchQuerySerializer(Serializer):
-    query = CharField()
+    search_word = CharField(min_length=1, help_text='검색어, 1글자 이상')
+
+
+class ProductListQuerySerializer(Serializer):
+    search_word = CharField(min_length=1, required=False, help_text='검색어')
+    main_category = IntegerField(required=False, help_text='메인 카테고리 필터링 - id 값')
+    sub_category = IntegerField(required=False, help_text='서브 카테고리 필터링 - id 값')
+    min_price = IntegerField(required=False, help_text='최소 가격 필터링')
+    max_price = IntegerField(required=False, help_text='최대 가격 필터링')
+    color = ListField(child=IntegerField(), required=False, help_text='색상 필터링 - id 값, 다중 값 가능(배열)')
+    
 
 
 class RegistryDynamicQuerySerializer(Serializer):
@@ -129,7 +139,7 @@ class DecoratedProductViewSet(ProductViewSet):
     "materials"와 "images"는 수정 시 수정을 가하지 않는 데이터도 모두 body에 담아야 함.(PUT 형식)
     '''
 
-    @swagger_auto_schema(**get_response(ProductListResponse()), operation_description=list_description + shopper_token_discription)
+    @swagger_auto_schema(query_serializer=ProductListQuerySerializer, **get_response(ProductListResponse()), operation_description=list_description + shopper_token_discription)
     def list(self, request):
         return super().list(request)
 
