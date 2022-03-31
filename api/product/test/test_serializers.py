@@ -636,19 +636,14 @@ class ProductSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        product = ProductFactory()
-        ProductMaterialFactory(product=product)
-        ProductColorFactory(product=product)
-        ProductImagesFactory(product=product)
-
-        cls.product_id = product.id
+        cls.product = ProductFactory()
 
     def test_sort_dictionary_by_field_name(self):
         fields = list(self._get_serializer().get_fields().keys())
         random.shuffle(fields)
 
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product_id)
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
         serializer = self._get_serializer(product, context={'field_order': fields})
 
         self.assertListEqual(list(serializer.data.keys()), fields)
@@ -659,21 +654,25 @@ class ProductReadSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.products = ProductFactory.create_batch(size=3)
-        for product in cls.products:
-            ProductMaterialFactory(product=product)
-            ProductColorFactory(product=product)
-            ProductImagesFactory.create_batch(size=3, product=product)
-            laundry_informations = LaundryInformationFactory.create_batch(size=3)
-            tags = TagFactory.create_batch(size=3)
-            product.laundry_informations.add(*laundry_informations)
-            product.tags.add(*tags)
+        cls.product = ProductFactory()
+        ProductMaterialFactory(product=cls.product)
+        ProductColorFactory(product=cls.product)
+        ProductImagesFactory.create_batch(size=3, product=cls.product)
+        laundry_informations = LaundryInformationFactory.create_batch(size=3)
+        tags = TagFactory.create_batch(size=3)
+        cls.product.laundry_informations.add(*laundry_informations)
+        cls.product.tags.add(*tags)
 
     def __get_expected_data(self, product):
         expected_data = {
             'id': product.id,
             'name': product.name,
             'price': product.price,
+            'lining': product.lining,
+            'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
+            'colors': ProductColorSerializer(product.colors.all(), many=True).data,
+            'images': ProductImagesSerializer(product.images.all(), many=True).data,
+            'manufacturing_country': product.manufacturing_country,
             'main_category': MainCategorySerializer(
                 product.sub_category.main_category, exclude_fields=('sub_categories',)
                 ).data,
@@ -681,43 +680,33 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'style': StyleSerializer(product.style).data,
             'age': AgeSerializer(product.age).data,
             'tags': TagSerializer(product.tags.all(), many=True).data,
-            'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
             'laundry_informations': LaundryInformationSerializer(product.laundry_informations.all(), many=True).data,
             'thickness': ThicknessSerializer(product.thickness).data,
             'see_through': SeeThroughSerializer(product.see_through).data,
             'flexibility': FlexibilitySerializer(product.flexibility).data,
-            'lining': product.lining,
-            'images': ProductImagesSerializer(product.images.all(), many=True).data,
-            'colors': ProductColorSerializer(product.colors.all(), many=True).data,
+            'theme': ThemeSerializer(product.theme).data,
             'created': datetime_to_iso(product.created),
             'on_sale': product.on_sale,
             'code': product.code,
-            'manufacturing_country': product.manufacturing_country,
-            'theme': ThemeSerializer(product.theme).data,
         }
 
         return expected_data
 
     def test_model_instance_serialization_detail(self):
-        expected_data = self.__get_expected_data(self.products[0])
-
+        expected_data = self.__get_expected_data(self.product)
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.products[0].id)
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
 
         self._test_model_instance_serialization(product, expected_data, context={'detail': True})
 
     def test_model_instance_serialization_list(self):
         expected_data = [
-            self.__get_expected_data(product)
-            for product in self.products
+            self.__get_expected_data(self.product)
         ]
         for data in expected_data:
             data['main_image'] = data['images'][0]['image_url']
-
         prefetch_images = Prefetch('images', to_attr='related_images')
-        id_list = [product.id for product in self.products]
-        product = Product.objects.prefetch_related(prefetch_images).filter(id__in=id_list)
-        
+        product = Product.objects.prefetch_related(prefetch_images).filter(id__in=[self.product.id])
         serializer = self._get_serializer(product, many=True, context={'detail': False})
 
         self.assertListEqual(serializer.data, expected_data)
@@ -737,17 +726,16 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         self.assertDictEqual(serializer.data, expected_data)
 
     def test_default_image_list(self):
-        products = ProductFactory.create_batch(size=3)
-        id_list = [product.id for product in products]
+        ProductFactory()
         prefetch_images = Prefetch('images', to_attr='related_images')
-        products = Product.objects.prefetch_related(prefetch_images).filter(id__in=id_list)
+        products = Product.objects.prefetch_related(prefetch_images).all()
         serializer = self._get_serializer(
             products, allow_fields=('id',), many=True, context={'detail': False}
         )
         expected_data = [
             {
                 'id': product.id,
-                'main_image': DEFAULT_IMAGE_URL,
+                'main_image': DEFAULT_IMAGE_URL if not product.images.all().exists() else BASE_IMAGE_URL + product.images.all()[0].image_url,
             }
             for product in products
         ]
