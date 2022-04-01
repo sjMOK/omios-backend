@@ -2,7 +2,7 @@ import random
 
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min, Count
-
+from django.test import tag
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
@@ -83,19 +83,21 @@ class GetRelatedSearchWordssTestCase(ViewTestCase):
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
+@tag('test')
+class GetRegistryDataTestCase(ViewTestCase):
+    _url = '/products/registry-data'
 
-class GetCommonRegistrationDataTestCase(ViewTestCase):
-    _url = '/products/registry-common'
-    
     @classmethod
-    def setUpTestData(self):
+    def setUpTestData(cls):
         ColorFactory()
         MaterialFactory()
         StyleFactory()
         AgeFactory()
         ThemeFactory()
 
-    def test_get(self):
+        cls.sizes = SizeFactory.create_batch(size=3)
+
+    def test_get_common_registry_data(self):
         expected_response_data = {
             'color': ColorSerializer(Color.objects.all(), many=True).data,
             'material': MaterialSerializer(Material.objects.all(), many=True).data,
@@ -107,14 +109,6 @@ class GetCommonRegistrationDataTestCase(ViewTestCase):
 
         self._assert_success()
         self.assertDictEqual(self._response_data, expected_response_data)
-
-
-class GetDynamicRegistrationDataTestCase(ViewTestCase):
-    _url = '/products/registry-dynamic'
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.sizes = SizeFactory.create_batch(size=3)
 
     def test_get_with_sub_category_require_nothing(self):
         sub_category = SubCategoryFactory(
@@ -195,10 +189,9 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
         self._assert_success()
         self.assertDictEqual(self._response_data, expected_response_data)
 
-    def test_get_without_sub_category_id(self):
-        self._get()
-
-        self._assert_failure(400, 'This request should include sub_category.')
+    def test_get_with_invalid_sub_category_format(self):
+        self._get({'sub_category': 'aa'})
+        self._assert_failure(400, 'Query parameter sub_category must be id format.')
 
 
 class GetAllCategoriesTestCase(ViewTestCase):
