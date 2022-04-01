@@ -19,9 +19,11 @@ from .views import (
 )
 
 
-get_dynamic_registration_data_operation_description = '''상품 등록시 필요한 동적 데이터 가져오기
-parameter로 넘긴 서브 카테고리에 따라 response의 데이터(배열 길이)가 달라짐
-thickness, see_through, flexibility, lining, laundry_information 빈 리스트인 경우 존재'''
+get_registry_data_view_operation_description = '''상품 등록시 필요한 데이터 가져오기
+sub_category 쿼리스트링을 넘기지 않을 경우 공통 데이터("color", "material", "style", "age", "theme")를 반환
+sub_category 쿼리스트링을 넘길 경우 동적 데이터("size", "thickness", "see_through", "flexibility", "lining", "laundry_information")를 반환
+동적 데이터는 sub_category에 따라 각 데이터(배열)의 길이가 달라지며 빈 배열일 수 있음
+'''
 
 
 class SearchQuerySerializer(Serializer):
