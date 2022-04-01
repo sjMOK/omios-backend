@@ -220,5 +220,5 @@ decorated_get_related_search_words_view = swagger_auto_schema(
 )(get_related_search_words)
 
 decorated_get_registry_data_view = swagger_auto_schema(
-    method='GET', **get_response(RegistryDataResponse()), security=[], operation_description='상품 등록 시 필요한 데이터 가져오기'
+    method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
 )(get_registry_data)
