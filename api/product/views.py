@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
-from common.utils import get_response, querydict_to_dict, levenshtein
+from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
 from common.views import upload_image_view
 from .models import (
     Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
@@ -121,9 +121,7 @@ def get_related_search_words(request):
     return get_response(data=response_data)
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_common_registration_data(request):
+def get_common_registry_data():
     response_data = {
         'color': ColorSerializer(Color.objects.all(), many=True).data,
         'material': MaterialSerializer(Material.objects.all(), many=True).data,
@@ -132,18 +130,11 @@ def get_common_registration_data(request):
         'theme': ThemeSerializer(Theme.objects.all(), many=True).data,
     }
 
-    return get_response(data=response_data)
+    return response_data
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_dynamic_registration_data(request):
-    sub_category_id = request.query_params.get('sub_category', None)
-    if sub_category_id is None:
-        return get_response(status=400, message='This request should include sub_category.')
-
-    sub_category = SubCategory.objects.get(id=sub_category_id)
-
+def get_dynamic_registry_data(sub_category_id):
+    sub_category = get_object_or_404(SubCategory, id=sub_category_id)
     sizes = sub_category.sizes.all()
 
     response_data = {}
@@ -173,7 +164,21 @@ def get_dynamic_registration_data(request):
     else:
         response_data['laundry_information'] = []
 
-    return get_response(data=response_data)
+    return response_data
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_registry_data(request):
+    sub_category_id = request.query_params.get('sub_category', None)
+
+    if sub_category_id is None:
+        return get_response(data=get_common_registry_data())
+
+    if not check_id_format(sub_category_id):
+        return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter sub_category must be id format.')
+
+    return get_response(data=get_dynamic_registry_data(sub_category_id))
 
 
 class ProductViewSet(viewsets.GenericViewSet):
@@ -299,6 +304,17 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return self.__get_response_for_list(queryset, max_price=max_price)
 
+    @transaction.atomic
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
+
+        if not serializer.is_valid():
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+
+        product = serializer.save()
+
+        return get_response(status=HTTP_201_CREATED, data={'id': product.id})
+
     def retrieve(self, request, id=None):
         queryset = self.get_queryset().select_related(
             'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
@@ -311,17 +327,6 @@ class ProductViewSet(viewsets.GenericViewSet):
         )
 
         return get_response(data=serializer.data)
-
-    @transaction.atomic
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
-
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
-        product = serializer.save()
-
-        return get_response(status=HTTP_201_CREATED, data={'id': product.id})
 
     @transaction.atomic
     def partial_update(self, request, id=None):
