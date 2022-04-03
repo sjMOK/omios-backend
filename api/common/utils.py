@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import re
 
 from django.http import JsonResponse
 
@@ -92,3 +93,10 @@ def levenshtein(a_text, b_text):
             array[i][j] = minNum 
             
     return array[a_len-1][b_len-1]
+
+
+def check_id_format(value):
+    p = re.compile(r'^[0-9]+$')
+    m = p.match(value)
+    
+    return bool(m)

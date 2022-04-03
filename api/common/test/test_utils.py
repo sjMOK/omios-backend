@@ -8,7 +8,10 @@ from rest_framework.response import Response
 from rest_framework.exceptions import APIException
 
 from .test_cases import FunctionTestCase
-from ..utils import get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein
+from ..utils import (
+    get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein,
+    check_id_format,
+)
 
 
 class GetResponseBodyTestCase(FunctionTestCase):
@@ -133,3 +136,27 @@ class LeveshteinTestCase(FunctionTestCase):
 
     def test_completely_different_word(self):
         self.assertEqual(self._call_function(self.__basis_word, '체크가디건'), 5)
+
+
+class CheckIdFormatTestCase(FunctionTestCase):
+    _function = check_id_format
+
+    def test_success(self):
+        value = '123'
+
+        self.assertTrue(self._call_function(value))
+
+    def test_fail_with_empty_string(self):
+        value = ''
+
+        self.assertTrue(not self._call_function(value))
+
+    def test_fail_with_alpha(self):
+        value = 'abc'
+
+        self.assertTrue(not self._call_function(value))
+
+    def test_fail_with_alpha_numeric(self):
+        value = 'a1b'
+
+        self.assertTrue(not self._call_function(value))

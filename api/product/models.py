@@ -110,14 +110,14 @@ class Flexibility(Model):
         return self.name
 
 
-class ProductImages(Model):
+class ProductImage(Model):
     id = BigAutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='images')
     image_url = CharField(max_length=200)
     sequence = IntegerField()
 
     class Meta:
-        db_table = 'product_images'
+        db_table = 'product_image'
         ordering = ['sequence']
 
 
@@ -191,6 +191,7 @@ class Option(Model):
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
     size = CharField(max_length=20)
     price_difference = IntegerField(default=0)
+    on_sale = BooleanField(default=True)
 
     class Meta:
         db_table = 'option'

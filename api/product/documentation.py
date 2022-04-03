@@ -1,26 +1,29 @@
 from django.db import transaction
 
-from rest_framework.decorators import action
-from rest_framework.serializers import Serializer, CharField, ListField, BooleanField, IntegerField, URLField
+from rest_framework.serializers import (
+    Serializer, CharField, ListField, BooleanField, IntegerField, URLField, ChoiceField,
+)
 from drf_yasg.utils import swagger_auto_schema
 
 from common.documentation import Image, get_response
 from .serializers import (
     SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer,
     SeeThroughSerializer, FlexibilitySerializer, AgeSerializer, ThemeSerializer, ColorSerializer, StyleSerializer,
-    MaterialSerializer, TagSerializer, ProductImagesSerializer, ProductMaterialSerializer, OptionSerializer, 
+    MaterialSerializer, TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
     ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer,
 )
 from .views import (
     ProductViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_related_search_words, get_common_registration_data, get_dynamic_registration_data,
+    upload_product_image, get_related_search_words, get_registry_data,
 )
 
 
-get_dynamic_registration_data_operation_description = '''상품 등록시 필요한 동적 데이터 가져오기
-parameter로 넘긴 서브 카테고리에 따라 response의 데이터(배열 길이)가 달라짐
-thickness, see_through, flexibility, lining, laundry_information 빈 리스트인 경우 존재'''
+get_registry_data_view_operation_description = '''상품 등록시 필요한 데이터 가져오기
+sub_category 쿼리스트링을 넘기지 않을 경우 공통 데이터("color", "material", "style", "age", "theme")를 반환
+sub_category 쿼리스트링을 넘길 경우 동적 데이터("size", "thickness", "see_through", "flexibility", "lining", "laundry_information")를 반환
+동적 데이터는 sub_category에 따라 각 데이터(배열)의 길이가 달라지며 빈 배열일 수 있음
+'''
 
 
 class SearchQuerySerializer(Serializer):
@@ -34,7 +37,11 @@ class ProductListQuerySerializer(Serializer):
     min_price = IntegerField(required=False, help_text='최소 가격 필터링')
     max_price = IntegerField(required=False, help_text='최대 가격 필터링')
     color = ListField(child=IntegerField(), required=False, help_text='색상 필터링 - id 값, 다중 값 가능(배열)')
-    
+    sort = ChoiceField(
+        choices=['price_asc', 'price_desc'],
+        required=False,
+        help_text='price_asc: 가격 오름차순\nprice_desc: 가격 내림차순'
+    )
 
 
 class RegistryDynamicQuerySerializer(Serializer):
@@ -72,12 +79,30 @@ class RegistryDynamicResponse(Serializer):
     laundry_information = LaundryInformationSerializer(many=True, allow_empty=True)
 
 
+class RegistryDataResponse(Serializer):
+    class LinigResponse(Serializer):
+        name = CharField()
+        value = BooleanField()
+
+    color = ColorSerializer(many=True, required=False)
+    material = MaterialSerializer(many=True, required=False)
+    style = StyleSerializer(many=True, required=False)
+    age = AgeSerializer(many=True, required=False)
+    theme = ThemeSerializer(many=True, required=False)
+    size = SizeSerializer(many=True, required=False)
+    thickness = ThicknessSerializer(many=True, required=False, allow_empty=True)
+    see_through = SeeThroughSerializer(many=True, required=False, allow_empty=True)
+    flexibility = FlexibilitySerializer(many=True, required=False, allow_empty=True)
+    lining = LinigResponse(many=True, required=False, allow_empty=True)
+    laundry_information = LaundryInformationSerializer(many=True, required=False, allow_empty=True)
+
+
 class ProductCreateRequest(ProductWriteSerializer):
     class ProductMaterialCreateRequest(ProductMaterialSerializer):
         id = None  
 
 
-    class ProductImageCreateRequest(ProductImagesSerializer):
+    class ProductImageCreateRequest(ProductImageSerializer):
         id = None
 
 
@@ -110,10 +135,13 @@ class ProductDetailResponse(ProductReadSerializer):
 class DecoratedProductViewSet(ProductViewSet):
     shopper_token_discription = '\nShopper app의 경우 토큰이 필수 값 아님(anonymous user 가능)'
     list_description = '''상품 정보 리스트 조회
-    response의 "next"는 다음 페이지의 링크, "previous"는 이전 페이지의 링크
+    \nresponse의 "count"와 "max_price"는 pagination이 적용되기 전 전체 상품의 총 개수와 최대 가격을 나타냄
+    \n"next"는 다음 페이지의 링크, "previous"는 이전 페이지의 링크를 의미
     "next"가 null일 경우 마지막 페이지, "previous"가 null일 경우 첫 페이지 의미
     page를 직접 query parameter로 전달해 원하는 페이지의 리스트를 가져올 수 있음
-    max_price는 리스트 전체 상품 가격의 최대값(한 페이지 아님에 주의)
+    \n여러 필터를 동시에 적용 가능
+    * 메인 카테고리와 서브 카테고리는 동시에 필터링 할 수 없으며 여러개의 키 값을 전달할 수 없음*
+    \n기본적으로 등록 시간 내림차순(최근 순)으로 정렬되어 있음
     '''
     partial_update_description = '''
     상품 Id로 상품 수정
@@ -191,10 +219,6 @@ decorated_get_related_search_words_view = swagger_auto_schema(
     method='GET', query_serializer=SearchQuerySerializer, **get_response(SearchBoxResponse()), security=[], operation_description='검색어(문자열)와 유사한 메인 카테고리, 서브 카테고리, 키워드 데이터 GET\nquery 필수, 빈 문자열 허용하지 않음.'
 )(get_related_search_words)
 
-decorated_get_common_registration_data_view = swagger_auto_schema(
-    method='GET', **get_response(RegistryCommonResponse()), security=[], operation_description='상품 등록 시 필요한 공통(정적) 데이터 가져오기'
-)(get_common_registration_data)
-
-decorated_get_dynamic_registration_data_view = swagger_auto_schema(
-    method='GET', query_serializer=RegistryDynamicQuerySerializer, **get_response(RegistryDynamicResponse()), security=[], operation_description=get_dynamic_registration_data_operation_description
-)(get_dynamic_registration_data)
+decorated_get_registry_data_view = swagger_auto_schema(
+    method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
+)(get_registry_data)

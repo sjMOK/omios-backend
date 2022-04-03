@@ -2,7 +2,7 @@ import random
 
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min, Count
-
+from django.test import tag
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
@@ -10,13 +10,13 @@ from common.utils import levenshtein
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImagesFactory, 
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
     ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme, Tag,
+    Product, ProductColor, Theme, Tag, Option,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
@@ -83,19 +83,21 @@ class GetRelatedSearchWordssTestCase(ViewTestCase):
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
+@tag('test')
+class GetRegistryDataTestCase(ViewTestCase):
+    _url = '/products/registry-data'
 
-class GetCommonRegistrationDataTestCase(ViewTestCase):
-    _url = '/products/registry-common'
-    
     @classmethod
-    def setUpTestData(self):
+    def setUpTestData(cls):
         ColorFactory()
         MaterialFactory()
         StyleFactory()
         AgeFactory()
         ThemeFactory()
 
-    def test_get(self):
+        cls.sizes = SizeFactory.create_batch(size=3)
+
+    def test_get_common_registry_data(self):
         expected_response_data = {
             'color': ColorSerializer(Color.objects.all(), many=True).data,
             'material': MaterialSerializer(Material.objects.all(), many=True).data,
@@ -107,14 +109,6 @@ class GetCommonRegistrationDataTestCase(ViewTestCase):
 
         self._assert_success()
         self.assertDictEqual(self._response_data, expected_response_data)
-
-
-class GetDynamicRegistrationDataTestCase(ViewTestCase):
-    _url = '/products/registry-dynamic'
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.sizes = SizeFactory.create_batch(size=3)
 
     def test_get_with_sub_category_require_nothing(self):
         sub_category = SubCategoryFactory(
@@ -195,10 +189,9 @@ class GetDynamicRegistrationDataTestCase(ViewTestCase):
         self._assert_success()
         self.assertDictEqual(self._response_data, expected_response_data)
 
-    def test_get_without_sub_category_id(self):
-        self._get()
-
-        self._assert_failure(400, 'This request should include sub_category.')
+    def test_get_with_invalid_sub_category_format(self):
+        self._get({'sub_category': 'aa'})
+        self._assert_failure(400, 'Query parameter sub_category must be id format.')
 
 
 class GetAllCategoriesTestCase(ViewTestCase):
@@ -335,7 +328,7 @@ class ProductViewSetTestCase(ViewTestCase):
         for product_color in product_colors:
             OptionFactory.create_batch(size=2, product_color=product_color)
 
-        ProductImagesFactory.create_batch(size=3, product=product)
+        ProductImageFactory.create_batch(size=3, product=product)
 
         return product
 
@@ -467,7 +460,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     def __test_sorting(self, sort_key):
         sort_mapping = {
             'price_asc': 'price',
-            'price_dsc': '-price',
+            'price_desc': '-price',
         }
 
         products = self.__get_queryset().order_by(sort_mapping[sort_key])
@@ -483,7 +476,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_sorting('price_asc')
 
     def test_sort_price_desc(self):
-        self.__test_sorting('price_dsc')
+        self.__test_sorting('price_desc')
 
     def test_retrieve(self):
         product_id = self._get_product().id
@@ -652,3 +645,4 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         deleted_product = Product.objects.get(id=self._response_data['id'])
         self.assertTrue(not deleted_product.on_sale)
         self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not Option.objects.filter(product_color__product=deleted_product, on_sale=True).exists())

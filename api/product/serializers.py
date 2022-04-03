@@ -15,7 +15,7 @@ from common.serializers import (
 )
 from .validators import validate_url
 from .models import (
-    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImages, Style, Age, Thickness,
+    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
     SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
 
@@ -94,7 +94,7 @@ class TagSerializer(Serializer):
     name = CharField(read_only=True)
 
 
-class ProductImagesListSerializer(ListSerializer):
+class ProductImageListSerializer(ListSerializer):
     def validate(self, attrs):
         create_or_update_attrs = get_create_or_update_attrs(attrs)
         self.__validate_attrs_length(create_or_update_attrs)
@@ -123,13 +123,13 @@ class ProductImagesListSerializer(ListSerializer):
                 )
 
 
-class ProductImagesSerializer(Serializer):
+class ProductImageSerializer(Serializer):
     id = IntegerField(required=False)
     image_url = URLField(max_length=200)
     sequence = IntegerField()
 
     class Meta:
-        list_serializer_class = ProductImagesListSerializer
+        list_serializer_class = ProductImageListSerializer
 
     def validate(self, attrs):
         if self.root.partial and not is_delete_data(attrs):
@@ -215,6 +215,7 @@ class OptionSerializer(Serializer):
     id = IntegerField(required=False)
     size = CharField(max_length=20)
     price_difference = IntegerField(max_value=100000, min_value=0)
+    on_sale = BooleanField(read_only=True)
 
     class Meta:
         list_serializer_class = OptionListSerializer
@@ -265,13 +266,6 @@ class ProductColorListSerializer(ListSerializer):
 
         return attrs
 
-    def to_representation(self, data):
-        iterable = data.filter(on_sale=True) if isinstance(data, Manager) else data
-
-        return [
-            self.child.to_representation(item) for item in iterable
-        ]
-
 
 class ProductColorSerializer(Serializer):
     id = IntegerField(required=False)
@@ -279,6 +273,7 @@ class ProductColorSerializer(Serializer):
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
     image_url = URLField(max_length=200)
+    on_sale = BooleanField(read_only=True)
 
     class Meta:
         list_serializer_class = ProductColorListSerializer
@@ -352,7 +347,7 @@ class ProductSerializer(DynamicFieldsSerializer):
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
-    images = ProductImagesSerializer(allow_empty=False, many=True, source='related_images')
+    images = ProductImageSerializer(allow_empty=False, many=True, source='related_images')
     manufacturing_country = CharField(max_length=20)
     
     def __sort_dictionary_by_field_name(self, ret_dict):
@@ -531,8 +526,8 @@ class ProductWriteSerializer(ProductSerializer):
                 [Option(product_color=product_color, **option_data) for option_data in options]
             )
 
-        ProductImages.objects.bulk_create(
-            [ProductImages(product=product, **image_data) for image_data in images]
+        ProductImage.objects.bulk_create(
+            [ProductImage(product=product, **image_data) for image_data in images]
         )
 
         return product
@@ -554,7 +549,7 @@ class ProductWriteSerializer(ProductSerializer):
             self.__update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
 
         if product_images_data is not None:
-            self.__update_many_to_one_fields(instance, ProductImages, product_images_data)
+            self.__update_many_to_one_fields(instance, ProductImage, product_images_data)
 
         if materials_data is not None:
             self.__update_many_to_one_fields(instance, ProductMaterial, materials_data)
@@ -571,6 +566,7 @@ class ProductWriteSerializer(ProductSerializer):
 
         delete_fields_id = [data['id'] for data in delete_data]
         ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False, display_color_name=None)
+        Option.objects.filter(product_color__product=product, product_color_id__in=delete_fields_id).update(on_sale=False)
 
         for data in update_data:
             options_data = data.pop('options', None)
@@ -594,7 +590,7 @@ class ProductWriteSerializer(ProductSerializer):
         create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(options_data)
         
         delete_fields_id = [data['id'] for data in delete_data]
-        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).delete()
+        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).update(on_sale=False)
 
         for data in update_data:
             field_id = data.pop('id')
