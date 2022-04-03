@@ -6,7 +6,7 @@ from django.http import Http404
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework import viewsets
+from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from common.utils import get_response, querydict_to_dict, levenshtein
@@ -176,7 +176,7 @@ def get_dynamic_registration_data(request):
     return get_response(data=response_data)
 
 
-class ProductViewSet(viewsets.GenericViewSet):
+class ProductViewSet(GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'

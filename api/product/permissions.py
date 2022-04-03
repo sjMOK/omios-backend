@@ -1,9 +1,9 @@
-from rest_framework import permissions
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 
-class ProductPermission(permissions.IsAuthenticated):
+class ProductPermission(IsAuthenticated):
     def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
+        if request.method in SAFE_METHODS:
             return True
         elif super().has_permission(request, view) and hasattr(request.user, 'wholesaler'):
             return True
