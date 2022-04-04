@@ -1,10 +1,8 @@
-from django.db.models import Manager
-
 from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
-    PrimaryKeyRelatedField, URLField, BooleanField, StringRelatedField, RegexField,
+    PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
 from common.validators import validate_all_required_fields_included
@@ -18,7 +16,6 @@ from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
     SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
-
 
 
 PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
@@ -126,7 +123,7 @@ class ProductImageListSerializer(ListSerializer):
 class ProductImageSerializer(Serializer):
     id = IntegerField(required=False)
     image_url = URLField(max_length=200)
-    sequence = IntegerField()
+    sequence = IntegerField(min_value=1)
 
     class Meta:
         list_serializer_class = ProductImageListSerializer
@@ -174,7 +171,7 @@ class ProductMaterialListSerializer(ListSerializer):
 class ProductMaterialSerializer(Serializer):
     id = IntegerField(required=False)
     material = CharField(max_length=20)
-    mixing_rate = IntegerField(max_value=100, min_value=1)
+    mixing_rate = IntegerField(min_value=1, max_value=100)
 
     class Meta:
         list_serializer_class = ProductMaterialListSerializer
@@ -214,7 +211,7 @@ class OptionListSerializer(ListSerializer):
 class OptionSerializer(Serializer):
     id = IntegerField(required=False)
     size = CharField(max_length=20)
-    price_difference = IntegerField(max_value=100000, min_value=0)
+    price_difference = IntegerField()
     on_sale = BooleanField(read_only=True)
 
     class Meta:
@@ -243,11 +240,11 @@ class OptionSerializer(Serializer):
 class ProductColorListSerializer(ListSerializer):
     def validate(self, attrs):
         if self.root.instance is None:
-            return self.validate_create(attrs)
+            return self.__validate_create(attrs)
         else:
-            return self.validate_update(attrs)
+            return self.__validate_update(attrs)
 
-    def validate_create(self, attrs):
+    def __validate_create(self, attrs):
         if len(attrs) > PRODUCT_COLOR_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
@@ -259,7 +256,7 @@ class ProductColorListSerializer(ListSerializer):
 
         return attrs
 
-    def validate_update(self, attrs):
+    def __validate_update(self, attrs):
         display_color_names = [attr.get('display_color_name') for attr in attrs if 'display_color_name' in attr]
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
@@ -269,7 +266,7 @@ class ProductColorListSerializer(ListSerializer):
 
 class ProductColorSerializer(Serializer):
     id = IntegerField(required=False)
-    display_color_name = CharField(allow_null=True, max_length=20)
+    display_color_name = CharField(max_length=20)
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
     image_url = URLField(max_length=200)
@@ -281,10 +278,6 @@ class ProductColorSerializer(Serializer):
     def validate(self, attrs):
         if self.root.instance is not None:
             attrs = self.validate_update(attrs)
-
-        display_color_name = attrs.get('display_color_name', None)
-        if display_color_name is None and 'color' in attrs:
-            attrs['display_color_name'] = attrs.get('color').name
 
         return attrs
 
@@ -305,7 +298,8 @@ class ProductColorSerializer(Serializer):
                 self.__validate_color_update(attrs)
 
             if 'options' in attrs:
-                self.__validate_option_size_uniqueness(attrs.get('options'), attrs.get('id'))
+                self.__validate_option_size_uniqueness(attrs)
+                self.__validate_update_option_length(attrs)
 
         return attrs
 
@@ -316,21 +310,37 @@ class ProductColorSerializer(Serializer):
         if input_color != stored_color:
             raise ValidationError('Color data cannot be updated.')
 
-    def __validate_option_size_uniqueness(self, option_attrs, product_color_id):
+    def __validate_option_size_uniqueness(self, attrs):
+        option_attrs = attrs['options']
+
         delete_option_attrs_id_list = get_list_of_single_item(
             'id', get_delete_attrs(option_attrs)
         )
         create_option_attrs = get_create_attrs(option_attrs)
         for attr in create_option_attrs:
-            if 'size' in attr:
-                queryset = Option.objects.filter(
-                    product_color_id=product_color_id, size=attr.get('size')
-                ).exclude(id__in=delete_option_attrs_id_list)
+            queryset = Option.objects.filter(
+                product_color_id=attrs['id'], size=attr['size']
+            ).exclude(id__in=delete_option_attrs_id_list)
 
-                if queryset.exists():
-                    raise ValidationError(
-                        'The option with the size already exists.'
-                    )
+            if queryset.exists():
+                raise ValidationError(
+                    'The option with the size already exists.'
+                )
+
+    def __validate_update_option_length(self, attrs):
+        color_id = attrs['id']
+
+        if 'options' not in attrs:
+            return
+
+        create_option_len = len(get_create_attrs(attrs['options']))
+        delete_option_len = len(get_delete_attrs(attrs['options']))
+        
+        product_color = ProductColor.objects.get(id=color_id)
+        stored_option_length = product_color.options.filter(on_sale=True).count()
+
+        if stored_option_length + create_option_len - delete_option_len <= 0:
+            raise ValidationError('The product color must have at least one option.')
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -343,7 +353,7 @@ class ProductColorSerializer(Serializer):
 class ProductSerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
     name = RegexField(PRODUCT_NAME_REGEX, max_length=100)
-    price = IntegerField(max_value=1000000, min_value=0)
+    price = IntegerField(min_value=100, max_value=5000000)
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
@@ -405,11 +415,11 @@ class ProductWriteSerializer(ProductSerializer):
     style = PrimaryKeyRelatedField(queryset=Style.objects.all())
     age = PrimaryKeyRelatedField(queryset=Age.objects.all())
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all())
-    laundry_informations = PrimaryKeyRelatedField(allow_empty=False, many=True, queryset=LaundryInformation.objects.all())
+    laundry_informations = PrimaryKeyRelatedField(many=True, queryset=LaundryInformation.objects.all())
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
-    theme = PrimaryKeyRelatedField(queryset=Theme.objects.all(), allow_null=True)
+    theme = PrimaryKeyRelatedField(required=False, queryset=Theme.objects.all())
 
     color_length_limit = 10
     price_difference_upper_limit_ratio = 0.2
@@ -425,7 +435,8 @@ class ProductWriteSerializer(ProductSerializer):
         for product_color in product_colors:
             options_data = product_color.get('options', [])
             for option_data in options_data:
-                self.__validate_price_difference(price, option_data)
+                if 'price_difference' in option_data:
+                    self.__validate_price_difference(price, option_data)
 
         return attrs
 
@@ -451,10 +462,12 @@ class ProductWriteSerializer(ProductSerializer):
         return attrs
 
     def __validate_color_length(self, attrs):
-        create_attrs = get_create_attrs(attrs)
-        delete_attrs = get_delete_attrs(attrs)
+        create_color_length = len(get_create_attrs(attrs))
+        delete_color_length = len(get_delete_attrs(attrs))
 
-        len_colors = self.instance.colors.filter(on_sale=True).count() + len(create_attrs) - len(delete_attrs)
+        stored_color_length = self.instance.colors.filter(on_sale=True).count()
+        len_colors = stored_color_length + create_color_length - delete_color_length
+
         if len_colors > PRODUCT_COLOR_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten colors.'
@@ -496,7 +509,9 @@ class ProductWriteSerializer(ProductSerializer):
 
     def __validate_price_difference(self, price, option_data):
         price_difference = option_data.get('price_difference', 0)
-        if price_difference > price * self.price_difference_upper_limit_ratio:
+        price_difference = option_data['price_difference']
+        
+        if abs(price_difference) > price * self.price_difference_upper_limit_ratio:
             raise ValidationError(
                 'The option price difference must be less than {0}% of the product price.'
                 .format(self.price_difference_upper_limit_ratio * 100)

@@ -602,7 +602,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                 },
                 {
                     'color': color_id_list[1],
-                    'display_color_name': None,
+                    'display_color_name': '블랙',
                     'options': [
                         {
                             'size': 'Free',
