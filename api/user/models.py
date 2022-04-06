@@ -2,7 +2,8 @@ import string, random
 
 from django.db.models import (
     Model, AutoField, BigAutoField, CharField, BooleanField, DateTimeField, OneToOneField, 
-    ForeignKey, EmailField, DateField, IntegerField, ImageField, DO_NOTHING, ManyToManyField
+    ForeignKey, EmailField, DateField, IntegerField, ImageField, DO_NOTHING, ManyToManyField,
+    FloatField,
 )
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
@@ -16,6 +17,8 @@ from common.storage import MediaStorage
 class Membership(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
+    qualification = CharField(max_length=200)
+    discount_rate = FloatField()
 
     class Meta:
         db_table = 'membership'

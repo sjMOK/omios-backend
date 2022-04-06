@@ -17,12 +17,16 @@ class MembershipTestCase(ModelTestCase):
     def setUp(self):
         self._test_data = {
             'name': 'diamond',
+            'discount_rate': 5,
+            'qualification': 'diamond' ,
         }
 
     def test_create(self):
         membership = self._get_model_after_creation()
 
         self.assertEqual(membership.name, self._test_data['name'])
+        self.assertEqual(membership.discount_rate, self._test_data['discount_rate'])
+        self.assertEqual(membership.qualification, self._test_data['qualification'])
 
 
 class UserTestCase(ModelTestCase):
