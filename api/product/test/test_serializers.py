@@ -671,6 +671,9 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'id': product.id,
             'name': product.name,
             'price': product.price,
+            'sale_price': product.sale_price,
+            'base_discount_rate': product.base_discount_rate,
+            'base_discounted_price': product.base_discounted_price,
             'lining': product.lining,
             'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
             'colors': ProductColorSerializer(product.colors.all(), many=True).data,
@@ -779,6 +782,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         data = {
             'name': 'name',
             'price': 50000,
+            'base_discount_rate': 10,
             'sub_category': product.sub_category_id,
             'style': product.style_id,
             'age': product.age_id,

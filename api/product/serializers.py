@@ -354,6 +354,9 @@ class ProductSerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
     name = RegexField(PRODUCT_NAME_REGEX, max_length=100)
     price = IntegerField(min_value=100, max_value=5000000)
+    sale_price = IntegerField(read_only=True)
+    base_discount_rate = IntegerField(read_only=True)
+    base_discounted_price = IntegerField(read_only=True)
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
@@ -419,7 +422,7 @@ class ProductWriteSerializer(ProductSerializer):
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
-    theme = PrimaryKeyRelatedField(required=False, queryset=Theme.objects.all())
+    theme = PrimaryKeyRelatedField(required=False, default=Theme.objects.get(id=1), queryset=Theme.objects.all())
 
     color_length_limit = 10
     price_difference_upper_limit_ratio = 0.2
