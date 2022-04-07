@@ -47,19 +47,30 @@ class Product(Model):
     code = CharField(max_length=12, default='AA')
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
+    base_discount_rate = IntegerField(default=0)
     on_sale = BooleanField(default=True)
     thickness = ForeignKey('Thickness', DO_NOTHING)
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
     manufacturing_country = CharField(max_length=20)
-    theme = ForeignKey('Theme', DO_NOTHING, null=True)
+    theme = ForeignKey('Theme', DO_NOTHING, default=1)
 
     class Meta:
         db_table = 'product'
 
     def __str__(self):
         return self.name
+
+    @property
+    def base_discounted_price(self):
+        base_discount_price = int((self.sale_price * self.base_discount_rate / 100) // 100 * 100)
+        return int(self.sale_price - base_discount_price)
+
+    @property
+    def sale_price(self):
+        price_multiple = 2
+        return self.price * price_multiple
 
 
 class Age(Model):
@@ -150,7 +161,7 @@ class ProductColor(Model):
     id = AutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='colors')
     color = ForeignKey('Color', DO_NOTHING)
-    display_color_name = CharField(max_length=20, null=True)
+    display_color_name = CharField(max_length=20)
     image_url = CharField(max_length=200)
     on_sale = BooleanField(default=True)
 
