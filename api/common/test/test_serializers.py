@@ -6,7 +6,7 @@ from rest_framework.exceptions import APIException
 
 from ..serializers import (
     has_duplicate_element, is_create_data, is_update_data, is_delete_data,
-    get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item, SerializerMixin,
+    get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value, SerializerMixin,
 )
 from .test_cases import FunctionTestCase
 
@@ -84,7 +84,7 @@ class GetAttrsTestCase(APISimpleTestCase):
 
 
 class GetListOfSingleItemTestCase(FunctionTestCase):
-    _function = get_list_of_single_item
+    _function = get_list_of_single_value
 
     def test(self):
         attrs = [

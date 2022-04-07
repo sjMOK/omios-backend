@@ -10,7 +10,7 @@ from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.validators import validate_all_required_fields_included
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
-    get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item,
+    get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     DynamicFieldsSerializer,
 )
 from .validators import validate_url
@@ -113,7 +113,7 @@ class ProductImageListSerializer(ListSerializer):
             )
 
     def __validate_sequence_ascending_order(self, attrs):
-        sequences = get_list_of_single_item('sequence', attrs)
+        sequences = get_list_of_single_value('sequence', attrs)
         sequences.sort()
 
         for index, value in enumerate(sequences):
@@ -159,13 +159,13 @@ class ProductMaterialListSerializer(ListSerializer):
         return attrs
 
     def __validate_total_mixing_rates(self, attrs):
-        total_mixing_rates = get_list_of_single_item('mixing_rate', attrs)
+        total_mixing_rates = get_list_of_single_value('mixing_rate', attrs)
 
         if sum(total_mixing_rates) != self.total_mixing_rates:
             raise ValidationError('The total of material mixing rates must be 100.')
 
     def __validate_materials(self, attrs):
-        materials = get_list_of_single_item('material', attrs)
+        materials = get_list_of_single_value('material', attrs)
 
         if has_duplicate_element(materials):
             raise ValidationError('Material is duplicated.')
@@ -194,7 +194,7 @@ class OptionListSerializer(ListSerializer):
             return self.__validate_update(attrs)
 
     def __validate_create(self, attrs):
-        sizes = get_list_of_single_item('size', attrs)
+        sizes = get_list_of_single_value('size', attrs)
         self.__validate_sizes(sizes)
 
         return attrs
@@ -253,7 +253,7 @@ class ProductColorListSerializer(ListSerializer):
                 'The product cannot have more than ten colors.'
             )
 
-        display_color_names = get_list_of_single_item('display_color_name', attrs)
+        display_color_names = get_list_of_single_value('display_color_name', attrs)
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
 
@@ -317,7 +317,7 @@ class ProductColorSerializer(Serializer):
             raise ValidationError('Color data cannot be updated.')
 
     def __validate_option_size_uniqueness(self, option_attrs, product_color_id):
-        delete_option_attrs_id_list = get_list_of_single_item(
+        delete_option_attrs_id_list = get_list_of_single_value(
             'id', get_delete_attrs(option_attrs)
         )
         create_option_attrs = get_create_attrs(option_attrs)
@@ -465,7 +465,7 @@ class ProductWriteSerializer(ProductSerializer):
             )
 
     def __validate_display_color_name_uniqueness(self, attrs):
-        delete_attrs_id_list = get_list_of_single_item(
+        delete_attrs_id_list = get_list_of_single_value(
             'id', get_delete_attrs(attrs)
         )
         display_color_name_attrs = [
@@ -487,7 +487,7 @@ class ProductWriteSerializer(ProductSerializer):
                 )
     
     def __validate_pass_all_exact_data(self, attrs, related_manager):
-        id_list = get_list_of_single_item('id', attrs)
+        id_list = get_list_of_single_value('id', attrs)
 
         if related_manager.exclude(id__in=id_list):
             raise ValidationError(
