@@ -125,6 +125,9 @@ class ShopperTestCase(ModelTestCase):
         self.assertEqual(self._shopper.nickname, self._test_data['username'])
         self.assertTrue(shopper.nickname.startswith('omios_'))
 
+    def test_default_point(self):
+        self.assertEqual(self._shopper.point, 0)
+
 
 class ShopperAddressTestCase(ModelTestCase):
     fixtures = ['membership']

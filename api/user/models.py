@@ -77,6 +77,7 @@ class Shopper(User):
     birthday = DateField()
     height = IntegerField(null=True)
     weight = IntegerField(null=True)
+    point = IntegerField(default=0)
 
     class Meta:
         db_table = 'shopper'

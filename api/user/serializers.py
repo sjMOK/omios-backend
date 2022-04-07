@@ -93,13 +93,14 @@ class ShopperSerializer(UserSerializer):
     name = RegexField(NAME_REGEX, max_length=20)
     nickname = RegexField(NICKNAME_REGEX, min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=Shopper.objects.all())])
     mobile_number = RegexField(MOBILE_NUMBER_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
+    point = IntegerField(read_only=True)
 
     class Meta:
         model = Shopper
         fields = '__all__'
         extra_kwargs = {            
             'height': {'min_value': 100, 'max_value': 250},
-            'weight': {'min_value': 30, 'max_value': 200}
+            'weight': {'min_value': 30, 'max_value': 200},
         }
 
 

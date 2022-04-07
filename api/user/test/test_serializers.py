@@ -148,6 +148,7 @@ class ShopperSerializerTestCase(SerializerTestCase):
             'birthday': shopper.birthday,
             'height': shopper.height,
             'weight': shopper.weight,
+            'point': shopper.point,
         })
 
 
