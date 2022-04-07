@@ -83,7 +83,7 @@ class GetRelatedSearchWordssTestCase(ViewTestCase):
 
         self._assert_failure(400, 'Unable to search with empty string.')
 
-@tag('test')
+
 class GetRegistryDataTestCase(ViewTestCase):
     _url = '/products/registry-data'
 
@@ -344,6 +344,9 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     def setUp(self):
         self._set_authentication()
 
+    def __get_list_allow_fields(self):
+        return ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
         queryset = Product.objects.prefetch_related(prefetch_images).filter(on_sale=True).order_by('-created')
@@ -351,7 +354,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         return queryset
 
     def __test_list_response(self, queryset, max_price, data={}):
-        allow_fields = ('id', 'name', 'price', 'created')
+        allow_fields = self.__get_list_allow_fields()
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
         self._get(data)
 
@@ -464,7 +467,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         }
 
         products = self.__get_queryset().order_by(sort_mapping[sort_key])
-        allow_fields = ('id', 'name', 'price', 'created')
+        allow_fields = self.__get_list_allow_fields()
         serializer = ProductReadSerializer(products, many=True, allow_fields=allow_fields, context={'detail': False})
 
         self._get({'sort': sort_key})
@@ -518,7 +521,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     def test_list(self):
         queryset = self.__get_queryset()
 
-        allow_fields = ('id', 'name', 'price', 'created')
+        allow_fields = ('id', 'name', 'created', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
         self._get()
 
@@ -602,7 +605,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                 },
                 {
                     'color': color_id_list[1],
-                    'display_color_name': None,
+                    'display_color_name': '블랙',
                     'options': [
                         {
                             'size': 'Free',

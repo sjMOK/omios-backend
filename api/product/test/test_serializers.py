@@ -297,7 +297,7 @@ class ProductImageListSerializerTestCase(ListSerializerTestCase):
 
     def test_raise_validation_error_sequences_not_startswith_one(self):
         for d in self.data:
-            d['sequence'] -= 1
+            d['sequence'] += 1
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
         self._test_serializer_raise_validation_error(expected_message, data=self.data)
@@ -504,15 +504,6 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         }
         self._test_model_instance_serialization(self.product_color, expected_data)
 
-    def test_default_display_color_name(self):
-        self.data['display_color_name'] = None
-        serializer = self._get_serializer_after_validation(data=self.data)
-
-        self.assertEqual(
-            serializer.validated_data['display_color_name'], 
-            serializer.validated_data['color'].name
-        )
-
     def test_validated_image_url_value(self):
         serializer = self._get_serializer_after_validation(data=self.data)
 
@@ -551,6 +542,20 @@ class ProductColorSerializerTestCase(SerializerTestCase):
 
         self._test_serializer_raise_validation_error(
             expected_message, instance=self.product_color, data=self.data, partial=True
+        )
+
+    def test_raise_validation_error_delete_all_options(self):
+        data = {
+            'id': self.product_color.id,
+            'options': [
+                {'id': option.id}
+                for option in self.options
+            ]
+        }
+        expected_message = 'The product color must have at least one option.'
+
+        self._test_serializer_raise_validation_error(
+            expected_message, instance=self.product_color, data=data, partial=True
         )
 
 
@@ -666,6 +671,9 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'id': product.id,
             'name': product.name,
             'price': product.price,
+            'sale_price': product.sale_price,
+            'base_discount_rate': product.base_discount_rate,
+            'base_discounted_price': product.base_discounted_price,
             'lining': product.lining,
             'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
             'colors': ProductColorSerializer(product.colors.all(), many=True).data,
@@ -774,6 +782,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         data = {
             'name': 'name',
             'price': 50000,
+            'base_discount_rate': 10,
             'sub_category': product.sub_category_id,
             'style': product.style_id,
             'age': product.age_id,
@@ -827,7 +836,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 },
                 {
                     'color': color_id_list[1],
-                    'display_color_name': None,
+                    'display_color_name': '블랙',
                     'options': [
                         {
                             'size': 'Free',

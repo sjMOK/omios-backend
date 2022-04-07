@@ -2,30 +2,49 @@
     "model": "user.membership",
     "pk": 1,
     "fields": {
-        "name": "bronze"
+        "name": "NEW",
+        "discount_rate": 1,
+        "qualification": "NEW"
     }
 }, {
     "model": "user.membership",
     "pk": 2,
     "fields": {
-        "name": "silver"
+        "name": "루비",
+        "discount_rate": 1.5,
+        "qualification": "ruby"
     }
 }, {
     "model": "user.membership",
     "pk": 3,
     "fields": {
-        "name": "gold"
+        "name": "사파이어",
+        "discount_rate": 2,
+        "qualification": "saphire"
     }
 }, {
     "model": "user.membership",
     "pk": 4,
     "fields": {
-        "name": "platinum"
+        "name": "에메랄드",
+        "discount_rate": 3,
+        "qualification": "emerald"
     }
 }, {
     "model": "user.membership",
     "pk": 5,
     "fields": {
-        "name": "diamond"
+        "name": "다이아몬드",
+        "discount_rate": 4,
+        "qualification": "diamond"
+    }
+},
+{
+    "model": "user.membership",
+    "pk": 6,
+    "fields": {
+        "name": "VIP",
+        "discount_rate": 5,
+        "qualification": "vip"
     }
 }]
