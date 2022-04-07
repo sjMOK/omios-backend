@@ -186,8 +186,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     __default_sorting = '-created'
-    __default_fields = ('id', 'created', 'name', 'price', 'base_discount_rate')
-    __default_properties = ('sale_price', 'base_discounted_price')
+    __default_fields = ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
     __read_action = ('retrieve', 'list', 'search')
     __require_write_serializer_action = ('create', 'partial_update')
 
@@ -265,7 +264,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         ).alias(Count('id')).only(*self.__default_fields)
 
         page = self.paginate_queryset(queryset)
-        allow_fields = self.__get_allow_fields() + self.__default_properties
+        allow_fields = self.__get_allow_fields()
         serializer = self.get_serializer(
             page, allow_fields=allow_fields, many=True, context={'detail': self.detail, 'field_order': allow_fields}
         )

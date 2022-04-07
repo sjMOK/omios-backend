@@ -47,7 +47,9 @@ class Product(Model):
     code = CharField(max_length=12, default='AA')
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
+    sale_price = IntegerField()
     base_discount_rate = IntegerField(default=0)
+    base_discounted_price = IntegerField()
     on_sale = BooleanField(default=True)
     thickness = ForeignKey('Thickness', DO_NOTHING)
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
@@ -61,16 +63,6 @@ class Product(Model):
 
     def __str__(self):
         return self.name
-
-    @property
-    def base_discounted_price(self):
-        base_discount_price = int((self.sale_price * self.base_discount_rate / 100) // 100 * 100)
-        return int(self.sale_price - base_discount_price)
-
-    @property
-    def sale_price(self):
-        price_multiple = 2
-        return self.price * price_multiple
 
 
 class Age(Model):

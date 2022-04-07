@@ -80,7 +80,9 @@ class ProductTestCase(ModelTestCase):
             'sub_category': sub_category,
             'name': '크로커다일레이디 크로커다일 베이직플리스점퍼 cl0wpf903',
             'price': 35000,
+            'sale_price': 70000,
             'base_discount_rate': 10,
+            'base_discounted_price': 63000,
             'style': style,
             'age': age,
             'thickness': thickness,
@@ -133,17 +135,6 @@ class ProductTestCase(ModelTestCase):
         self._product.tags.add(*tags)
 
         self.assertQuerysetEqual(self._product.tags.all(), tags, ordered=False)
-
-    def test_base_discounted_price(self):
-        base_discount_price = int((self._product.sale_price * self._product.base_discount_rate / 100) // 100 * 100)
-        expected_base_discounted_price = self._product.sale_price - base_discount_price
-        
-        self.assertEqual(expected_base_discounted_price, self._product.base_discounted_price)
-
-    def test_sale_price(self):
-        expected_sale_price = self._product.price * 2
-
-        self.assertEqual(expected_sale_price, self._product.sale_price)
 
 
 class AgeTestCase(ModelTestCase):

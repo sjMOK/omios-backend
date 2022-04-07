@@ -854,6 +854,13 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         return data
 
+    def test_validaation_price(self):
+        data = self.__get_input_data()
+        data['price'] = 50010
+        expected_message = 'The price must be a multiple of 100.'
+
+        self._test_serializer_raise_validation_error(expected_message, data=data)
+
     def test_raise_validation_error_does_not_pass_all_exact_image_data_in_partial(self):
         data = [
             {
@@ -935,7 +942,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_raise_validation_error_price_difference_exceed_upper_limit(self):
-        upper_limit_ratio = self._serializer_class.price_difference_upper_limit_ratio
+        upper_limit_ratio = 0.2
         data = self.__get_input_data()
         option_data = data['colors'][0]['options']
         option_data[0]['price_difference'] = data['price'] *(1 +(upper_limit_ratio+0.1))
@@ -945,6 +952,22 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self._test_serializer_raise_validation_error(
             expected_message, data=data
         )
+
+    def test_make_price_data(self):
+        price = 50000
+        base_discount_rate = 20
+        data = self.__get_input_data()
+        data['price'] = price
+        data['base_discount_rate'] = base_discount_rate
+        
+        serializer = self._get_serializer_after_validation(data=data, context={'wholesaler': WholesalerFactory()})
+        product = serializer.save()
+
+        expected_sale_price = 50000 * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * base_discount_rate/100) // 100 * 100
+
+        self.assertEqual(expected_sale_price, product.sale_price)
+        self.assertEqual(expected_base_discounted_price, product.base_discounted_price)
 
     def test_create(self):
         data = self.__get_input_data()
@@ -1236,6 +1259,43 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             model_to_dict(updated_option_obj, fields=('id', 'price_difference')),
             update_data['options'][0]
         )
+
+    def test_update_price(self):
+        update_data = {'price': 60000}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_sale_price = update_data['price'] * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.price, update_data['price'])
+        self.assertEqual(product.sale_price, expected_sale_price)
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+
+    def test_update_base_discount_rate(self):
+        update_data = {'base_discount_rate': 20}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_base_discounted_price = product.sale_price - (product.sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+
+    def test_update_price_and_base_discount_rate(self):
+        update_data = {'price': 60000, 'base_discount_rate': 20}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_sale_price = update_data['price'] * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.price, update_data['price'])
+        self.assertEqual(product.sale_price, expected_sale_price)
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+        
 
     def test_delete_option(self):
         update_color_obj = self.product.colors.latest('id')
