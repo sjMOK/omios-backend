@@ -56,7 +56,7 @@ class Product(Model):
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
     manufacturing_country = CharField(max_length=20)
-    theme = ForeignKey('Theme', DO_NOTHING, default=1)
+    theme = ForeignKey('Theme', DO_NOTHING)
 
     class Meta:
         db_table = 'product'

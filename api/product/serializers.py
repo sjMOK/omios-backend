@@ -437,7 +437,7 @@ class ProductWriteSerializer(ProductSerializer):
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
-    theme = PrimaryKeyRelatedField(required=False, default=Theme.objects.get(id=1), queryset=Theme.objects.all())
+    theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
     __price_difference_upper_limit_ratio = 0.2
     __price_multiple_num_data = [

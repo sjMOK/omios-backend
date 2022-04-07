@@ -113,11 +113,9 @@ class ProductTestCase(ModelTestCase):
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
         self._test_data.pop('base_discount_rate')
-        self._test_data.pop('theme')
         product = self._get_model_after_creation()
 
         self.assertEqual(product.base_discount_rate, 0)
-        self.assertEqual(product.theme_id, 1)
         self.assertEqual(product.code, 'AA')
         self.assertEqual(product.created, datetime.strptime(FREEZE_TIME, FREEZE_TIME_FORMAT))
         self.assertTrue(product.on_sale)
