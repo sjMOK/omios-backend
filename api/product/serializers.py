@@ -237,6 +237,21 @@ class OptionSerializer(Serializer):
             raise ValidationError('Size data cannot be updated.')
 
 
+class OptionInOrderItemSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    size = CharField(read_only=True)
+    display_color_name = CharField(read_only=True, source='product_color.display_color_name')
+    product_id = IntegerField(read_only=True, source='product_color.product.id')
+    product_name = CharField(read_only=True, source='product_color.product.name')
+    product_code = CharField(read_only=True, source='product_color.product.code')
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+
+        return ret
+
+
 class ProductColorListSerializer(ListSerializer):
     def validate(self, attrs):
         if self.root.instance is None:
