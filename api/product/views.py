@@ -13,7 +13,7 @@ from common.utils import get_response, querydict_to_dict, levenshtein, check_id_
 from common.views import upload_image_view
 from .models import (
     Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
@@ -259,10 +259,6 @@ class ProductViewSet(viewsets.GenericViewSet):
         return queryset.order_by(*sort_set)
 
     def __get_response_for_list(self, queryset, **extra_data):
-        queryset = self.sort_queryset(
-            self.filter_queryset(queryset)
-        ).alias(Count('id')).only(*self.__default_fields)
-
         page = self.paginate_queryset(queryset)
         allow_fields = self.__get_allow_fields()
         serializer = self.get_serializer(
@@ -293,14 +289,24 @@ class ProductViewSet(viewsets.GenericViewSet):
         return queryset
 
     def list(self, request):
+        queryset = self.get_queryset()
+
+        if request.query_params.get('like_products') == 'True':
+            if request.auth is not None and hasattr(request.user, 'shopper'):
+                queryset = queryset.filter(like_shoppers=request.user.shopper)
+
         if 'search_word' in request.query_params and not request.query_params['search_word']:
             return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
         if 'main_category' in request.query_params and 'sub_category' in request.query_params:
             return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
-        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
+        queryset = self.__initial_filtering(queryset, **request.query_params.dict())
         max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        queryset = self.sort_queryset(
+            self.filter_queryset(queryset)
+        ).alias(Count('id')).only(*self.__default_fields)
 
         return self.__get_response_for_list(queryset, max_price=max_price)
 
