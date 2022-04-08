@@ -324,7 +324,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, id=None):
         queryset = self.get_queryset().select_related(
             'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
-        )
+        ).annotate(total_like=Count('like_shoppers'))
         product = self.get_object(queryset)
 
         allow_fields = self.__get_allow_fields()

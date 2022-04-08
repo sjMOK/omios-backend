@@ -2,7 +2,7 @@ from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
-from rest_framework.exceptions import ValidationError, APIException
+from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
 from common.validators import validate_all_required_fields_included
@@ -407,6 +407,7 @@ class ProductReadSerializer(ProductSerializer):
     created = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
+    total_like = IntegerField(read_only=True)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)

@@ -2,11 +2,17 @@ import random, copy
 
 from django.test import tag
 from django.db.models.query import Prefetch
+from django.db.models import Count
 from django.forms import model_to_dict
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from user.test.factory import WholesalerFactory
+from .factory import (
+    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
+    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
+    ProductMaterialFactory, OptionFactory, ThemeFactory, 
+)
 from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
@@ -15,11 +21,7 @@ from ..serializers import (
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
-from .factory import (
-    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
-    ProductMaterialFactory, OptionFactory, ThemeFactory, 
-)
+
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
 
@@ -694,6 +696,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'created': datetime_to_iso(product.created),
             'on_sale': product.on_sale,
             'code': product.code,
+            'total_like': product.like_shoppers.all().count(),
         }
 
         return expected_data
@@ -701,7 +704,9 @@ class ProductReadSerializerTestCase(SerializerTestCase):
     def test_model_instance_serialization_detail(self):
         expected_data = self.__get_expected_data(self.product)
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        product = Product.objects.prefetch_related(
+                    prefetch_images
+                ).annotate(total_like=Count('like_shoppers')).get(id=self.product.id)
 
         self._test_model_instance_serialization(product, expected_data, context={'detail': True})
 
@@ -712,7 +717,9 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         for data in expected_data:
             data['main_image'] = data['images'][0]['image_url']
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).filter(id__in=[self.product.id])
+        product = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id]).annotate(total_like=Count('like_shoppers'))
         serializer = self._get_serializer(product, many=True, context={'detail': False})
 
         self.assertListEqual(serializer.data, expected_data)
