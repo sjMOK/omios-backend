@@ -558,8 +558,8 @@ class ProductWriteSerializer(ProductSerializer):
         return round(price * self.__get_price_multiple(price)) // 100 * 100
 
     def __get_base_discounted_price(self, sale_price, base_discount_rate):
-        base_discount_price = int((sale_price * base_discount_rate / 100) // 100 * 100)
-        return int(sale_price - base_discount_price)
+        base_discount_price = int(sale_price * base_discount_rate / 100) // 100 * 100
+        return sale_price - base_discount_price
 
     def __update_price_data(self, instance, validated_data):
         if 'price' in validated_data:
