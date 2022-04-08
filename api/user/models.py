@@ -78,6 +78,7 @@ class Shopper(User):
     height = IntegerField(null=True)
     weight = IntegerField(null=True)
     point = IntegerField(default=0)
+    like_products = ManyToManyField('product.Product', through='ProductLike')
 
     class Meta:
         db_table = 'shopper'
@@ -98,6 +99,17 @@ class Shopper(User):
             self.nickname = self.__get_default_nickname()
 
         super().save(*args, **kwargs)
+
+
+class ProductLike(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    product = ForeignKey('product.Product', DO_NOTHING)
+    created_at = DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'product_like'
+        unique_together = (('shopper', 'product'),)
 
 
 class ShopperShippingAddress(Model):

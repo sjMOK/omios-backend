@@ -7,8 +7,12 @@ from rest_framework.exceptions import APIException
 from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
+from product.test.factory import ProductFactory
 from .factory import ShopperFactory, BuildingFactory, FloorFactory
-from ..models import Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor
+from ..models import (
+    Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
+    ProductLike,
+)
 
 
 class MembershipTestCase(ModelTestCase):
@@ -127,6 +131,23 @@ class ShopperTestCase(ModelTestCase):
 
     def test_default_point(self):
         self.assertEqual(self._shopper.point, 0)
+
+
+class ProductLikeTestCase(ModelTestCase):
+    fixtures = ['membership']
+    _model_class = ProductLike
+
+    @freeze_time(FREEZE_TIME)
+    def test_create(self):
+        self._test_data = {
+            'shopper': ShopperFactory(),
+            'product': ProductFactory()
+        }
+        product_like = self._get_model_after_creation()
+
+        self.assertEqual(product_like.shopper, self._test_data['shopper'])
+        self.assertEqual(product_like.product, self._test_data['product'])
+        self.assertEqual(datetime_to_iso(product_like.created_at), FREEZE_TIME)
 
 
 class ShopperAddressTestCase(ModelTestCase):

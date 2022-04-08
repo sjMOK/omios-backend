@@ -1,6 +1,6 @@
 from django.db.models import (
     Model, ForeignKey, ManyToManyField, DO_NOTHING, AutoField, CharField, ImageField,  BooleanField, 
-    BigAutoField, DateTimeField, IntegerField,
+    BigAutoField, IntegerField, DateTimeField,
 )
 from django.utils import timezone
 
@@ -57,6 +57,7 @@ class Product(Model):
     lining = BooleanField()
     manufacturing_country = CharField(max_length=20)
     theme = ForeignKey('Theme', DO_NOTHING)
+    like_shoppers = ManyToManyField('user.Shopper', through='user.ProductLike')
 
     class Meta:
         db_table = 'product'
