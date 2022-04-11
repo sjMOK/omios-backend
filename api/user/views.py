@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView, ListCreateAPIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -148,23 +149,28 @@ def is_unique(request):
     return get_response(data={'is_unique': True})
 
 
-@api_view(['POST', 'DELETE'])
-def like_product(request, shopper_id, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    shopper = get_object_or_404(Shopper, id=shopper_id)
+class ProductLikeView(APIView):
+    def get_queryset(self):
+        return ProductLike.objects.all()
 
-    if request.method == 'POST':
-        if ProductLike.objects.filter(shopper=shopper, product=product).exists():
+    def post(self, request, user_id, product_id):
+        shopper = get_object_or_404(Shopper, id=user_id)
+        product = get_object_or_404(Product, id=product_id)
+
+        if self.get_queryset().filter(shopper=shopper, product=product).exists():
             return get_response(status=HTTP_400_BAD_REQUEST, message='Duplicated user and product')
 
         ProductLike.objects.create(shopper=shopper, product=product)
-        return get_response(status=HTTP_201_CREATED, data={'shopper_id': shopper_id, 'product_id': product.id})
+        return get_response(status=HTTP_201_CREATED, data={'shopper_id': user_id, 'product_id': product.id})
 
-    elif request.method == 'DELETE':
-        if not ProductLike.objects.filter(shopper=shopper, product=product).exists():
+    def delete(self, request, user_id, product_id):
+        shopper = get_object_or_404(Shopper, id=user_id)
+        product = get_object_or_404(Product, id=product_id)
+
+        if not self.get_queryset().filter(shopper=shopper, product=product).exists():
             return get_response(status=HTTP_400_BAD_REQUEST, message='You are deleting non exist likes')
 
         product_like = ProductLike.objects.get(shopper=shopper, product=product)
         product_like.delete()
 
-    return get_response(data={'shopper_id': shopper_id, 'product_id': product.id})
+        return get_response(data={'shopper_id': user_id, 'product_id': product_id})

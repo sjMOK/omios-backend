@@ -97,7 +97,7 @@ class ShopperSerializer(UserSerializer):
 
     class Meta:
         model = Shopper
-        fields = '__all__'
+        exclude = ['like_products']
         extra_kwargs = {            
             'height': {'min_value': 100, 'max_value': 250},
             'weight': {'min_value': 30, 'max_value': 200},

@@ -364,13 +364,14 @@ class IsUniqueTestCase(ViewTestCase):
 
 class LikeProductTestCase(ViewTestCase):
     fixtures = ['membership']
-    _url = '/users/shoppers/{0}/likes/products/{1}'
+    _url = '/users/shoppers/{0}/like/{1}'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
         cls.product = ProductFactory()
         cls._url = cls._url.format(cls._user.id, cls.product.id)
+        cls._test_data = {'product_id': cls.product.id}
 
     def test_post(self):
         self._set_authentication()

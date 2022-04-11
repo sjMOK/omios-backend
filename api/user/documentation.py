@@ -1,13 +1,14 @@
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField
 
 from common.documentation import UniqueResponse, Image, get_response
 from .models import Shopper, Wholesaler
 from .serializers import (
-    Serializer, ModelSerializer, IssuingTokenSerializer, RefreshingTokenSerializer, CharField, 
-    MembershipSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
+    IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, WholesalerSerializer, 
+    UserPasswordSerializer, BuildingSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet, ProductLikeView,
     upload_business_registration_image, get_buildings, change_password, is_unique,
 )
 
@@ -83,6 +84,11 @@ class Wholesaler(ModelSerializer):
         exclude = ['password']
 
 
+class ProductLikeViewResponse(Serializer):
+    shopper_id = IntegerField()
+    product_id = IntegerField()
+
+
 class DecoratedRefreshingTokenView(RefreshingTokenView):
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
@@ -151,3 +157,9 @@ decorated_user_password_view = swagger_auto_schema(
 decorated_is_unique_view = swagger_auto_schema(
     method='GET', query_serializer=UniqueRequest, **get_response(UniqueResponse()), security=[], operation_description='중복검사\n한 번에 하나의 파라미터에 대해서만 요청 가능'
 )(is_unique)
+
+decorated_product_like_view = swagger_auto_schema(
+    method='POST', **get_response(ProductLikeViewResponse(), 201), operation_description='상품 좋아요 생성(좋아요 버튼 클릭시 요청)'
+)(swagger_auto_schema(
+    method='DELETE', **get_response(ProductLikeViewResponse()), operation_description='상품 좋아요 삭제(좋아요 버튼 한번 더 클릭시 요청)'
+)(ProductLikeView.as_view()))
