@@ -344,7 +344,7 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         if hasattr(request.user, 'shopper'):
             like = ProductLike.objects.filter(shopper=request.user.shopper, product=product).exists()
-            context['like'] = like
+            context['shopper_like'] = like
 
         serializer = self.get_serializer(
             product, allow_fields=allow_fields, context=context

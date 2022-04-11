@@ -706,7 +706,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
 
     def test_model_instance_serialization_detail(self):
         expected_data = self.__get_expected_data(self.product)
-        expected_data['like'] = False
+        expected_data['shopper_like'] = False
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(
                     prefetch_images
@@ -727,7 +727,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         serializer = self._get_serializer(product, many=True, context={'detail': False})
         
         for data in serializer.data:
-            data.pop('like')
+            data.pop('shopper_like')
 
         self.assertListEqual(serializer.data, expected_data)
 
@@ -775,10 +775,10 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
         serializer = self._get_serializer(
-            product, context={'detail': True, 'like': ProductLike.objects.filter(shopper=shopper, product=product).exists()}
+            product, context={'detail': True, 'shopper_like': ProductLike.objects.filter(shopper=shopper, product=product).exists()}
         )
         
-        self.assertEqual(serializer.data['like'], True)
+        self.assertEqual(serializer.data['shopper_like'], True)
 
     def test_model_instance_serialization_list_like_true(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
@@ -794,7 +794,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         expected_data = [shopper.like_products.filter(id=product.id).exists() for product in products]
 
         self.assertListEqual(
-            [data['like'] for data in serializer.data],
+            [data['shopper_like'] for data in serializer.data],
             expected_data
         )
 
@@ -807,7 +807,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         expected_data = [False for product in products]
         
         self.assertListEqual(
-            [data['like'] for data in serializer.data],
+            [data['shopper_like'] for data in serializer.data],
             expected_data
         )
 

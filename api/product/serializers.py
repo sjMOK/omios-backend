@@ -425,9 +425,9 @@ class ProductReadSerializer(ProductSerializer):
             ret['main_image'] = DEFAULT_IMAGE_URL
         
         if ret['id'] in self.context.get('shoppers_like_products_id_list', []):
-            ret['like'] = True
+            ret['shopper_like'] = True
         else:
-            ret['like'] = False
+            ret['shopper_like'] = False
 
         return ret
 
@@ -435,7 +435,7 @@ class ProductReadSerializer(ProductSerializer):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
 
-        ret['like'] = self.context.get('like', False)
+        ret['shopper_like'] = self.context.get('shopper_like', False)
 
         return ret
 
