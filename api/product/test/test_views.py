@@ -336,6 +336,7 @@ class ProductViewSetTestCase(ViewTestCase):
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
+    maxDiff = None
     fixtures = ['membership']
 
     @classmethod
@@ -355,9 +356,10 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         return queryset
 
-    def __test_list_response(self, queryset, max_price, data={}):
+    def __test_list_response(self, queryset, max_price, data={}, context={}):
+        context.update({'detail': False})
         allow_fields = self.__get_list_allow_fields()
-        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
+        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context=context)
         self._get(data)
 
         self._assert_success()
@@ -379,7 +381,10 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         queryset = self.__get_queryset().filter(like_shoppers=self._user.shopper)
         max_price = queryset.aggregate(max_price=Max('price'))['max_price']
         
-        self.__test_list_response(queryset, max_price, data={'like_products': 'True'})
+        shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
+        self.__test_list_response(
+            queryset, max_price, data={'like_products': 'True'}, context={'shoppers_like_products_id_list': shoppers_like_products_id_list}
+        )
 
     def __test_filtering(self, query_params):
         filter_set = {}

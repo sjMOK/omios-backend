@@ -126,10 +126,12 @@ class ProductListResponse(Serializer):
     previous = URLField(allow_null=True)
     results = ProductReadSerializer(many=True, allow_fields=('id', 'name', 'price', 'created'))
     max_price = IntegerField()
+    like = BooleanField()
 
 
 class ProductDetailResponse(ProductReadSerializer):
     main_category = MainCategoryResponse()
+    like = BooleanField()
 
 
 class DecoratedProductViewSet(ProductViewSet):

@@ -11,6 +11,7 @@ from common.serializers import (
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item,
     DynamicFieldsSerializer,
 )
+from user.models import ProductLike
 from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
@@ -413,18 +414,28 @@ class ProductReadSerializer(ProductSerializer):
         ret = super().to_representation(instance)
 
         if self.context['detail']:
-            ret = self.to_representation_retrieve(ret, instance)
+            return self.__to_representation_retrieve(ret, instance)
         else:
-            if instance.related_images:
-                ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
-            else:
-                ret['main_image'] = DEFAULT_IMAGE_URL
+            return self.__to_representation_list(ret, instance)
+
+    def __to_representation_list(self, ret, instance):
+        if instance.related_images:
+            ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
+        else:
+            ret['main_image'] = DEFAULT_IMAGE_URL
+        
+        if ret['id'] in self.context.get('shoppers_like_products_id_list', []):
+            ret['like'] = True
+        else:
+            ret['like'] = False
 
         return ret
 
-    def to_representation_retrieve(self, ret, instance):
+    def __to_representation_retrieve(self, ret, instance):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
+
+        ret['like'] = self.context.get('like', False)
 
         return ret
 

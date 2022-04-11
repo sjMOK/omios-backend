@@ -11,6 +11,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
 from common.views import upload_image_view
+from user.models import ProductLike
 from .models import (
     Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
     Style, Keyword, Product, Tag, Age, Thickness, Theme, Option,
@@ -258,11 +259,22 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
+    def __get_shoppers_like_products_id_list(self):
+        shopper = self.request.user.shopper
+        like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
+
+        return like_products_id_list        
+
     def __get_response_for_list(self, queryset, **extra_data):
         page = self.paginate_queryset(queryset)
         allow_fields = self.__get_allow_fields()
+
+        context = {'detail': self.detail, 'field_order': allow_fields}
+        if hasattr(self.request.user, 'shopper'):
+            context['shoppers_like_products_id_list'] = self.__get_shoppers_like_products_id_list()
+
         serializer = self.get_serializer(
-            page, allow_fields=allow_fields, many=True, context={'detail': self.detail, 'field_order': allow_fields}
+            page, allow_fields=allow_fields, many=True, context=context
         )
 
         paginated_response = self.get_paginated_response(serializer.data)
@@ -328,8 +340,14 @@ class ProductViewSet(viewsets.GenericViewSet):
         product = self.get_object(queryset)
 
         allow_fields = self.__get_allow_fields()
+        context = {'detail': self.detail, 'field_order': self.__get_allow_fields()}
+
+        if hasattr(request.user, 'shopper'):
+            like = ProductLike.objects.filter(shopper=request.user.shopper, product=product).exists()
+            context['like'] = like
+
         serializer = self.get_serializer(
-            product, allow_fields=allow_fields, context={'detail': self.detail, 'field_order': allow_fields}
+            product, allow_fields=allow_fields, context=context
         )
 
         return get_response(data=serializer.data)

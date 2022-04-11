@@ -7,7 +7,8 @@ from django.forms import model_to_dict
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
-from user.test.factory import WholesalerFactory
+from user.test.factory import WholesalerFactory, ShopperFactory
+from user.models import ProductLike
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
@@ -653,9 +654,11 @@ class ProductSerializerTestCase(SerializerTestCase):
 
         self.assertListEqual(list(serializer.data.keys()), fields)
 
-
+@tag('test')
 class ProductReadSerializerTestCase(SerializerTestCase):
+    maxDiff = None
     _serializer_class = ProductReadSerializer
+    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):
@@ -703,6 +706,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
 
     def test_model_instance_serialization_detail(self):
         expected_data = self.__get_expected_data(self.product)
+        expected_data['like'] = False
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(
                     prefetch_images
@@ -721,6 +725,9 @@ class ProductReadSerializerTestCase(SerializerTestCase):
                     prefetch_images
                 ).filter(id__in=[self.product.id]).annotate(total_like=Count('like_shoppers'))
         serializer = self._get_serializer(product, many=True, context={'detail': False})
+        
+        for data in serializer.data:
+            data.pop('like')
 
         self.assertListEqual(serializer.data, expected_data)
 
@@ -736,7 +743,10 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'images': [DEFAULT_IMAGE_URL],
         }
 
-        self.assertDictEqual(serializer.data, expected_data)
+        self.assertDictEqual(
+            {'id': serializer.data['id'], 'images': serializer.data['images']},
+            expected_data
+        )
 
     def test_default_image_list(self):
         ProductFactory()
@@ -753,8 +763,53 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             for product in products
         ]
 
-        self.assertListEqual(serializer.data, expected_data)
+        self.assertListEqual(
+            [{'id': data['id'], 'main_image': data['main_image']} for data in serializer.data],
+            expected_data
+        )
 
+    def test_model_instance_serialization_like_true(self):
+        shopper = ShopperFactory()
+        shopper.like_products.add(self.product)
+
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        serializer = self._get_serializer(
+            product, context={'detail': True, 'like': ProductLike.objects.filter(shopper=shopper, product=product).exists()}
+        )
+        
+        self.assertEqual(serializer.data['like'], True)
+
+    def test_model_instance_serialization_list_like_true(self):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        products = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id])
+        shopper = ShopperFactory()
+        shopper.like_products.add(*products)
+
+        shoppers_like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
+        serializer = self._get_serializer(
+            products, many=True, context={'detail': False, 'shoppers_like_products_id_list': shoppers_like_products_id_list})
+        expected_data = [shopper.like_products.filter(id=product.id).exists() for product in products]
+
+        self.assertListEqual(
+            [data['like'] for data in serializer.data],
+            expected_data
+        )
+
+    def test_model_instance_serialization_list_like_false(self):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        products = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id])
+        serializer = self._get_serializer(products, many=True, context={'detail': False})
+        expected_data = [False for product in products]
+        
+        self.assertListEqual(
+            [data['like'] for data in serializer.data],
+            expected_data
+        )
 
 class ProductWriteSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductWriteSerializer
