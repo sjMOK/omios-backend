@@ -45,10 +45,10 @@ class BlacklistingTokenView(TokenView):
 
 class UserViewSet(GenericViewSet):
     permission_classes = [IsAuthenticatedExceptCreate]
-    lookup_field = 'id'
+    lookup_field = 'user_id'
     lookup_value_regex = r'[0-9]+'
 
-    def retrieve(self, request, id=None):
+    def retrieve(self, request, user_id=None):
         user = self.get_object()
         serializer = self.get_serializer(instance=user)
 
@@ -63,7 +63,7 @@ class UserViewSet(GenericViewSet):
 
         return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
 
-    def partial_update(self, request, id=None):
+    def partial_update(self, request, user_id=None):
         if set(request.data).difference(self._patchable_fields):
             return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
         
@@ -76,7 +76,7 @@ class UserViewSet(GenericViewSet):
 
         return get_response(data={'id': request.user.id})
 
-    def destroy(self, request, id=None):
+    def destroy(self, request, user_id=None):
         user = self.get_object()
         user.is_active = False
         user.save(update_fields=['is_active'])
