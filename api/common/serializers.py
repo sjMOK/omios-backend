@@ -44,6 +44,14 @@ def get_list_of_single_value(key, attrs):
     
     return ret_list
 
+def get_sum_of_single_value(key, attrs):
+    return sum(get_list_of_single_value(key, attrs))
+
+def add_data_in_each_element(list, key, value):
+    for element in list:
+        element[key] = value
+    
+    return list
 
 class SerializerMixin:
     ALL_FIELDS = '__all__'
