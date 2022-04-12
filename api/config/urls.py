@@ -8,6 +8,8 @@ from drf_yasg.openapi import Info, License
 
 from user.documentation import DecoratedShopperViewSet, DecoratedWholesalerViewSet
 from product.documentation import DecoratedProductViewSet
+from order.views import OrderViewSet
+from order.views import OrderItemViewSet
 
 handler404 = 'common.views.custom_404_view'
 handler500 = 'common.views.custom_500_view'
@@ -29,6 +31,9 @@ router = SimpleRouter(trailing_slash=False)
 router.register(r'users/shoppers', DecoratedShopperViewSet, basename='shoppers')
 router.register(r'users/wholesalers', DecoratedWholesalerViewSet, basename='wholesalers')
 router.register(r'products', DecoratedProductViewSet, basename='products')
+router.register(r'^orders', OrderViewSet, basename='orders')
+router.register(r'^orders/items', OrderItemViewSet, basename='order-items')
+# router.register(r'^orders/(?P<order_id>\d+)/items', OrderItemViewSet, basename='order-items')
 
 urlpatterns = [
    re_path(r'^swagger$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
