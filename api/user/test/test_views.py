@@ -4,8 +4,9 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
+from product.test.factory import ProductFactory
 from .factory import get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory
-from ..models import BlacklistedToken, User, Shopper, Wholesaler, Building
+from ..models import BlacklistedToken, User, Shopper, Wholesaler, Building, ProductLike
 from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer
 
 
@@ -359,3 +360,45 @@ class IsUniqueTestCase(ViewTestCase):
         self._get({'invalid_parameter': 'test'})
 
         self._assert_failure(400, 'Invalid parameter name.')
+
+
+class LikeProductTestCase(ViewTestCase):
+    fixtures = ['membership']
+    _url = '/users/shoppers/{0}/like/{1}'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls.product = ProductFactory()
+        cls._url = cls._url.format(cls._user.id, cls.product.id)
+        cls._test_data = {'product_id': cls.product.id}
+
+    def test_post(self):
+        self._set_authentication()
+        self._post()
+
+        self._assert_success()
+        self.assertEqual(self._response_data['shopper_id'], self._user.id)
+        self.assertEqual(self._response_data['product_id'], self.product.id)
+
+    def test_delete(self):
+        self._user.like_products.add(self.product)
+        self._set_authentication()
+        self._delete()
+
+        self._assert_success()
+        self.assertEqual(self._response_data['shopper_id'], self._user.id)
+        self.assertEqual(self._response_data['product_id'], self.product.id)
+
+    def test_post_duplicated_like(self):
+        self._user.like_products.add(self.product)
+        self._set_authentication()
+        self._post()
+
+        self._assert_failure(400, 'Duplicated user and product')
+    
+    def test_delete_non_eixist_like(self):
+        self._set_authentication()
+        self._delete()
+
+        self._assert_failure(400, 'You are deleting non exist likes')

@@ -2,11 +2,18 @@ import random, copy
 
 from django.test import tag
 from django.db.models.query import Prefetch
+from django.db.models import Count
 from django.forms import model_to_dict
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
-from user.test.factory import WholesalerFactory
+from user.test.factory import WholesalerFactory, ShopperFactory
+from user.models import ProductLike
+from .factory import (
+    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
+    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
+    ProductMaterialFactory, OptionFactory, ThemeFactory, 
+)
 from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
@@ -15,11 +22,7 @@ from ..serializers import (
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
-from .factory import (
-    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
-    ProductMaterialFactory, OptionFactory, ThemeFactory, 
-)
+
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
 
@@ -651,9 +654,11 @@ class ProductSerializerTestCase(SerializerTestCase):
 
         self.assertListEqual(list(serializer.data.keys()), fields)
 
-
+@tag('test')
 class ProductReadSerializerTestCase(SerializerTestCase):
+    maxDiff = None
     _serializer_class = ProductReadSerializer
+    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):
@@ -694,14 +699,18 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'created': datetime_to_iso(product.created),
             'on_sale': product.on_sale,
             'code': product.code,
+            'total_like': product.like_shoppers.all().count(),
         }
 
         return expected_data
 
     def test_model_instance_serialization_detail(self):
         expected_data = self.__get_expected_data(self.product)
+        expected_data['shopper_like'] = False
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        product = Product.objects.prefetch_related(
+                    prefetch_images
+                ).annotate(total_like=Count('like_shoppers')).get(id=self.product.id)
 
         self._test_model_instance_serialization(product, expected_data, context={'detail': True})
 
@@ -712,8 +721,13 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         for data in expected_data:
             data['main_image'] = data['images'][0]['image_url']
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).filter(id__in=[self.product.id])
+        product = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id]).annotate(total_like=Count('like_shoppers'))
         serializer = self._get_serializer(product, many=True, context={'detail': False})
+        
+        for data in serializer.data:
+            data.pop('shopper_like')
 
         self.assertListEqual(serializer.data, expected_data)
 
@@ -729,7 +743,10 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'images': [DEFAULT_IMAGE_URL],
         }
 
-        self.assertDictEqual(serializer.data, expected_data)
+        self.assertDictEqual(
+            {'id': serializer.data['id'], 'images': serializer.data['images']},
+            expected_data
+        )
 
     def test_default_image_list(self):
         ProductFactory()
@@ -746,8 +763,53 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             for product in products
         ]
 
-        self.assertListEqual(serializer.data, expected_data)
+        self.assertListEqual(
+            [{'id': data['id'], 'main_image': data['main_image']} for data in serializer.data],
+            expected_data
+        )
 
+    def test_model_instance_serialization_like_true(self):
+        shopper = ShopperFactory()
+        shopper.like_products.add(self.product)
+
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        serializer = self._get_serializer(
+            product, context={'detail': True, 'shopper_like': ProductLike.objects.filter(shopper=shopper, product=product).exists()}
+        )
+        
+        self.assertEqual(serializer.data['shopper_like'], True)
+
+    def test_model_instance_serialization_list_like_true(self):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        products = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id])
+        shopper = ShopperFactory()
+        shopper.like_products.add(*products)
+
+        shoppers_like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
+        serializer = self._get_serializer(
+            products, many=True, context={'detail': False, 'shoppers_like_products_id_list': shoppers_like_products_id_list})
+        expected_data = [shopper.like_products.filter(id=product.id).exists() for product in products]
+
+        self.assertListEqual(
+            [data['shopper_like'] for data in serializer.data],
+            expected_data
+        )
+
+    def test_model_instance_serialization_list_like_false(self):
+        prefetch_images = Prefetch('images', to_attr='related_images')
+        products = Product.objects.prefetch_related(
+                    prefetch_images
+                ).filter(id__in=[self.product.id])
+        serializer = self._get_serializer(products, many=True, context={'detail': False})
+        expected_data = [False for product in products]
+        
+        self.assertListEqual(
+            [data['shopper_like'] for data in serializer.data],
+            expected_data
+        )
 
 class ProductWriteSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductWriteSerializer
@@ -854,6 +916,13 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         return data
 
+    def test_validaation_price(self):
+        data = self.__get_input_data()
+        data['price'] = 50010
+        expected_message = 'The price must be a multiple of 100.'
+
+        self._test_serializer_raise_validation_error(expected_message, data=data)
+
     def test_raise_validation_error_does_not_pass_all_exact_image_data_in_partial(self):
         data = [
             {
@@ -935,7 +1004,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_raise_validation_error_price_difference_exceed_upper_limit(self):
-        upper_limit_ratio = self._serializer_class.price_difference_upper_limit_ratio
+        upper_limit_ratio = 0.2
         data = self.__get_input_data()
         option_data = data['colors'][0]['options']
         option_data[0]['price_difference'] = data['price'] *(1 +(upper_limit_ratio+0.1))
@@ -945,6 +1014,22 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self._test_serializer_raise_validation_error(
             expected_message, data=data
         )
+
+    def test_make_price_data(self):
+        price = 50000
+        base_discount_rate = 20
+        data = self.__get_input_data()
+        data['price'] = price
+        data['base_discount_rate'] = base_discount_rate
+        
+        serializer = self._get_serializer_after_validation(data=data, context={'wholesaler': WholesalerFactory()})
+        product = serializer.save()
+
+        expected_sale_price = 50000 * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * base_discount_rate/100) // 100 * 100
+
+        self.assertEqual(expected_sale_price, product.sale_price)
+        self.assertEqual(expected_base_discounted_price, product.base_discounted_price)
 
     def test_create(self):
         data = self.__get_input_data()
@@ -1236,6 +1321,43 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             model_to_dict(updated_option_obj, fields=('id', 'price_difference')),
             update_data['options'][0]
         )
+
+    def test_update_price(self):
+        update_data = {'price': 60000}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_sale_price = update_data['price'] * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.price, update_data['price'])
+        self.assertEqual(product.sale_price, expected_sale_price)
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+
+    def test_update_base_discount_rate(self):
+        update_data = {'base_discount_rate': 20}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_base_discounted_price = product.sale_price - (product.sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+
+    def test_update_price_and_base_discount_rate(self):
+        update_data = {'price': 60000, 'base_discount_rate': 20}
+        serializer = self._get_serializer_after_validation(
+            self.product, data=update_data, partial=True
+        )
+        product = serializer.save()
+        expected_sale_price = update_data['price'] * 2
+        expected_base_discounted_price = expected_sale_price - (expected_sale_price * product.base_discount_rate / 100) // 100 * 100
+
+        self.assertEqual(product.price, update_data['price'])
+        self.assertEqual(product.sale_price, expected_sale_price)
+        self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
+        
 
     def test_delete_option(self):
         update_color_obj = self.product.colors.latest('id')

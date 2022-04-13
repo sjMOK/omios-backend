@@ -76,6 +76,9 @@ class ProductFactory(DjangoModelFactory):
     age = SubFactory(AgeFactory)
     name = Sequence(lambda num: 'product_{0}'.format(num))
     price = 35000
+    sale_price = 70000
+    base_discount_rate = 10
+    base_discounted_price = 63000
     thickness = SubFactory(ThicknessFactory)
     see_through = SubFactory(SeeThroughFactory)
     flexibility = SubFactory(FlexibilityFactory)

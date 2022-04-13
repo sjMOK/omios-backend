@@ -2,7 +2,7 @@ from rest_framework.serializers import (
     Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
-from rest_framework.exceptions import ValidationError, APIException
+from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
 from common.validators import validate_all_required_fields_included
@@ -11,6 +11,7 @@ from common.serializers import (
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item,
     DynamicFieldsSerializer,
 )
+from user.models import ProductLike
 from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
@@ -370,7 +371,7 @@ class ProductSerializer(DynamicFieldsSerializer):
     name = RegexField(PRODUCT_NAME_REGEX, max_length=100)
     price = IntegerField(min_value=100, max_value=5000000)
     sale_price = IntegerField(read_only=True)
-    base_discount_rate = IntegerField(read_only=True)
+    base_discount_rate = IntegerField(default=0)
     base_discounted_price = IntegerField(read_only=True)
     lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
@@ -407,23 +408,34 @@ class ProductReadSerializer(ProductSerializer):
     created = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
+    total_like = IntegerField(read_only=True)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
 
         if self.context['detail']:
-            ret = self.to_representation_retrieve(ret, instance)
+            return self.__to_representation_retrieve(ret, instance)
         else:
-            if instance.related_images:
-                ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
-            else:
-                ret['main_image'] = DEFAULT_IMAGE_URL
+            return self.__to_representation_list(ret, instance)
+
+    def __to_representation_list(self, ret, instance):
+        if instance.related_images:
+            ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
+        else:
+            ret['main_image'] = DEFAULT_IMAGE_URL
+        
+        if ret['id'] in self.context.get('shoppers_like_products_id_list', []):
+            ret['shopper_like'] = True
+        else:
+            ret['shopper_like'] = False
 
         return ret
 
-    def to_representation_retrieve(self, ret, instance):
+    def __to_representation_retrieve(self, ret, instance):
         if not instance.related_images:
             ret['images'] = [DEFAULT_IMAGE_URL]
+
+        ret['shopper_like'] = self.context.get('shopper_like', False)
 
         return ret
 
@@ -437,10 +449,14 @@ class ProductWriteSerializer(ProductSerializer):
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
-    theme = PrimaryKeyRelatedField(required=False, default=Theme.objects.get(id=1), queryset=Theme.objects.all())
+    theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
-    color_length_limit = 10
-    price_difference_upper_limit_ratio = 0.2
+    __price_difference_upper_limit_ratio = 0.2
+    __price_multiple_num_data = [
+        {'min_price': 0, 'multiple': 2.3},
+        {'min_price': 40000, 'multiple': 2},
+        {'min_price': 80000, 'multiple': 1.8},
+    ]
 
     def validate(self, attrs):
         if self.partial and 'price' not in attrs:
@@ -457,6 +473,12 @@ class ProductWriteSerializer(ProductSerializer):
                     self.__validate_price_difference(price, option_data)
 
         return attrs
+
+    def validate_price(self, value):
+        if value % 100 != 0:
+            raise ValidationError('The price must be a multiple of 100.')
+        
+        return value
 
     def validate_images(self, attrs):
         if self.instance is not None:
@@ -529,20 +551,58 @@ class ProductWriteSerializer(ProductSerializer):
         price_difference = option_data.get('price_difference', 0)
         price_difference = option_data['price_difference']
         
-        if abs(price_difference) > price * self.price_difference_upper_limit_ratio:
+        if abs(price_difference) > price * self.__price_difference_upper_limit_ratio:
             raise ValidationError(
                 'The option price difference must be less than {0}% of the product price.'
-                .format(self.price_difference_upper_limit_ratio * 100)
+                .format(self.__price_difference_upper_limit_ratio * 100)
             )
     
+    def __get_price_multiple(self, price):
+        index = 0
+        for i in range(len(self.__price_multiple_num_data)):
+            if price < self.__price_multiple_num_data[i]['min_price']:
+                break
+            index = i
+
+        return self.__price_multiple_num_data[index]['multiple']
+
+    def __get_sale_price(self, price):
+        return round(price * self.__get_price_multiple(price)) // 100 * 100
+
+    def __get_base_discounted_price(self, sale_price, base_discount_rate):
+        base_discount_price = int(sale_price * base_discount_rate / 100) // 100 * 100
+        return sale_price - base_discount_price
+
+    def __update_price_data(self, instance, validated_data):
+        if 'price' in validated_data:
+            sale_price = self.__get_sale_price(validated_data['price'])
+            validated_data['sale_price'] = sale_price
+            base_discounted_price = self.__get_base_discounted_price(
+                sale_price, instance.base_discount_rate
+            )
+            validated_data['base_discounted_price'] = base_discounted_price
+        else:
+            sale_price = instance.sale_price
+
+        if 'base_discount_rate' in validated_data:
+            base_discounted_price = self.__get_base_discounted_price(
+                sale_price, validated_data['base_discount_rate']
+            )
+            validated_data['base_discounted_price'] = base_discounted_price
+
     def create(self, validated_data):
+        sale_price = self.__get_sale_price(validated_data['price'])
+        base_discounted_price = self.__get_base_discounted_price(sale_price, validated_data['base_discount_rate'])
         laundry_informations = validated_data.pop('laundry_informations', [])
         tags = validated_data.pop('tags', [])
         materials = validated_data.pop('materials')
         colors = validated_data.pop('colors')
         images = validated_data.pop('related_images')
 
-        product = Product.objects.create(wholesaler=self.context['wholesaler'], **validated_data)
+        product = Product.objects.create(
+            sale_price=sale_price, base_discounted_price=base_discounted_price, 
+            wholesaler=self.context['wholesaler'], **validated_data
+        )
         product.laundry_informations.add(*laundry_informations)
         product.tags.add(*tags)
 
@@ -571,6 +631,8 @@ class ProductWriteSerializer(ProductSerializer):
         materials_data = validated_data.pop('materials', None)
         product_colors_data = validated_data.pop('colors', None)
         product_images_data = validated_data.pop('related_images', None)
+
+        self.__update_price_data(instance, validated_data)            
 
         for key, value in validated_data.items():
             setattr(instance, key, value)

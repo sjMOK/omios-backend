@@ -1,7 +1,7 @@
 from django.db import transaction
 
 from rest_framework.serializers import (
-    Serializer, CharField, ListField, BooleanField, IntegerField, URLField, ChoiceField,
+    Serializer, CharField, ListField, BooleanField, IntegerField, URLField, ChoiceField, DateTimeField,
 )
 from drf_yasg.utils import swagger_auto_schema
 
@@ -121,24 +121,33 @@ class ProductCreateRequest(ProductWriteSerializer):
 
 
 class ProductListResponse(Serializer):
+    class ResultsResponse(Serializer):
+        id = IntegerField()
+        created = DateTimeField()
+        name = CharField()
+        price = IntegerField
+        sale_price = IntegerField()
+        base_discount_rate = IntegerField()
+        base_discounted_price = IntegerField()
+        main_image = URLField()
+        shopper_like = BooleanField()
+
     count = IntegerField()
     next = URLField(allow_null=True)
     previous = URLField(allow_null=True)
-    results = ProductReadSerializer(many=True, allow_fields=('id', 'name', 'price', 'created'))
+    results = ResultsResponse()
     max_price = IntegerField()
 
 
 class ProductDetailResponse(ProductReadSerializer):
     main_category = MainCategoryResponse()
+    shopper_like = BooleanField()
 
 
 class DecoratedProductViewSet(ProductViewSet):
     shopper_token_discription = '\nShopper app의 경우 토큰이 필수 값 아님(anonymous user 가능)'
     list_description = '''상품 정보 리스트 조회
-    \nresponse의 "count"와 "max_price"는 pagination이 적용되기 전 전체 상품의 총 개수와 최대 가격을 나타냄
-    \n"next"는 다음 페이지의 링크, "previous"는 이전 페이지의 링크를 의미
-    "next"가 null일 경우 마지막 페이지, "previous"가 null일 경우 첫 페이지 의미
-    page를 직접 query parameter로 전달해 원하는 페이지의 리스트를 가져올 수 있음
+    \npage를 직접 query parameter로 전달해 원하는 페이지의 리스트를 가져올 수 있음
     \n여러 필터를 동시에 적용 가능
     * 메인 카테고리와 서브 카테고리는 동시에 필터링 할 수 없으며 여러개의 키 값을 전달할 수 없음*
     \n기본적으로 등록 시간 내림차순(최근 순)으로 정렬되어 있음

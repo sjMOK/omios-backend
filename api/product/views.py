@@ -11,9 +11,10 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 
 from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
 from common.views import upload_image_view
+from user.models import ProductLike
 from .models import (
     Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
@@ -186,8 +187,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
     __default_sorting = '-created'
-    __default_fields = ('id', 'created', 'name', 'price', 'base_discount_rate')
-    __default_properties = ('sale_price', 'base_discounted_price')
+    __default_fields = ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
     __read_action = ('retrieve', 'list', 'search')
     __require_write_serializer_action = ('create', 'partial_update')
 
@@ -259,15 +259,22 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return queryset.order_by(*sort_set)
 
-    def __get_response_for_list(self, queryset, **extra_data):
-        queryset = self.sort_queryset(
-            self.filter_queryset(queryset)
-        ).alias(Count('id')).only(*self.__default_fields)
+    def __get_shoppers_like_products_id_list(self):
+        shopper = self.request.user.shopper
+        like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
 
+        return like_products_id_list        
+
+    def __get_response_for_list(self, queryset, **extra_data):
         page = self.paginate_queryset(queryset)
-        allow_fields = self.__get_allow_fields() + self.__default_properties
+        allow_fields = self.__get_allow_fields()
+
+        context = {'detail': self.detail, 'field_order': allow_fields}
+        if hasattr(self.request.user, 'shopper'):
+            context['shoppers_like_products_id_list'] = self.__get_shoppers_like_products_id_list()
+
         serializer = self.get_serializer(
-            page, allow_fields=allow_fields, many=True, context={'detail': self.detail, 'field_order': allow_fields}
+            page, allow_fields=allow_fields, many=True, context=context
         )
 
         paginated_response = self.get_paginated_response(serializer.data)
@@ -294,14 +301,24 @@ class ProductViewSet(viewsets.GenericViewSet):
         return queryset
 
     def list(self, request):
+        queryset = self.get_queryset()
+
+        if request.query_params.get('like_products') == 'True':
+            if request.auth is not None and hasattr(request.user, 'shopper'):
+                queryset = queryset.filter(like_shoppers=request.user.shopper)
+
         if 'search_word' in request.query_params and not request.query_params['search_word']:
             return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
         if 'main_category' in request.query_params and 'sub_category' in request.query_params:
             return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
-        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
+        queryset = self.__initial_filtering(queryset, **request.query_params.dict())
         max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        queryset = self.sort_queryset(
+            self.filter_queryset(queryset)
+        ).alias(Count('id')).only(*self.__default_fields)
 
         return self.__get_response_for_list(queryset, max_price=max_price)
 
@@ -319,12 +336,18 @@ class ProductViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, id=None):
         queryset = self.get_queryset().select_related(
             'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
-        )
+        ).annotate(total_like=Count('like_shoppers'))
         product = self.get_object(queryset)
 
         allow_fields = self.__get_allow_fields()
+        context = {'detail': self.detail, 'field_order': self.__get_allow_fields()}
+
+        if hasattr(request.user, 'shopper'):
+            like = ProductLike.objects.filter(shopper=request.user.shopper, product=product).exists()
+            context['shopper_like'] = like
+
         serializer = self.get_serializer(
-            product, allow_fields=allow_fields, context={'detail': self.detail, 'field_order': allow_fields}
+            product, allow_fields=allow_fields, context=context
         )
 
         return get_response(data=serializer.data)
