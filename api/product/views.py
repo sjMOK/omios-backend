@@ -282,17 +282,17 @@ class ProductViewSet(viewsets.GenericViewSet):
 
         return get_response(data=paginated_response.data)
 
-    def __get_queryset_after_search(self, queryset, search):
-        tag_id_list = list(Tag.objects.filter(name__contains=search).values_list('id', flat=True))
-        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search)
+    def __get_queryset_after_search(self, queryset, search_word):
+        tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
+        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
         queryset = queryset.filter(condition)
 
         return queryset
 
-    def __initial_filtering(self, queryset, search=None, main_category=None, sub_category=None, **kwargs):
-        if search is not None:
-            queryset = self.__get_queryset_after_search(queryset, search)
+    def __initial_filtering(self, queryset, search_word=None, main_category=None, sub_category=None, **kwargs):
+        if search_word is not None:
+            queryset = self.__get_queryset_after_search(queryset, search_word)
         if main_category is not None:
             queryset = queryset.filter(sub_category__main_category_id=main_category)
         if sub_category is not None:
