@@ -654,7 +654,7 @@ class ProductSerializerTestCase(SerializerTestCase):
 
         self.assertListEqual(list(serializer.data.keys()), fields)
 
-@tag('test')
+
 class ProductReadSerializerTestCase(SerializerTestCase):
     maxDiff = None
     _serializer_class = ProductReadSerializer
