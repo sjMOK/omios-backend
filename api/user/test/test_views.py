@@ -1,13 +1,16 @@
-from freezegun import freeze_time
-from django.test import tag
+from django.forms import model_to_dict
+
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
 from product.test.factory import ProductFactory
-from .factory import get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory
-from ..models import BlacklistedToken, User, Shopper, Wholesaler, Building, ProductLike
-from ..serializers import IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer
+from .factory import get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory, ShopperShippingAddressFactory
+from ..models import BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, Building
+from ..serializers import (
+    IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, ShopperShippingAddressSerializer,
+)
 
 
 class TokenViewTestCase(ViewTestCase):
@@ -402,3 +405,120 @@ class LikeProductTestCase(ViewTestCase):
         self._delete()
 
         self._assert_failure(400, 'You are deleting non exist likes')
+
+
+class ShopperShippingAddressViewSet(ViewTestCase):
+    fixtures = ['membership']
+    _url = '/users/shoppers/{0}/addresses'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls._url = cls._url.format(cls._user.id)
+        cls.default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
+        ShopperShippingAddressFactory.create_batch(size=2, shopper=cls._user)
+
+    def test_list(self):
+        self._set_authentication()
+        self._get()
+        serializer = ShopperShippingAddressSerializer(self._user.addresses.all(), many=True)
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, serializer.data)
+
+    def test_create(self):
+        self._test_data = {
+            'name': '회사', 
+            'receiver_name': '홍길동',
+            'receiver_mobile_number': '01011111111',
+            'receiver_phone_number': '03199999999',
+            'zip_code': '12345',
+            'base_address': '서울시 광진구 능동로19길 47',
+            'detail_address': '518호',
+            'is_default': True
+        }
+        self._set_authentication()
+        self._post()
+
+        self._assert_success_with_id_response()
+
+        shipping_address = ShopperShippingAddress.objects.get(id=self._response_data['id'])
+        self.assertDictEqual(
+            model_to_dict(shipping_address, fields=self._test_data.keys()),
+            self._test_data
+        )
+
+    def test_partial_update(self):
+        shipping_address = self.default_shipping_address
+        self._test_data = {
+            'name': shipping_address.name + '_update',
+            'receiver_name': shipping_address.receiver_name + '_update',
+            'is_default': not shipping_address.is_default,
+        }
+        self._set_authentication()
+        self._url = self._url + '/{0}'.format(shipping_address.id)
+        self._patch()
+
+        self._assert_success_with_id_response()
+
+        shipping_address = ShopperShippingAddress.objects.get(id=self._response_data['id'])
+        self.assertDictEqual(
+            model_to_dict(shipping_address, fields=self._test_data.keys()),
+            self._test_data
+        )
+
+    def test_destroy(self):
+        shipping_address = self.default_shipping_address
+        self._set_authentication()
+        self._url = self._url + '/{0}'.format(shipping_address.id)
+        self._delete()
+
+        self._assert_success_with_id_response()
+        self.assertTrue(not ShopperShippingAddress.objects.filter(id=shipping_address.id).exists())
+
+    def test_get_default_address(self):
+        self._set_authentication()
+        self._url += '/default'
+        self._get()
+        serializer = ShopperShippingAddressSerializer(self.default_shipping_address)
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, serializer.data)
+
+    def test_get_default_address_with_no_default_address(self):
+        self.default_shipping_address.is_default = False
+        self.default_shipping_address.save()
+
+        self._set_authentication()
+        self._url += '/default'
+        self._get()
+        serializer = ShopperShippingAddressSerializer(
+            ShopperShippingAddress.objects.last()
+        )
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, serializer.data)
+
+    def test_get_default_address_with_mutiple_default_address(self):
+        shipping_address = ShopperShippingAddress.objects.filter(is_default=False).last()
+        shipping_address.is_default = True
+        shipping_address.save()
+
+        self._set_authentication()
+        self._url += '/default'
+        self._get()
+        serializer = ShopperShippingAddressSerializer(
+            ShopperShippingAddress.objects.filter(is_default=True).last()
+        )
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, serializer.data)
+
+    def test_get_default_address_return_empty_dictionary(self):
+        self._user.addresses.all().delete()
+        self._set_authentication()
+        self._url += '/default'
+        self._get()
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, {})

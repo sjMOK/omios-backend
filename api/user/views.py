@@ -1,9 +1,9 @@
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
+from django.db import connection
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
-from rest_framework.generics import GenericAPIView, ListCreateAPIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -12,10 +12,11 @@ from rest_framework_simplejwt.views import TokenViewBase
 from common.utils import get_response, get_response_body, check_id_format
 from common.views import upload_image_view
 from product.models import Product
-from .models import User, Shopper, Wholesaler, Building, ProductLike
+from .models import ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
-    UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer
+    UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
+    ShopperShippingAddressSerializer,
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
@@ -174,3 +175,62 @@ class ProductLikeView(APIView):
         product_like.delete()
 
         return get_response(data={'shopper_id': user_id, 'product_id': product_id})
+
+
+class ShopperShippingAddressViewSet(GenericViewSet):
+    serializer_class = ShopperShippingAddressSerializer
+    lookup_url_kwarg = 'shipping_address_id'
+    lookup_value_regex = r'[0-9]+'
+
+    def get_queryset(self):
+        return self.request.user.shopper.addresses.all()
+
+    def list(self, request, user_id):
+        serializer = self.get_serializer(instance=self.get_queryset(), many=True)
+
+        return get_response(data=serializer.data)
+
+    def create(self, request, user_id):
+        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+
+        if not serializer.is_valid():
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+
+        shipping_address = serializer.save()
+
+        return get_response(status=HTTP_201_CREATED, data={'id': shipping_address.id})
+
+    def partial_update(self, request, user_id, shipping_address_id):
+        shipping_address = self.get_object()
+        serializer = self.get_serializer(
+            instance=shipping_address, data=request.data, partial=True, context={'shopper': request.user.shopper}
+        )
+        
+        if not serializer.is_valid():
+            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+
+        return get_response(data={'id': shipping_address.id})
+
+    def destroy(self, request, user_id, shipping_address_id):
+        shipping_address = self.get_object()
+        shipping_address.delete()
+
+        return get_response(data={'id': int(shipping_address_id)})
+
+    @action(methods=['GET'], detail=False, url_path='default')
+    def get_default_address(self, request, user_id):
+        queryset = self.get_queryset()
+
+        if not queryset.exists():
+            return get_response(data={})
+        elif queryset.filter(is_default=True).exists():
+            try:
+                shipping_address = queryset.get(is_default=True)
+            except ShopperShippingAddress.MultipleObjectsReturned:
+                shipping_address = queryset.filter(is_default=True).last()
+        else:
+            shipping_address = queryset.last()
+
+        serializer = self.get_serializer(shipping_address)
+
+        return get_response(data=serializer.data)

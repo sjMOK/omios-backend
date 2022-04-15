@@ -112,22 +112,6 @@ class ProductLike(Model):
         unique_together = (('shopper', 'product'),)
 
 
-class ShopperShippingAddress(Model):
-    id = BigAutoField(primary_key=True)
-    shopper = ForeignKey('Shopper', DO_NOTHING)
-    name = CharField(max_length=20, null=True)
-    receiver_name = CharField(max_length=20)
-    mobile_number = CharField(max_length=11)
-    phone_number = CharField(max_length=11, null=True)
-    zip_code = CharField(max_length=5)
-    base_address = CharField(max_length=200)
-    detail_address = CharField(max_length=100)
-    is_default = BooleanField()
-
-    class Meta:
-        db_table = 'shopper_shipping_address'
-
-
 class Wholesaler(User):
     user = OneToOneField(User, DO_NOTHING, parent_link=True, primary_key=True)
     name = CharField(max_length=60)
@@ -179,3 +163,28 @@ class BuildingFloor(Model):
     class Meta:
         db_table = 'building_floor'
         unique_together = (('building', 'floor'),)
+
+
+class ShopperShippingAddress(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING, related_name='addresses')
+    name = CharField(max_length=20, null=True)
+    receiver_name = CharField(max_length=20)
+    receiver_mobile_number = CharField(max_length=11)
+    receiver_phone_number = CharField(max_length=11, null=True)
+    zip_code = CharField(max_length=5)
+    base_address = CharField(max_length=200)
+    detail_address = CharField(max_length=100)
+    is_default = BooleanField()
+
+    class Meta:
+        db_table = 'shopper_shipping_address'
+
+    def save(self, *args, **kwargs):
+        if self.is_default and self.shopper.addresses.filter(is_default=True).exists():
+            self.shopper.addresses.filter(is_default=True).update(is_default=False)
+
+        if not self.is_default and not self.shopper.addresses.all().exists():
+            self.is_default = True
+
+        super().save(*args, **kwargs)
