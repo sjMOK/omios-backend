@@ -209,6 +209,8 @@ class ShopperShippingAddressViewSet(GenericViewSet):
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
+        shipping_address = serializer.save()
+
         return get_response(data={'id': shipping_address.id})
 
     def destroy(self, request, user_id, shipping_address_id):

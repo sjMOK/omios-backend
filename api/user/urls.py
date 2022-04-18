@@ -3,16 +3,16 @@ from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 
 from .documentation import (
+    DecoratedShopperShippingAddressViewSet,
     decorated_issuing_token_view, decorated_refreshing_token_view, decorated_blacklisting_token_view,
     decorated_upload_business_registration_image_view, decorated_get_buildings_view, decorated_user_password_view,
     decorated_is_unique_view, decorated_product_like_view,
 )
-from .views import ShopperShippingAddressViewSet
 
 app_name = 'user'
 
 router = SimpleRouter(trailing_slash=False)
-router.register('/addresses', ShopperShippingAddressViewSet, basename='shipping-address')
+router.register('/addresses', DecoratedShopperShippingAddressViewSet, basename='shipping-address')
 
 token_urlpatterns = [
     path('', decorated_issuing_token_view),

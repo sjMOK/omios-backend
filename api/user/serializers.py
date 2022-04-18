@@ -161,7 +161,7 @@ class ShopperShippingAddressSerializer(Serializer):
     zip_code = RegexField(ZIPCODE_REGEX)
     base_address = CharField(max_length=200)
     detail_address = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=100)
-    is_default = BooleanField(default=False)
+    is_default = BooleanField()
 
     def create(self, validated_data):
         shopper = self.context['shopper']
