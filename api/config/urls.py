@@ -10,6 +10,7 @@ from user.documentation import DecoratedShopperViewSet, DecoratedWholesalerViewS
 from product.documentation import DecoratedProductViewSet
 from order.views import OrderViewSet
 from order.views import OrderItemViewSet
+from order.views import ClaimViewSet
 
 handler404 = 'common.views.custom_404_view'
 handler500 = 'common.views.custom_500_view'
@@ -33,6 +34,7 @@ router.register(r'users/wholesalers', DecoratedWholesalerViewSet, basename='whol
 router.register(r'products', DecoratedProductViewSet, basename='products')
 router.register(r'^orders', OrderViewSet, basename='orders')
 router.register(r'^orders/items', OrderItemViewSet, basename='order-items')
+router.register(r'orders/(?P<order_id>\d+)', ClaimViewSet, basename='order-claims')
 # router.register(r'^orders/(?P<order_id>\d+)/items', OrderItemViewSet, basename='order-items')
 
 urlpatterns = [

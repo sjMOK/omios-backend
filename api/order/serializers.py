@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError, APIException
 from common.serializers import has_duplicate_element, get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element
 from product.models import Option
 from product.serializers import OptionInOrderItemSerializer
-from .models import Order, OrderItem, ShippingAddress
+from .models import Order, OrderItem, ShippingAddress, Refund, CancellationInformation
 
 # todo 전화번호 정규표현식
 
@@ -41,6 +41,32 @@ class OrderItemListSerializer(ListSerializer):
 
     def create(self, validated_data):
         OrderItem.objects.bulk_create([OrderItem(**item) for item in validated_data])
+
+    def __set_claim(self, item, claim, claim_field):
+        setattr(item, claim_field, claim)
+        if isinstance(claim, CancellationInformation):
+            if claim.refund is None:
+                item.status_id = 102
+            else:
+                item.status_id = 103
+
+    def update(self, queryset, claim_field):
+        if claim_field == 'cancellation_information':
+            serializer = CancellationInformationSerializer()
+
+
+        # todo
+        # try catch?
+
+        for item in queryset:
+            # instance = serializer.create({'item': item})
+            # setattr(item, update_field, instance)
+            # item.save(update_fields=[update_field])
+
+            self.__set_claim(item, serializer.create({'item': item}), claim_field)
+            item.save(update_fields=[claim_field, 'status'])
+
+        return queryset
 
 
 class OrderItemSerializer(ModelSerializer):
@@ -81,12 +107,10 @@ class OrderItemWriteSerializer(OrderItemSerializer):
         if self.instance is None:
             return value
 
-        if self.instance.status_id not in [101]:
+        if self.instance.status_id not in [100, 101]:
             raise ValidationError('This order is in a state where options cannot be changed.')
         elif self.instance.option.product_color.product_id != value.product_color.product_id:
             raise ValidationError('It cannot be changed to an option for another product.')
-        elif self.instance.option.price_difference != value.price_difference:
-            raise ValidationError('It cannot be changed to an option with a different price.')
 
         return value
 
@@ -212,3 +236,26 @@ class OrderWriteSerializer(OrderSerializer):
     
 class OrderConfirmation(Serializer):
     pass
+
+
+class RefundSerializer(ModelSerializer):
+    class Meta:
+        model = Refund
+        fields = '__all__'
+
+
+class CancellationInformationSerializer(ModelSerializer):
+    refund = RefundSerializer(required=False)
+
+    class Meta:
+        model = CancellationInformation
+        fields = '__all__'
+
+    def create(self, validated_data):
+        item = validated_data['item']
+
+        refund = None
+        if item.status_id == 101:
+            refund = self.fields['refund'].create({'price': item.payment_price})
+
+        return self.Meta.model.objects.create(refund=refund)
