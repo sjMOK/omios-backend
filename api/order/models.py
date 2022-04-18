@@ -83,6 +83,11 @@ class OrderItem(Model):
     used_point = IntegerField(default=0)
     payment_price = IntegerField()
     earned_point = IntegerField()
+    shipping_fee = IntegerField(default=0)
+    cancellation_information = ForeignKey('CancellationInformation', DO_NOTHING, null=True)
+    exchange_information = ForeignKey('ExchangeInformation', DO_NOTHING, null=True)
+    return_information = ForeignKey('ReturnInformation', DO_NOTHING, null=True)
+
 
     class Meta:
         db_table = 'order_item'
@@ -108,7 +113,41 @@ class StatusLog(Model):
         db_table = 'status_log'
 
 
-class Cancellation(Model):
+class Refund(Model):
     id = BigAutoField(primary_key=True)
-    # order_item
+    price = IntegerField()
+    completed_at = DateTimeField(null=True)
+
+    class Meta:
+        db_table = 'refund'
+
+    # todo
+    # 환불 수단 추가
+
+
+class CancellationInformation(Model):
+    id = BigAutoField(primary_key=True)
+    refund = ForeignKey('Refund', DO_NOTHING, null=True)
     created_at = DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'cancellation_information'
+
+
+class ExchangeInformation(Model):
+    id = BigAutoField(primary_key=True)
+    new_order_item = ForeignKey('OrderItem', DO_NOTHING)
+    created_at = DateTimeField(default=timezone.now)
+    completed_at = DateTimeField(null=True)
+
+    class Meta:
+        db_table = 'exchange_information'
+
+
+class ReturnInformation(Model):
+    id = BigAutoField(primary_key=True)
+    refund = ForeignKey('Refund', DO_NOTHING)
+    created_at = DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'return_information'
