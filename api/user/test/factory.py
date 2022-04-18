@@ -81,3 +81,18 @@ class BuildingFloorFactory(DjangoModelFactory):
 
 class BuildingWithFloorFactory(BuildingFactory):
     floors = RelatedFactoryList(BuildingFloorFactory, 'building', 3)
+
+
+class ShopperShippingAddressFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.ShopperShippingAddress'
+
+    shopper = SubFactory(ShopperFactory)
+    name = '집'
+    receiver_name = '홍길동'
+    receiver_mobile_number = '01011111111'
+    receiver_phone_number = '0312223333'
+    zip_code = '11111'
+    base_address = '서울시 광진구 능동로19길 47'
+    detail_address = '518호'
+    is_default=False

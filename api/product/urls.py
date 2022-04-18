@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .documentation import (
+from .documentations import (
     decorated_get_all_categories_view, decorated_get_main_categories_view, decorated_sub_category_view,
     decorated_get_colors_view, decorated_get_tag_search_result_view, decorated_upload_product_image_view,
     decorated_get_related_search_words_view, decorated_get_registry_data_view,

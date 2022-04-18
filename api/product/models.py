@@ -1,6 +1,6 @@
 from django.db.models import (
     Model, ForeignKey, ManyToManyField, DO_NOTHING, AutoField, CharField, ImageField,  BooleanField, 
-    BigAutoField, DateTimeField, IntegerField,
+    BigAutoField, IntegerField, DateTimeField,
 )
 from django.utils import timezone
 
@@ -47,30 +47,23 @@ class Product(Model):
     code = CharField(max_length=12, default='AA')
     created = DateTimeField(default=timezone.now)
     price = IntegerField()
+    sale_price = IntegerField()
     base_discount_rate = IntegerField(default=0)
+    base_discounted_price = IntegerField()
     on_sale = BooleanField(default=True)
     thickness = ForeignKey('Thickness', DO_NOTHING)
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
     manufacturing_country = CharField(max_length=20)
-    theme = ForeignKey('Theme', DO_NOTHING, default=1)
+    theme = ForeignKey('Theme', DO_NOTHING)
+    like_shoppers = ManyToManyField('user.Shopper', through='user.ProductLike')
 
     class Meta:
         db_table = 'product'
 
     def __str__(self):
         return self.name
-
-    @property
-    def base_discounted_price(self):
-        base_discount_price = int((self.sale_price * self.base_discount_rate / 100) // 100 * 100)
-        return int(self.sale_price - base_discount_price)
-
-    @property
-    def sale_price(self):
-        price_multiple = 2
-        return self.price * price_multiple
 
 
 class Age(Model):

@@ -1,4 +1,3 @@
-from random import randint
 from datetime import datetime
 
 from common.test.test_cases import FunctionTestCase, SerializerTestCase
@@ -6,12 +5,14 @@ from common.utils import gmt_to_kst, datetime_to_iso
 from .factory import (
     get_factory_password, get_factory_authentication_data, 
     UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
+    ShopperShippingAddressFactory,
 )
 from ..models import OutstandingToken, Membership, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
     UserSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, UserPasswordSerializer,
+    ShopperShippingAddressSerializer,
 )
 
 
@@ -148,6 +149,7 @@ class ShopperSerializerTestCase(SerializerTestCase):
             'birthday': shopper.birthday,
             'height': shopper.height,
             'weight': shopper.weight,
+            'point': shopper.point,
         })
 
 
@@ -224,3 +226,106 @@ class UserPasswordSerializerTestCase(SerializerTestCase):
         self.assertEqual(len(OutstandingToken.objects.all()), 6)
         self.assertEqual(len(OutstandingToken.objects.filter(blacklistedtoken__isnull=False)), 4)
         self.assertEqual(len(OutstandingToken.objects.filter(jti__in=[token['jti'] for token in test_tokens], blacklistedtoken__isnull=False)), 3)
+
+
+class ShopperShippingAddressSerializerTestCase(SerializerTestCase):
+    fixtures = ['membership']
+    _serializer_class = ShopperShippingAddressSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.shopper = ShopperFactory()
+        cls.data = {
+            'name': '회사', 
+            'receiver_name': '홍길동',
+            'receiver_mobile_number': '01011111111',
+            'receiver_phone_number': '03199999999',
+            'zip_code': '12345',
+            'base_address': '서울시 광진구 능동로19길 47',
+            'detail_address': '518호',
+            'is_default': True
+        }
+
+
+    def test_model_instance_serialization(self):
+        shipping_address = ShopperShippingAddressFactory()
+        
+        self._test_model_instance_serialization(shipping_address, {
+            'id': shipping_address.id,
+            'name': shipping_address.name,
+            'receiver_name': shipping_address.receiver_name,
+            'receiver_mobile_number': shipping_address.receiver_mobile_number,
+            'receiver_phone_number': shipping_address.receiver_phone_number,
+            'zip_code': shipping_address.zip_code,
+            'base_address': shipping_address.base_address,
+            'detail_address': shipping_address.detail_address,
+            'is_default': shipping_address.is_default,
+        })
+
+    def test_create(self):
+        serializer = self._get_serializer_after_validation(data=self.data, context={'shopper': self.shopper})
+        shipping_address = serializer.save()
+
+        self.assertEqual(shipping_address.name, self.data['name'])
+        self.assertEqual(shipping_address.receiver_name, self.data['receiver_name'])
+        self.assertEqual(shipping_address.receiver_mobile_number, self.data['receiver_mobile_number'])
+        self.assertEqual(shipping_address.receiver_phone_number, self.data['receiver_phone_number'])
+        self.assertEqual(shipping_address.zip_code, self.data['zip_code'])
+        self.assertEqual(shipping_address.base_address, self.data['base_address'])
+        self.assertEqual(shipping_address.detail_address, self.data['detail_address'])
+        self.assertEqual(shipping_address.is_default, self.data['is_default'])
+        self.assertEqual(shipping_address.shopper, self.shopper)
+
+    def test_create_initial_shipping_address(self):
+        self.shopper.addresses.all().delete()
+        self.data['is_default'] = False
+        serializer = self._get_serializer_after_validation(data=self.data, context={'shopper': self.shopper})
+        shipping_address = serializer.save()
+
+        self.assertTrue(shipping_address.is_default)
+
+    def test_create_default_shipping_address(self):
+        ShopperShippingAddressFactory(shopper=self.shopper, is_default=True)
+
+        serializer = self._get_serializer_after_validation(data=self.data, context={'shopper': self.shopper})
+        shipping_address = serializer.save()
+
+        self.assertTrue(shipping_address.is_default)
+        self.assertTrue(
+            not self.shopper.addresses.exclude(
+                    id=shipping_address.id
+                ).filter(is_default=True).exists()
+        )
+
+    def test_update(self):
+        shipping_address = ShopperShippingAddressFactory()
+        data = {
+            'name': shipping_address.name + '_update',
+            'receiver_name': shipping_address.receiver_name + '_update',
+            'is_default': not shipping_address.is_default,
+        }
+        serializer = self._get_serializer_after_validation(
+            instance=shipping_address, data=data, partial=True, context={'shopper': self.shopper}
+        )
+        updated_shipping_address = serializer.save()
+
+        self.assertEqual(updated_shipping_address.name, data['name'])
+        self.assertEqual(updated_shipping_address.receiver_name, data['receiver_name'])
+        self.assertEqual(updated_shipping_address.is_default, data['is_default'])
+
+    def test_update_to_default_shipping_address(self):
+        ShopperShippingAddressFactory(shopper=self.shopper, is_default=True)
+        shipping_address = ShopperShippingAddressFactory(shopper=self.shopper)
+        data = {'is_default': True}
+
+        serializer = self._get_serializer_after_validation(
+            instance=shipping_address, data=data, partial=True, context={'shopper': self.shopper}
+        )        
+        shipping_address = serializer.save()
+
+        self.assertTrue(shipping_address.is_default)
+        self.assertTrue(
+            not self.shopper.addresses.exclude(
+                    id=shipping_address.id
+                ).filter(is_default=True).exists()
+        )

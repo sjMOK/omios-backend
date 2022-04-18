@@ -7,8 +7,12 @@ from rest_framework.exceptions import APIException
 from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
+from product.test.factory import ProductFactory
 from .factory import ShopperFactory, BuildingFactory, FloorFactory
-from ..models import Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor
+from ..models import (
+    Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
+    ProductLike,
+)
 
 
 class MembershipTestCase(ModelTestCase):
@@ -125,35 +129,25 @@ class ShopperTestCase(ModelTestCase):
         self.assertEqual(self._shopper.nickname, self._test_data['username'])
         self.assertTrue(shopper.nickname.startswith('omios_'))
 
+    def test_default_point(self):
+        self.assertEqual(self._shopper.point, 0)
 
-class ShopperAddressTestCase(ModelTestCase):
+
+class ProductLikeTestCase(ModelTestCase):
     fixtures = ['membership']
-    _model_class = ShopperShippingAddress
+    _model_class = ProductLike
 
-    def setUp(self):
-        self.__shopper = ShopperFactory()
-        self._test_data = {
-            'shopper': self.__shopper,
-            'receiver_name': '수령자',
-            'mobile_number': '01012345678',
-            'zip_code': '05009',
-            'base_address': '서울시 광진구 능동로19길 47',
-            'detail_address': '화양타워 518호',
-            'is_default': True,
-        }
-
+    @freeze_time(FREEZE_TIME)
     def test_create(self):
-        address = self._get_model_after_creation()
+        self._test_data = {
+            'shopper': ShopperFactory(),
+            'product': ProductFactory()
+        }
+        product_like = self._get_model_after_creation()
 
-        self.assertEqual(address.shopper, self.__shopper)
-        self.assertIsNone(address.name)
-        self.assertEqual(address.receiver_name, self._test_data['receiver_name'])
-        self.assertEqual(address.mobile_number, self._test_data['mobile_number'])
-        self.assertIsNone(address.phone_number)
-        self.assertEqual(address.zip_code, self._test_data['zip_code'])
-        self.assertEqual(address.base_address, self._test_data['base_address'])
-        self.assertEqual(address.detail_address, self._test_data['detail_address'])
-        self.assertEqual(address.is_default, self._test_data['is_default'])
+        self.assertEqual(product_like.shopper, self._test_data['shopper'])
+        self.assertEqual(product_like.product, self._test_data['product'])
+        self.assertEqual(datetime_to_iso(product_like.created_at), FREEZE_TIME)
 
 
 class WholesalerTestCase(ModelTestCase):
@@ -239,3 +233,62 @@ class BuildingFloorTestCase(ModelTestCase):
 
         self.assertEqual(building_floor.building, self.__building)
         self.assertEqual(building_floor.floor, self.__floor)
+
+
+class ShopperShippingAddressTestCase(ModelTestCase):
+    fixtures = ['membership']
+    _model_class = ShopperShippingAddress
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = ShopperFactory()
+        cls._test_data = {
+            'shopper': cls.__shopper,
+            'receiver_name': '수령자',
+            'receiver_mobile_number': '01012345678',
+            'zip_code': '05009',
+            'base_address': '서울시 광진구 능동로19길 47',
+            'detail_address': '화양타워 518호',
+            'is_default': True,
+        }
+
+    def test_create(self):
+        shipping_address = self._get_model_after_creation()
+
+        self.assertEqual(shipping_address.shopper, self.__shopper)
+        self.assertIsNone(shipping_address.name)
+        self.assertEqual(shipping_address.receiver_name, self._test_data['receiver_name'])
+        self.assertEqual(shipping_address.receiver_mobile_number, self._test_data['receiver_mobile_number'])
+        self.assertIsNone(shipping_address.receiver_phone_number)
+        self.assertEqual(shipping_address.zip_code, self._test_data['zip_code'])
+        self.assertEqual(shipping_address.base_address, self._test_data['base_address'])
+        self.assertEqual(shipping_address.detail_address, self._test_data['detail_address'])
+        self.assertEqual(shipping_address.is_default, self._test_data['is_default'])
+
+    def test_create_initial_shipping_address(self):
+        self._test_data['is_default'] = False
+        shipping_address = self._get_model_after_creation()
+
+        self.assertTrue(shipping_address.is_default)
+
+    def test_create_default_shipping_address(self):
+        self._model_class.objects.create(**self._test_data)
+        shipping_address = self._get_model_after_creation()
+
+        self.assertTrue(shipping_address.is_default)
+        self.assertTrue(
+            not self._model_class.objects.exclude(id=shipping_address.id).filter(is_default=True).exists()
+        )
+
+    def test_update_to_default_shipping_address(self):
+        self._model_class.objects.create(**self._test_data)
+        self._test_data['is_default'] = False
+
+        shipping_address = self._get_model_after_creation()
+        shipping_address.is_default = True
+        shipping_address.save()
+
+        self.assertTrue(shipping_address.is_default)
+        self.assertTrue(
+            not self._model_class.objects.exclude(id=shipping_address.id).filter(is_default=True).exists()
+        )

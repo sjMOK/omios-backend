@@ -80,7 +80,9 @@ class ProductTestCase(ModelTestCase):
             'sub_category': sub_category,
             'name': '크로커다일레이디 크로커다일 베이직플리스점퍼 cl0wpf903',
             'price': 35000,
+            'sale_price': 70000,
             'base_discount_rate': 10,
+            'base_discounted_price': 63000,
             'style': style,
             'age': age,
             'thickness': thickness,
@@ -111,11 +113,9 @@ class ProductTestCase(ModelTestCase):
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
         self._test_data.pop('base_discount_rate')
-        self._test_data.pop('theme')
         product = self._get_model_after_creation()
 
         self.assertEqual(product.base_discount_rate, 0)
-        self.assertEqual(product.theme_id, 1)
         self.assertEqual(product.code, 'AA')
         self.assertEqual(product.created, datetime.strptime(FREEZE_TIME, FREEZE_TIME_FORMAT))
         self.assertTrue(product.on_sale)
@@ -133,17 +133,6 @@ class ProductTestCase(ModelTestCase):
         self._product.tags.add(*tags)
 
         self.assertQuerysetEqual(self._product.tags.all(), tags, ordered=False)
-
-    def test_base_discounted_price(self):
-        base_discount_price = int((self._product.sale_price * self._product.base_discount_rate / 100) // 100 * 100)
-        expected_base_discounted_price = self._product.sale_price - base_discount_price
-        
-        self.assertEqual(expected_base_discounted_price, self._product.base_discounted_price)
-
-    def test_sale_price(self):
-        expected_sale_price = self._product.price * 2
-
-        self.assertEqual(expected_sale_price, self._product.sale_price)
 
 
 class AgeTestCase(ModelTestCase):

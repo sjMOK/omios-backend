@@ -1,13 +1,16 @@
 from django.utils import timezone
 
-from rest_framework.serializers import Serializer, ModelSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField, StringRelatedField
+from rest_framework.serializers import (
+    Serializer, ModelSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField, StringRelatedField,
+    BooleanField,
+)
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer, TokenBlacklistSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from common.utils import gmt_to_kst
-from .models import OutstandingToken, BlacklistedToken, User, Shopper, Wholesaler
+from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler
 from .validators import PasswordSimilarityValidator
 
 
@@ -17,7 +20,8 @@ NAME_REGEX = r'^[가-힣]+$'
 NICKNAME_REGEX = r'^[a-z\d._]+$'
 MOBILE_NUMBER_REGEX = r'^01[0|1|6|7|8|9]\d{7,8}$'
 PHONE_NUMBER_REGEX = r'^(0(2|3[1-3]|4[1-4]|5[1-5]|6[1-4]|70))\d{7,8}$'
-
+KEYBOARD_CHARACTER_REGEX = r'^[\w\s!-~가-힣]+$'
+ZIPCODE_REGEX = r'^\d{5}'
 
 def get_token_time(token):
     return {
@@ -93,13 +97,14 @@ class ShopperSerializer(UserSerializer):
     name = RegexField(NAME_REGEX, max_length=20)
     nickname = RegexField(NICKNAME_REGEX, min_length=4, max_length=20, required=False, validators=[UniqueValidator(queryset=Shopper.objects.all())])
     mobile_number = RegexField(MOBILE_NUMBER_REGEX, validators=[UniqueValidator(queryset=Shopper.objects.all())])
+    point = IntegerField(read_only=True)
 
     class Meta:
         model = Shopper
-        fields = '__all__'
+        exclude = ['like_products']
         extra_kwargs = {            
             'height': {'min_value': 100, 'max_value': 250},
-            'weight': {'min_value': 30, 'max_value': 200}
+            'weight': {'min_value': 30, 'max_value': 200},
         }
 
 
@@ -144,4 +149,41 @@ class UserPasswordSerializer(Serializer):
         instance.save(update_fields=['password'])
         self.__discard_refresh_token(instance.id)
         
+        return instance
+
+
+class ShopperShippingAddressSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=20, required=False)
+    receiver_name = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=20)
+    receiver_mobile_number = RegexField(MOBILE_NUMBER_REGEX)
+    receiver_phone_number = RegexField(PHONE_NUMBER_REGEX, required=False)
+    zip_code = RegexField(ZIPCODE_REGEX)
+    base_address = CharField(max_length=200)
+    detail_address = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=100)
+    is_default = BooleanField()
+
+    def create(self, validated_data):
+        shopper = self.context['shopper']
+
+        if validated_data['is_default'] and shopper.addresses.filter(is_default=True).exists():
+            shopper.addresses.filter(is_default=True).update(is_default=False)
+
+        if not validated_data['is_default'] and not shopper.addresses.all().exists():
+            validated_data['is_default'] = True
+
+        return ShopperShippingAddress.objects.create(shopper=self.context['shopper'], **validated_data)
+
+    def update(self, instance, validated_data):
+        shopper = self.context['shopper']
+
+        is_default = validated_data.get('is_default', False)
+        if is_default and shopper.addresses.filter(is_default=True).exists():
+            shopper.addresses.filter(is_default=True).update(is_default=False)
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        instance.save(update_fields=validated_data.keys())
+
         return instance

@@ -6,11 +6,12 @@ from rest_framework.routers import SimpleRouter
 from drf_yasg.views import get_schema_view
 from drf_yasg.openapi import Info, License
 
-from user.documentation import DecoratedShopperViewSet, DecoratedWholesalerViewSet
-from product.documentation import DecoratedProductViewSet
+from product.documentations import DecoratedProductViewSet
+from user.documentations import DecoratedShopperViewSet, DecoratedWholesalerViewSet
 from order.views import OrderViewSet
 from order.views import OrderItemViewSet
 from order.views import ClaimViewSet
+
 
 handler404 = 'common.views.custom_404_view'
 handler500 = 'common.views.custom_500_view'
