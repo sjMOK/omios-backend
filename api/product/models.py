@@ -194,7 +194,6 @@ class Option(Model):
     id = BigAutoField(primary_key=True)
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
     size = CharField(max_length=20)
-    price_difference = IntegerField(default=0)
     on_sale = BooleanField(default=True)
 
     class Meta:

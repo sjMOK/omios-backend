@@ -610,14 +610,8 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                     'color': color_id_list[0],
                     'display_color_name': '다크',
                     'options': [
-                        {
-                            'size': 'Free',
-                            'price_difference': 0
-                        },
-                        {
-                            'size': 'S',
-                            'price_difference': 0
-                        }
+                        {'size': 'Free'},
+                        {'size': 'S'}
                     ],
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
                 },
@@ -625,14 +619,8 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                     'color': color_id_list[1],
                     'display_color_name': '블랙',
                     'options': [
-                        {
-                            'size': 'Free',
-                            'price_difference': 0
-                        },
-                        {
-                            'size': 'S',
-                            'price_difference': 2000
-                        }
+                        {'size': 'Free'},
+                        {'size': 'S'}
                     ],
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
                 }
