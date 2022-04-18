@@ -1,13 +1,16 @@
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField
+from rest_framework.decorators import action
 
-from common.documentation import UniqueResponse, Image, get_response
+from common.documentations import UniqueResponse, Image, get_response
 from .models import Shopper, Wholesaler
 from .serializers import (
-    Serializer, ModelSerializer, IssuingTokenSerializer, RefreshingTokenSerializer, CharField, 
-    MembershipSerializer, ShopperSerializer, WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
+    IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, ShopperShippingAddressSerializer, 
+    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet, ProductLikeView,
+    ShopperShippingAddressViewSet,
     upload_business_registration_image, get_buildings, change_password, is_unique,
 )
 
@@ -83,6 +86,11 @@ class Wholesaler(ModelSerializer):
         exclude = ['password']
 
 
+class ProductLikeViewResponse(Serializer):
+    shopper_id = IntegerField()
+    product_id = IntegerField()
+
+
 class DecoratedRefreshingTokenView(RefreshingTokenView):
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
@@ -90,38 +98,61 @@ class DecoratedRefreshingTokenView(RefreshingTokenView):
 
 class DecoratedShopperViewSet(ShopperViewSet):
     @swagger_auto_schema(**get_response(Shopper()), operation_description='Shopper 데이터 가져오기')
-    def retrieve(self, request, id=None):
-        return super().retrieve(request, id)
+    def retrieve(self, request, user_id=None):
+        return super().retrieve(request, user_id)
 
     @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
     def create(self, request):
         return super().create(request)
 
     @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
-    def partial_update(self, request, id=None):
-        return super().partial_update(request, id)
+    def partial_update(self, request, user_id=None):
+        return super().partial_update(request, user_id)
 
     @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
-    def destroy(self, request, id=None):
-        return super().destroy(request, id)
+    def destroy(self, request, user_id=None):
+        return super().destroy(request, user_id)
 
 
 class DecoratedWholesalerViewSet(WholesalerViewSet):
     @swagger_auto_schema(**get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기')
-    def retrieve(self, request, id=None):
-        return super().retrieve(request, id)
+    def retrieve(self, request, user_id=None):
+        return super().retrieve(request, user_id)
 
     @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
     def create(self, request):
         return super().create(request)
 
     @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
-    def partial_update(self, request, id=None):
-        return super().partial_update(request, id)
+    def partial_update(self, request, user_id=None):
+        return super().partial_update(request, user_id)
 
     @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
-    def destroy(self, request, id=None):
-        return super().destroy(request, id)
+    def destroy(self, request, user_id=None):
+        return super().destroy(request, user_id)
+
+
+class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
+    @swagger_auto_schema(**get_response(ShopperShippingAddressSerializer(many=True)), operation_description='배송지 리스트 조회')
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ShopperShippingAddressSerializer, **get_response(code=201), operation_description='배송지 생성\n최초로 등록하는 배송지는 자동으로 기본 배송지로 지정됨\n기본 배송지를 등록하는 경우 기존의 기본 배송지는 기본 배송지 플래그가 해제됨')
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ShopperShippingAddressSerializer, **get_response(), operation_description='배송지 수정\n기본 배송지를 true로 수정하면 기존의 기본 배송지는 기본 배송지 플래그가 해제됨')
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
+
+    @swagger_auto_schema(**get_response(), operation_description='배송지 삭제')
+    def destroy(self, *args, **kwargs):
+        return super().destroy(*args, **kwargs)
+
+    @swagger_auto_schema(**get_response(ShopperShippingAddressSerializer()), operation_description='기본 배송지 조회\n기본배송지로 지정된 배송지가 없다면 빈 딕셔너리({}) 반환')
+    @action(methods=['GET'], detail=False, url_path='default')
+    def get_default_address(self, *args, **kwargs):
+        return super().get_default_address(*args, **kwargs)
 
 
 decorated_issuing_token_view = swagger_auto_schema(
@@ -151,3 +182,9 @@ decorated_user_password_view = swagger_auto_schema(
 decorated_is_unique_view = swagger_auto_schema(
     method='GET', query_serializer=UniqueRequest, **get_response(UniqueResponse()), security=[], operation_description='중복검사\n한 번에 하나의 파라미터에 대해서만 요청 가능'
 )(is_unique)
+
+decorated_product_like_view = swagger_auto_schema(
+    method='POST', **get_response(ProductLikeViewResponse(), 201), operation_description='상품 좋아요 생성(좋아요 버튼 클릭시 요청)'
+)(swagger_auto_schema(
+    method='DELETE', **get_response(ProductLikeViewResponse()), operation_description='상품 좋아요 삭제(좋아요 버튼 한번 더 클릭시 요청)'
+)(ProductLikeView.as_view()))

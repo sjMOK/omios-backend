@@ -3,11 +3,13 @@ import random
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min, Count
 from django.test import tag
+
+from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.utils import levenshtein
-from user.test.factory import WholesalerFactory
+from user.test.factory import WholesalerFactory, ShopperFactory
 from user.models import Wholesaler
 from .factory import (
     AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
@@ -20,7 +22,7 @@ from ..models import (
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer, ProductWriteSerializer,
+    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer,
 )
 
 
@@ -334,6 +336,7 @@ class ProductViewSetTestCase(ViewTestCase):
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
+    maxDiff = None
     fixtures = ['membership']
 
     @classmethod
@@ -353,9 +356,10 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         return queryset
 
-    def __test_list_response(self, queryset, max_price, data={}):
+    def __test_list_response(self, queryset, max_price, data={}, context={}):
+        context.update({'detail': False})
         allow_fields = self.__get_list_allow_fields()
-        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
+        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context=context)
         self._get(data)
 
         self._assert_success()
@@ -366,7 +370,21 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         queryset = self.__get_queryset()
         max_price = queryset.aggregate(max_price=Max('price'))['max_price']
 
-        self.__test_list_response(self.__get_queryset(), max_price)      
+        self.__test_list_response(self.__get_queryset(), max_price)
+
+    def test_list_like_products(self):
+        self._unset_authentication()
+        refresh = RefreshToken.for_user(self._user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+
+        self._user.shopper.like_products.add(self._get_product())
+        queryset = self.__get_queryset().filter(like_shoppers=self._user.shopper)
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        
+        shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
+        self.__test_list_response(
+            queryset, max_price, data={'like_products': 'True'}, context={'shoppers_like_products_id_list': shoppers_like_products_id_list}
+        )
 
     def __test_filtering(self, query_params):
         filter_set = {}
@@ -483,7 +501,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def test_retrieve(self):
         product_id = self._get_product().id
-        product = self.__get_queryset().get(id=product_id)
+        product = self.__get_queryset().annotate(total_like=Count('like_shoppers')).get(id=product_id)
         allow_fields = '__all__'
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
@@ -530,7 +548,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def test_retrieve(self):
         product_id = self._get_product().id
-        product = self.__get_queryset().get(id=product_id)
+        product = self.__get_queryset().annotate(total_like=Count('like_shoppers')).get(id=product_id)
         allow_fields = '__all__'
         serializer = ProductReadSerializer(product, allow_fields=allow_fields, context={'detail': True})
 
