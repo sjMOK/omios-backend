@@ -126,18 +126,6 @@ class OptionFactory(DjangoModelFactory):
     product_color = SubFactory(ProductColorFactory)
     size = Sequence(lambda num: 'size_{0}'.format(num))
 
-    @lazy_attribute
-    def price_difference(self):
-        price = self.product_color.product.price
-        price_difference = price * random.uniform(0, 0.2)
-
-        cnt = 0
-        while price_difference > 10:
-            price_difference //= 10
-            cnt += 1
-
-        return int(price_difference * (10 ** cnt))
-
 
 class LaundryInformationFactory(DjangoModelFactory):
     class Meta:

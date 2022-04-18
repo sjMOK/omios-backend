@@ -212,13 +212,13 @@ class OptionListSerializer(ListSerializer):
 class OptionSerializer(Serializer):
     id = IntegerField(required=False)
     size = CharField(max_length=20)
-    price_difference = IntegerField()
     on_sale = BooleanField(read_only=True)
 
     class Meta:
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
+        # raise ValidationError('qwer')
         if self.root.partial:
             self.__validate_partial_update(attrs)
 
@@ -451,28 +451,11 @@ class ProductWriteSerializer(ProductSerializer):
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
-    __price_difference_upper_limit_ratio = 0.2
     __price_multiple_num_data = [
         {'min_price': 0, 'multiple': 2.3},
         {'min_price': 40000, 'multiple': 2},
         {'min_price': 80000, 'multiple': 1.8},
     ]
-
-    def validate(self, attrs):
-        if self.partial and 'price' not in attrs:
-            price = getattr(self.instance, 'price', 0)
-        else:
-            price = attrs.get('price') 
-
-        product_colors = attrs.get('colors', [])
-
-        for product_color in product_colors:
-            options_data = product_color.get('options', [])
-            for option_data in options_data:
-                if 'price_difference' in option_data:
-                    self.__validate_price_difference(price, option_data)
-
-        return attrs
 
     def validate_price(self, value):
         if value % 100 != 0:
@@ -545,16 +528,6 @@ class ProductWriteSerializer(ProductSerializer):
         if related_manager.exclude(id__in=id_list):
             raise ValidationError(
                 'You must contain all exact data that the product has.'
-            )
-
-    def __validate_price_difference(self, price, option_data):
-        price_difference = option_data.get('price_difference', 0)
-        price_difference = option_data['price_difference']
-        
-        if abs(price_difference) > price * self.__price_difference_upper_limit_ratio:
-            raise ValidationError(
-                'The option price difference must be less than {0}% of the product price.'
-                .format(self.__price_difference_upper_limit_ratio * 100)
             )
     
     def __get_price_multiple(self, price):

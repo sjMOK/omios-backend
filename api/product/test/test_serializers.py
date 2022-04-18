@@ -407,29 +407,16 @@ class OptionSerializerTestCase(SerializerTestCase):
     def setUpTestData(cls):
         size = SizeFactory()
         cls.option = OptionFactory(size = size.name)
-        cls.data = {
-            'size': 'Free',
-            'price_difference': 0
-        }
+        cls.data = {'size': 'Free'}
 
     def test_model_instance_serialization(self):
         expected_data = {
             'id': self.option.id, 
             'size': self.option.size,
-            'price_difference': self.option.price_difference,
             'on_sale': self.option.on_sale,
         }
 
         self._test_model_instance_serialization(self.option, expected_data)
-
-    def test_raise_validation_error_create_data_does_not_include_all_data_in_partial(self):
-        key = random.choice(list(self.data.keys()))
-        self.data.pop(key)
-        expected_message = '{0} field is required.'.format(key)
-
-        self._test_serializer_raise_validation_error(
-            expected_message, data=self.data, partial=True
-        )
 
     def test_raise_validation_error_update_size_data(self):
         self.data['id'] = self.option.id
@@ -450,10 +437,7 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
         cls.product_color = ProductColorFactory()
         cls.options = OptionFactory.create_batch(size=cls.options_num, product_color=cls.product_color)
         cls.create_data = [
-            {
-                'size': SizeFactory().id,
-                'price_difference': random.randint(0, cls.product_color.product.price * 0.2)
-            }
+            {'size': SizeFactory().id}
             for _ in range(cls.options_num)
         ]
 
@@ -488,10 +472,8 @@ class ProductColorSerializerTestCase(SerializerTestCase):
             'display_color_name': 'deepblue',
             'color': cls.product_color.color.id,
             'options': [
-                {
-                    'size': option.size,
-                    'price_difference': option.price_difference
-                }for option in cls.options
+                {'size': option.size}
+                for option in cls.options
             ],
             'image_url': SAMPLE_PRODUCT_IMAGE_URL,
         }
@@ -536,10 +518,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
 
     def test_raise_validation_error_update_non_unique_size_in_partial(self):
         self.data['id'] = self.product_color.id
-        new_option_data = {
-            'size': self.options[1].size,
-            'price_difference': 0,
-        }
+        new_option_data = {'size': self.options[1].size}
         self.data['options'] = [new_option_data]
         expected_message = 'The option with the size already exists.'
 
@@ -583,8 +562,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
                 'options': [
                     {
                         'id': option.id,
-                        'size': option.size, 
-                        'price_difference': option.price_difference,
+                        'size': option.size,
                     }for option in product_color.options.all()
                 ],
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
@@ -607,8 +585,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
                 'options': [
                     {
                         'id': option.id,
-                        'size': option.size, 
-                        'price_difference': option.price_difference,
+                        'size': option.size,
                     }for option in product_color.options.all()
                 ],
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
@@ -885,14 +862,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'color': color_id_list[0],
                     'display_color_name': '다크',
                     'options': [
-                        {
-                            'size': 'Free',
-                            'price_difference': 0
-                        },
-                        {
-                            'size': 'S',
-                            'price_difference': 0
-                        }
+                        {'size': 'Free'},
+                        {'size': 'S'}
                     ],
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
                 },
@@ -900,14 +871,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'color': color_id_list[1],
                     'display_color_name': '블랙',
                     'options': [
-                        {
-                            'size': 'Free',
-                            'price_difference': 0
-                        },
-                        {
-                            'size': 'S',
-                            'price_difference': 2000
-                        }
+                        {'size': 'Free'},
+                        {'size': 'S'}
                     ],
                     'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
                 }
@@ -963,10 +928,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 'display_color_name': product_color.display_color_name,
                 'color': product_color.color.id,
                 'options': [
-                    {
-                        'size': option.size, 
-                        'price_difference': option.price_difference,
-                    }for option in product_color.options.all()
+                    {'size': option.size}
+                    for option in product_color.options.all()
                 ],
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
             }for product_color in product_colors
@@ -1001,18 +964,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         
         self._test_serializer_raise_validation_error(
             expected_message, instance=self.product, data={'colors': data}, partial=True
-        )
-
-    def test_raise_validation_error_price_difference_exceed_upper_limit(self):
-        upper_limit_ratio = 0.2
-        data = self.__get_input_data()
-        option_data = data['colors'][0]['options']
-        option_data[0]['price_difference'] = data['price'] *(1 +(upper_limit_ratio+0.1))
-        expected_message = \
-            'The option price difference must be less than {0}% of the product price.'.format(upper_limit_ratio * 100)
-
-        self._test_serializer_raise_validation_error(
-            expected_message, data=data
         )
 
     def test_make_price_data(self):
@@ -1090,7 +1041,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
         self.assertListEqual(
             list(Option.objects.filter(product_color__product=product).order_by('id')
-            .values('size', 'price_difference')),
+            .values('size')),
             [
                 option_data for color_data in data['colors'] for option_data in color_data['options']
             ]
@@ -1240,13 +1191,11 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             list(
                 Option.objects.filter(product_color__product=self.product)
                 .exclude(product_color_id__in=existing_color_id_list).order_by('id')
-                .values('size', 'price_difference')
+                .values('size')
             ),
             [
-                {
-                    'size': data['size'],
-                    'price_difference': data['price_difference'],
-                }for data in create_option_data
+                {'size': data['size']}
+                for data in create_option_data
             ]
         )
 
@@ -1278,10 +1227,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         update_data = {
             'id': update_color_obj.id,
             'options': [
-                {
-                    'size': 'Free',
-                    'price_difference': 0
-                }
+                {'size': 'Free'}
             ]
         }
         data = {'colors': [update_data]}
@@ -1293,33 +1239,9 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertListEqual(
             list(
                 Option.objects.filter(product_color=update_color_obj).exclude(id__in=existing_option_id_list)
-                .order_by('id').values('size', 'price_difference')
+                .order_by('id').values('size')
             ),
             update_data['options']
-        )
-
-    def test_update_option(self):
-        update_color_obj = self.product.colors.latest('id')
-        update_option_obj = update_color_obj.options.latest('id')
-        update_data = {
-            'id': update_color_obj.id,
-            'options': [
-                {
-                    'id': update_option_obj.id,
-                    'price_difference': update_option_obj.price_difference + 500
-                }
-            ]
-        }
-        data = {'colors': [update_data]}
-        serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
-        )
-        serializer.save()
-        updated_option_obj = Option.objects.get(id=update_option_obj.id)
-        
-        self.assertDictEqual(
-            model_to_dict(updated_option_obj, fields=('id', 'price_difference')),
-            update_data['options'][0]
         )
 
     def test_update_price(self):
