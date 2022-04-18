@@ -218,7 +218,6 @@ class OptionSerializer(Serializer):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
-        # raise ValidationError('qwer')
         if self.root.partial:
             self.__validate_partial_update(attrs)
 
