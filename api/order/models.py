@@ -1,5 +1,5 @@
 from django.db.models import (
-    Model, BigAutoField, AutoField, ForeignKey,
+    Model, BigAutoField, AutoField, ForeignKey, OneToOneField,
     IntegerField, BigIntegerField, CharField, BooleanField, DateTimeField,
     DO_NOTHING
 )
@@ -84,10 +84,6 @@ class OrderItem(Model):
     payment_price = IntegerField()
     earned_point = IntegerField()
     shipping_fee = IntegerField(default=0)
-    cancellation_information = ForeignKey('CancellationInformation', DO_NOTHING, null=True)
-    exchange_information = ForeignKey('ExchangeInformation', DO_NOTHING, null=True)
-    return_information = ForeignKey('ReturnInformation', DO_NOTHING, null=True)
-
 
     class Meta:
         db_table = 'order_item'
@@ -129,6 +125,7 @@ class CancellationInformation(Model):
     id = BigAutoField(primary_key=True)
     refund = ForeignKey('Refund', DO_NOTHING, null=True)
     created_at = DateTimeField(default=timezone.now)
+    order_item = OneToOneField('OrderItem', DO_NOTHING)
 
     class Meta:
         db_table = 'cancellation_information'
@@ -136,9 +133,10 @@ class CancellationInformation(Model):
 
 class ExchangeInformation(Model):
     id = BigAutoField(primary_key=True)
-    new_order_item = ForeignKey('OrderItem', DO_NOTHING)
+    new_order_item = OneToOneField('OrderItem', DO_NOTHING, related_name='previous_order_item_exchange_information')
     created_at = DateTimeField(default=timezone.now)
     completed_at = DateTimeField(null=True)
+    order_item = OneToOneField('OrderItem', DO_NOTHING)
 
     class Meta:
         db_table = 'exchange_information'
@@ -148,6 +146,7 @@ class ReturnInformation(Model):
     id = BigAutoField(primary_key=True)
     refund = ForeignKey('Refund', DO_NOTHING)
     created_at = DateTimeField(default=timezone.now)
+    order_item = OneToOneField('OrderItem', DO_NOTHING)
 
     class Meta:
         db_table = 'return_information'
