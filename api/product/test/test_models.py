@@ -310,21 +310,13 @@ class OptionTestCase(ModelTestCase):
         product_color = ProductColorFactory()
         self._test_data = {
             'product_color': product_color,
-            'size': 'Free',
-            'price_difference': 1500,
+            'size': 'Free'
         }
 
     def test_create(self):
         option = self._get_model_after_creation()
         self.assertEqual(option.product_color, self._test_data['product_color'])
         self.assertEqual(option.size, self._test_data['size'])
-        self.assertEqual(option.price_difference, self._test_data['price_difference'])
-
-    def test_default_price_difference(self):
-        self._test_data.pop('price_difference')
-        option = self._get_model_after_creation()
-
-        self.assertEqual(option.price_difference, 0)
 
 
 class KeywordTestCase(ModelTestCase):
