@@ -5,7 +5,7 @@ from rest_framework.serializers import (
 )
 from drf_yasg.utils import swagger_auto_schema
 
-from common.documentation import Image, get_response
+from common.documentations import Image, get_response
 from .serializers import (
     SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer,
     SeeThroughSerializer, FlexibilitySerializer, AgeSerializer, ThemeSerializer, ColorSerializer, StyleSerializer,

@@ -2,7 +2,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField
 from rest_framework.decorators import action
 
-from common.documentation import UniqueResponse, Image, get_response
+from common.documentations import UniqueResponse, Image, get_response
 from .models import Shopper, Wholesaler
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, ShopperShippingAddressSerializer, 
