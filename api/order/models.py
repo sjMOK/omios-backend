@@ -122,31 +122,29 @@ class Refund(Model):
 
 
 class CancellationInformation(Model):
-    id = BigAutoField(primary_key=True)
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
     refund = ForeignKey('Refund', DO_NOTHING, null=True)
     created_at = DateTimeField(default=timezone.now)
-    order_item = OneToOneField('OrderItem', DO_NOTHING)
 
     class Meta:
         db_table = 'cancellation_information'
 
 
 class ExchangeInformation(Model):
-    id = BigAutoField(primary_key=True)
-    new_order_item = OneToOneField('OrderItem', DO_NOTHING, related_name='previous_order_item_exchange_information')
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
+    new_order_item = OneToOneField('OrderItem', DO_NOTHING, related_name='origin_order_item_exchange_information')
     created_at = DateTimeField(default=timezone.now)
     completed_at = DateTimeField(null=True)
-    order_item = OneToOneField('OrderItem', DO_NOTHING)
 
     class Meta:
         db_table = 'exchange_information'
 
 
 class ReturnInformation(Model):
-    id = BigAutoField(primary_key=True)
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
     refund = ForeignKey('Refund', DO_NOTHING)
     created_at = DateTimeField(default=timezone.now)
-    order_item = OneToOneField('OrderItem', DO_NOTHING)
+    
 
     class Meta:
         db_table = 'return_information'
