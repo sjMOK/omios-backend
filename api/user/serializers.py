@@ -10,18 +10,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from common.utils import gmt_to_kst
+from common.regular_expressions import (
+    USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
+    BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
+)
 from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler
 from .validators import PasswordSimilarityValidator
 
-
-USERNAME_REGEX = r'^[a-zA-Z\d]+$'
-PASSWORD_REGEX = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$'
-NAME_REGEX = r'^[가-힣]+$'
-NICKNAME_REGEX = r'^[a-z\d._]+$'
-MOBILE_NUMBER_REGEX = r'^01[0|1|6|7|8|9]\d{7,8}$'
-PHONE_NUMBER_REGEX = r'^(0(2|3[1-3]|4[1-4]|5[1-5]|6[1-4]|70))\d{7,8}$'
-KEYBOARD_CHARACTER_REGEX = r'^[\w\s!-~가-힣]+$'
-ZIPCODE_REGEX = r'^\d{5}'
 
 def get_token_time(token):
     return {
@@ -154,13 +149,13 @@ class UserPasswordSerializer(Serializer):
 
 class ShopperShippingAddressSerializer(Serializer):
     id = IntegerField(read_only=True)
-    name = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=20, required=False)
-    receiver_name = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=20)
+    name = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=20, required=False)
+    receiver_name = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=20)
     receiver_mobile_number = RegexField(MOBILE_NUMBER_REGEX)
     receiver_phone_number = RegexField(PHONE_NUMBER_REGEX, required=False)
-    zip_code = RegexField(ZIPCODE_REGEX)
+    zip_code = RegexField(ZIP_CODE_REGEX)
     base_address = CharField(max_length=200)
-    detail_address = RegexField(KEYBOARD_CHARACTER_REGEX, max_length=100)
+    detail_address = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=100)
     is_default = BooleanField()
 
     def create(self, validated_data):
