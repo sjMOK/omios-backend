@@ -1,7 +1,7 @@
 import random
 
 from django.db.models.query import Prefetch
-from django.db.models import Avg, Max, Min, Count
+from django.db.models import Avg, Max, Min, Count, Q
 from django.test import tag
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,7 +9,7 @@ from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.utils import levenshtein
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
     AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
@@ -253,6 +253,7 @@ class GetColorsTestCase(ViewTestCase):
     _url = '/products/colors'
 
     def test_get(self):
+        ColorFactory.create_batch(size=3)
         self._get()
 
         self.assertListEqual(
@@ -356,15 +357,37 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         return queryset
 
-    def __test_list_response(self, queryset, max_price, data={}, context={}):
+    def __test_list_response(self, queryset, max_price, query_params={}, context={}):
         context.update({'detail': False})
         allow_fields = self.__get_list_allow_fields()
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context=context)
-        self._get(data)
+        self._get(query_params)
 
         self._assert_success()
         self.assertListEqual(self._response_data['results'], serializer.data)
         self.assertEqual(self._response_data['max_price'], max_price)
+
+    def test_search(self):
+        fake = Faker()
+        search_word = fake.word()
+
+        product_num = 5
+        for _ in range(product_num):
+            ProductFactory(name=search_word + fake.word())
+
+        tag_num = 5
+        for _ in range(tag_num):
+            tag = TagFactory(name=fake.word() + search_word)
+            product = Product.objects.order_by('?').first()
+            product.tags.add(tag)
+
+        tag_id_list = list(Tag.objects.filter(name__contains=search_word).values_list('id', flat=True))
+        condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
+
+        queryset = self.__get_queryset().filter(condition)
+        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+
+        self.__test_list_response(queryset, max_price, query_params={'search_word': search_word})
 
     def test_list(self):
         queryset = self.__get_queryset()
@@ -383,7 +406,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         
         shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
         self.__test_list_response(
-            queryset, max_price, data={'like_products': 'True'}, context={'shoppers_like_products_id_list': shoppers_like_products_id_list}
+            queryset, max_price, query_params={'like_products': 'True'}, context={'shoppers_like_products_id_list': shoppers_like_products_id_list}
         )
 
     def __test_filtering(self, query_params):
@@ -414,7 +437,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
                 filter_set[filter_mapping[key]] = value
 
         queryset = self.__get_queryset().filter(**filter_set)
-        self.__test_list_response(queryset, max_price, data=query_params)
+        self.__test_list_response(queryset, max_price, query_params=query_params)
 
         filtered_products_count = queryset.count()
         self.assertEqual(self._response_data['count'], filtered_products_count)

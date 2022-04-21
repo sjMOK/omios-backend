@@ -40,8 +40,8 @@ def get_update_or_delete_attrs(attrs):
     return [attr for attr in attrs if not is_create_data(attr)]
 
 def get_list_of_single_item(key, attrs):
-    ret_list = [attr[key] for attr in attrs]
-    
+    ret_list = [attr[key] for attr in attrs if key in attr]
+
     return ret_list
 
 

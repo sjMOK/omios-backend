@@ -22,7 +22,7 @@ from ..serializers import (
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
-
+from pdb import set_trace
 
 SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
 
@@ -376,7 +376,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         )
         cls.data = [
             {
-                'material': 'material_{0}'.format(i),
+                'material': ProductMaterialFactory.build().material,
                 'mixing_rate': mixing_rate
             }for i in range(cls.materials_num)
         ]
@@ -420,7 +420,7 @@ class OptionSerializerTestCase(SerializerTestCase):
 
     def test_raise_validation_error_update_size_data(self):
         self.data['id'] = self.option.id
-        self.data['size'] = self.data['size'] + '_update'
+        self.data['size'] = self.data['size'] + 'update'
         expected_message = 'Size data cannot be updated.'
 
         self._test_serializer_raise_validation_error(
@@ -444,14 +444,14 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
     def test_raise_validation_error_duplicated_size_data_in_create(self):
         data = self.create_data
         data[-1]['size'] = data[0]['size']
-        expected_message = 'size is duplicated.'
+        expected_message = 'Size is duplicated.'
 
         self._test_serializer_raise_validation_error(expected_message, data=data)
 
     def test_raise_validation_error_duplicated_size_data_in_update(self):
         self.create_data[-1]['size'] = self.create_data[0]['size']
         data = self.create_data
-        expected_message = 'size is duplicated.'
+        expected_message = 'Size is duplicated.'
 
         self._test_serializer_raise_validation_error(
             expected_message, data=data, partial=True
@@ -1103,14 +1103,14 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         update_materials = materials[1:]
         create_data = [
             {
-                'material': 'mat_create',
+                'material': 'matcreate',
             }
         ]
         delete_data = list(delete_materials.values('id'))
         update_data = [
             {
                 'id': material.id,
-                'material': material.material + '_update',
+                'material': material.material + 'update',
                 'mixing_rate': material.mixing_rate,
             }
             for material in update_materials
