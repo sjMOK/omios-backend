@@ -39,13 +39,14 @@ def get_create_or_update_attrs(attrs):
 def get_update_or_delete_attrs(attrs):
     return [attr for attr in attrs if not is_create_data(attr)]
 
-def get_list_of_single_value(key, attrs):
+def get_list_of_single_value(attrs, key):
     ret_list = [attr[key] for attr in attrs]
     
     return ret_list
 
-def get_sum_of_single_value(key, attrs):
-    return sum(get_list_of_single_value(key, attrs))
+# todo test code
+def get_sum_of_single_value(attrs, key):
+    return sum(get_list_of_single_value(attrs, key))
 
 def add_data_in_each_element(list, key, value):
     for element in list:

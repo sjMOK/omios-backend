@@ -94,7 +94,7 @@ class GetListOfSingleItemTestCase(FunctionTestCase):
             {'id': 4, 'name': 'name4'},
         ]
 
-        self.assertEqual(self._call_function('id', attrs), [1, 2, 3, 4])
+        self.assertEqual(self._call_function(attrs, 'id'), [1, 2, 3, 4])
 
 
 class SerializerMixinTestCase(APISimpleTestCase):
