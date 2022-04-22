@@ -4,20 +4,22 @@ from rest_framework.serializers import (
 )
 from rest_framework.exceptions import ValidationError
 
-from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX
+from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL 
 from common.validators import validate_all_required_fields_included
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     DynamicFieldsSerializer,
 )
+from user.models import ProductLike
 from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
     SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
 
+
+PRODUCT_NAME_REGEX = r'^[\w\s!-~가-힣]+$'
 PRODUCT_IMAGE_MAX_LENGTH = 10
 PRODUCT_COLOR_MAX_LENGTH = 10
 
@@ -365,7 +367,7 @@ class ProductColorSerializer(Serializer):
 
 class ProductSerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
-    name = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=100)
+    name = RegexField(PRODUCT_NAME_REGEX, max_length=100)
     price = IntegerField(min_value=100, max_value=5000000)
     sale_price = IntegerField(read_only=True)
     base_discount_rate = IntegerField(default=0)
