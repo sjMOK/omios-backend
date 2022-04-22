@@ -6,13 +6,12 @@ from rest_framework.routers import SimpleRouter
 from drf_yasg.views import get_schema_view
 from drf_yasg.openapi import Info, License
 
-<<<<<<< HEAD
-from user.documentation import DecoratedShopperViewSet, DecoratedWholesalerViewSet
-from product.documentation import DecoratedProductViewSet
-=======
 from product.documentations import DecoratedProductViewSet
 from user.documentations import DecoratedShopperViewSet, DecoratedWholesalerViewSet
->>>>>>> 55b383acba45e8fd1e26d4bdb2356788c9e3af7c
+from order.views import OrderViewSet
+from order.views import OrderItemViewSet
+from order.views import ClaimViewSet
+
 
 handler404 = 'common.views.custom_404_view'
 handler500 = 'common.views.custom_500_view'
@@ -34,6 +33,10 @@ router = SimpleRouter(trailing_slash=False)
 router.register(r'users/shoppers', DecoratedShopperViewSet, basename='shoppers')
 router.register(r'users/wholesalers', DecoratedWholesalerViewSet, basename='wholesalers')
 router.register(r'products', DecoratedProductViewSet, basename='products')
+router.register(r'^orders', OrderViewSet, basename='orders')
+router.register(r'^orders/items', OrderItemViewSet, basename='order-items')
+router.register(r'orders/(?P<order_id>\d+)', ClaimViewSet, basename='order-claims')
+# router.register(r'^orders/(?P<order_id>\d+)/items', OrderItemViewSet, basename='order-items')
 
 urlpatterns = [
    re_path(r'^swagger$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
