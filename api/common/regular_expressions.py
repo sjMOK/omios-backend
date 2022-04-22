@@ -1,4 +1,7 @@
 BASIC_SPECIAL_CHARACTER_REGEX = r'^[\w\s!-~가-힣]+$'
+ENG_OR_KOR_REGEX = r'^[a-z|A-Z|가-힣]+$'
+
+SIZE_REGEX = r'^[a-z|A-Z|가-힣|\d|]+$'
 
 USERNAME_REGEX = r'^[a-zA-Z\d]+$'
 PASSWORD_REGEX = r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[!-~]+$'

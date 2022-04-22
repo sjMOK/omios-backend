@@ -1,9 +1,11 @@
-import random
+import string, random
 
 from factory import Sequence, LazyAttribute, SubFactory, Faker, lazy_attribute
 from factory.django import DjangoModelFactory
+from faker import Faker as _Faker
 
 from user.test.factory import WholesalerFactory
+from ..models import ProductMaterial
 
 
 class MainCategoryFactory(DjangoModelFactory):
@@ -124,7 +126,7 @@ class OptionFactory(DjangoModelFactory):
         model = 'product.option'
 
     product_color = SubFactory(ProductColorFactory)
-    size = Sequence(lambda num: 'size_{0}'.format(num))
+    size = Sequence(lambda num: 'size{0}'.format(num))
 
 
 class LaundryInformationFactory(DjangoModelFactory):
@@ -148,6 +150,11 @@ class ProductMaterialFactory(DjangoModelFactory):
     product = SubFactory(ProductFactory)
     material = Sequence(lambda num: 'material{0}'.format(num))
     mixing_rate = 100
+
+    @lazy_attribute
+    def material(self):
+        string_length = 10
+        return ''.join(random.sample(string.ascii_letters, string_length))
 
 
 class ProductImageFactory(DjangoModelFactory):

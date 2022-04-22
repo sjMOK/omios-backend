@@ -188,7 +188,7 @@ class ProductViewSet(GenericViewSet):
     lookup_value_regex = r'[0-9]+'
     __default_sorting = '-created'
     __default_fields = ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
-    __read_action = ('retrieve', 'list', 'search')
+    __read_action = ('retrieve', 'list')
     __require_write_serializer_action = ('create', 'partial_update')
 
 
