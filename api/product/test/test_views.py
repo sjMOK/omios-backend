@@ -353,7 +353,9 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
-        queryset = Product.objects.prefetch_related(prefetch_images).filter(on_sale=True).order_by('-created')
+        queryset = Product.objects.prefetch_related(
+            prefetch_images
+        ).filter(on_sale=True).order_by('-created').alias(Count('id'))
 
         return queryset
 
