@@ -7,6 +7,7 @@ from django.db.models import (
 )
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
@@ -42,6 +43,14 @@ class User(AbstractBaseUser):
     objects = BaseUserManager()
 
     USERNAME_FIELD = 'username'
+
+    @cached_property
+    def is_shopper(self):
+        return Shopper.objects.filter(user=self).exists()
+
+    @cached_property
+    def is_wholesaler(self):
+        return Wholesaler.objects.filter(user=self).exists()
 
     def __set_password(self, update_time):
         super().set_password(self.password)
