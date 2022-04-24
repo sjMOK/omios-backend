@@ -197,3 +197,15 @@ class ShopperShippingAddress(Model):
             self.is_default = True
 
         super().save(*args, **kwargs)
+
+
+class PointHistory(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    order_item = ForeignKey('order.OrderItem', DO_NOTHING)
+    point = IntegerField()
+    content = CharField(max_length=200)
+    created_at = DateField(default=timezone.now)
+
+    class Meta:
+        db_table = 'point_history'
