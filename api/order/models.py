@@ -98,15 +98,14 @@ class StatusTransition(Model):
         db_table = 'status_transition'
 
 
-class StatusLog(Model):
+class StatusHistory(Model):
     id = BigAutoField(primary_key=True)
-    order_item = ForeignKey('OrderItem', DO_NOTHING, related_name='status_log')
-    previous_status = ForeignKey('Status', DO_NOTHING, related_name='previous_status')
-    next_status = ForeignKey('Status', DO_NOTHING, related_name='next_status')
+    order_item = ForeignKey('OrderItem', DO_NOTHING, related_name='status_history')
+    status = ForeignKey('Status', DO_NOTHING)
     created_at = DateTimeField(default=timezone.now)
 
     class Meta:
-        db_table = 'status_log'
+        db_table = 'status_history'
 
 
 class Refund(Model):
