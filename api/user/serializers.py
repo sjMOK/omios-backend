@@ -14,7 +14,7 @@ from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
-from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler
+from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, PointHistory
 from .validators import PasswordSimilarityValidator
 
 
@@ -182,3 +182,11 @@ class ShopperShippingAddressSerializer(Serializer):
         instance.save(update_fields=validated_data.keys())
 
         return instance
+
+
+class PointHistorySerializer(ModelSerializer):
+    order_number = CharField(read_only=True,  source='order.number')
+
+    class Meta:
+        model = PointHistory
+        exclude = ['shopper', 'order']

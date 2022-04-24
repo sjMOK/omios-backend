@@ -12,11 +12,11 @@ from rest_framework_simplejwt.views import TokenViewBase
 from common.utils import get_response, get_response_body, check_id_format
 from common.views import upload_image_view
 from product.models import Product
-from .models import ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike
+from .models import ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
     UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
-    ShopperShippingAddressSerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
@@ -236,3 +236,10 @@ class ShopperShippingAddressViewSet(GenericViewSet):
         serializer = self.get_serializer(shipping_address)
 
         return get_response(data=serializer.data)
+
+
+@api_view(['GET'])
+def get_point_histories(request, user_id):
+    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper_id=user_id), many=True)
+
+    return get_response(data=serializer.data)

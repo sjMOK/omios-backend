@@ -109,6 +109,18 @@ class Shopper(User):
 
         super().save(*args, **kwargs)
 
+    def update_point(self, point, content, order=None, product_name=None):
+        self.point += point
+        self.save(update_fields=['point'])
+
+        PointHistory.objects.create(
+            shopper=self,
+            point=point, 
+            content=content, 
+            order=order,
+            product_name=product_name,
+        )
+
 
 class ProductLike(Model):
     id = BigAutoField(primary_key=True)
@@ -202,7 +214,8 @@ class ShopperShippingAddress(Model):
 class PointHistory(Model):
     id = BigAutoField(primary_key=True)
     shopper = ForeignKey('Shopper', DO_NOTHING)
-    order_item = ForeignKey('order.OrderItem', DO_NOTHING)
+    order = ForeignKey('order.Order', DO_NOTHING, null=True)
+    product_name = CharField(max_length=100, null=True)
     point = IntegerField()
     content = CharField(max_length=200)
     created_at = DateField(default=timezone.now)

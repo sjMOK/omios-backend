@@ -6,7 +6,7 @@ from .documentations import (
     DecoratedShopperShippingAddressViewSet,
     decorated_issuing_token_view, decorated_refreshing_token_view, decorated_blacklisting_token_view,
     decorated_upload_business_registration_image_view, decorated_get_buildings_view, decorated_user_password_view,
-    decorated_is_unique_view, decorated_product_like_view,
+    decorated_is_unique_view, decorated_product_like_view, decorated_shopper_point_history_view
 )
 
 app_name = 'user'
@@ -23,6 +23,7 @@ token_urlpatterns = [
 shopper_url_patterns = [
     path('/<int:user_id>', include(router.urls)),
     path('/<int:user_id>/like/<int:product_id>', decorated_product_like_view),
+    path('/<int:user_id>/point-histories', decorated_shopper_point_history_view)
 ]
 
 wholesaler_url_patterns = [
