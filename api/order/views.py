@@ -9,12 +9,13 @@ from rest_framework.exceptions import APIException, NotFound
 
 from common.utils import get_response
 from common.exceptions import BadRequestError
+from user.models import Shopper
 from product.models import Product, ProductImage, Option
 from .models import (
     Order, OrderItem, ShippingAddress, Status,
 )
 from .serializers import (
-    OrderItemSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer
+    CancellationInformationSerializer, OrderItemSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer
 )
 from .permissions import OrderPermission, OrderItemPermission
 
@@ -41,10 +42,10 @@ class OrderViewSet(GenericViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'wholesaler'):
+        if self.request.user.is_wholesaler:
             pass
-        elif hasattr(self.request.user, 'shopper'):
-            condition = Q(shopper=self.request.user.shopper)
+        elif self.request.user.is_shopper:
+            condition = Q(shopper_id=self.request.user.id)
         else:
             raise APIException('Unrecognized user.')
 
@@ -57,20 +58,19 @@ class OrderViewSet(GenericViewSet):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)        
 
     def create(self, request):
-        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+        shopper = Shopper.objects.select_related('membership').get(user=request.user)
+        serializer = self.get_serializer(data=request.data, context={'shopper': shopper})
 
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+        serializer.is_valid(raise_exception=True)
 
         # todo
-        # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료 or 결제 오류)
+        # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료)
 
         order = serializer.save(status_id=101)
 
         return get_response(data={'id': order.id})
-        # return get_response(data=connection.queries)
     
-    def retrieve(self, request, id):
+    def retrieve(self, request, order_id):
         return get_response(data=self.get_serializer(self.get_object()).data)
 
     @action(['put'], True, 'shipping-address')
