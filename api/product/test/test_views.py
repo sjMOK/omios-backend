@@ -8,7 +8,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
-from common.utils import levenshtein
+from common.utils import levenshtein, BASE_IMAGE_URL
+from common.models import TemporaryImage
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
@@ -538,6 +539,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
+    fixtures = ['temporary_image']
     @classmethod
     def setUpTestData(cls):
         cls._set_wholesaler()
@@ -591,7 +593,8 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         ]
         laundry_information_id_list.sort()
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
-
+        image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
+        
         self._test_data = {
             'name': 'name',
             'price': 50000,
@@ -618,15 +621,15 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'theme': Theme.objects.last().id,
             'images': [
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 1
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_12.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 2
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_13.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 3
                 }
             ],
@@ -638,7 +641,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 },
                 {
                     'color': color_id_list[1],
@@ -647,7 +650,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 }
             ]
         }

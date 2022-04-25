@@ -43,7 +43,7 @@ class Product(Model):
     age = ForeignKey('Age', DO_NOTHING)
     tags = ManyToManyField('Tag', db_table='product_tag')
     laundry_informations = ManyToManyField('LaundryInformation', through='ProductLaundryInformation')
-    name = CharField(max_length=60)
+    name = CharField(max_length=100)
     code = CharField(max_length=12, default='AA')
     created = DateTimeField(default=timezone.now)
     price = IntegerField()

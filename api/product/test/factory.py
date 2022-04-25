@@ -1,11 +1,11 @@
 import string, random
 
-from factory import Sequence, LazyAttribute, SubFactory, Faker, lazy_attribute
+from django.utils import timezone
+
+from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, lazy_attribute
 from factory.django import DjangoModelFactory
-from faker import Faker as _Faker
 
 from user.test.factory import WholesalerFactory
-from ..models import ProductMaterial
 
 
 class MainCategoryFactory(DjangoModelFactory):
@@ -101,7 +101,7 @@ class ColorFactory(DjangoModelFactory):
         model = 'product.Color'
 
     name = Sequence(lambda num: 'color_{0}'.format(num))
-    image_url = 'color/black.svg'
+    image_url = LazyAttribute(lambda obj: 'color/{0}.svg'.format(obj.name))
 
 
 class SizeFactory(DjangoModelFactory):
@@ -118,7 +118,7 @@ class ProductColorFactory(DjangoModelFactory):
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
     display_color_name = Sequence(lambda num: 'display_cname_{0}'.format(num))
-    image_url = 'product/sample/product_21.jpg'
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
 
 
 class OptionFactory(DjangoModelFactory):
@@ -162,7 +162,7 @@ class ProductImageFactory(DjangoModelFactory):
         model = 'product.ProductImage'
 
     product = SubFactory(ProductFactory)
-    image_url = 'product/sample/product_1.jpg'
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
     sequence = Sequence(lambda num: num)
 
 
