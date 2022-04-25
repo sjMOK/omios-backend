@@ -7,17 +7,17 @@ from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX
-from common.validators import validate_all_required_fields_included
+from common.validators import validate_all_required_fields_included, validate_url
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_item,
     DynamicFieldsSerializer,
 )
-from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
     SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
 )
+
 
 PRODUCT_IMAGE_MAX_LENGTH = 10
 PRODUCT_COLOR_MAX_LENGTH = 10

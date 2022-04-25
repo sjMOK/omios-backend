@@ -1,8 +1,11 @@
 import os
 
+from django.utils import timezone
+from rest_framework.exceptions import APIException, ValidationError
+
 from storages.backends.s3boto3 import S3Boto3Storage
 
-from django.utils import timezone
+from common.models import TemporaryImage
 
 
 class CustomS3Boto3Storage(S3Boto3Storage):
@@ -45,6 +48,7 @@ def get_upload_path_prefix(type, *args):
 
 def upload_images(type, images, *args):
     result = []
+    temporary_images = []
 
     upload_path_prefix = get_upload_path_prefix(type, *args)
     if upload_path_prefix:
@@ -52,6 +56,9 @@ def upload_images(type, images, *args):
         for image in images:
             upload_path = upload_path_prefix + timezone.now().strftime("%Y%m%d_%H%M%S%f") + os.path.splitext(image.name)[1].lower()
             storage.save(upload_path, image)
+            temporary_images.append(TemporaryImage(image_url=upload_path))
             result.append(storage.url(upload_path))
+
+    TemporaryImage.objects.bulk_create(temporary_images)
 
     return result

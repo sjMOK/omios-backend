@@ -5,6 +5,7 @@ from django.db.models.query import Prefetch
 from django.db.models import Count
 from django.forms import model_to_dict
 
+from common.models import TemporaryImage
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from user.test.factory import WholesalerFactory, ShopperFactory
@@ -14,7 +15,6 @@ from .factory import (
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ThemeFactory, 
 )
-from ..validators import validate_url
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
@@ -22,9 +22,6 @@ from ..serializers import (
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
-from pdb import set_trace
-
-SAMPLE_PRODUCT_IMAGE_URL = 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_1.jpg'
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):
@@ -204,13 +201,15 @@ class TagSerializerTestCase(SerializerTestCase):
 
 
 class ProductImageSerializerTestCase(SerializerTestCase):
+    fixtures = ['temporary_image']
     _serializer_class = ProductImageSerializer
 
     @classmethod
     def setUpTestData(cls):
+        cls.image_url = TemporaryImage.objects.first().image_url
         cls.product_image = ProductImageFactory()
         cls.data = {
-            'image_url': DEFAULT_IMAGE_URL,
+            'image_url': BASE_IMAGE_URL + cls.image_url,
             'sequence': 1
         }
 
@@ -225,30 +224,11 @@ class ProductImageSerializerTestCase(SerializerTestCase):
 
     def test_deserialization(self):
         expected_validated_data = {
-            'image_url': validate_url(self.data['image_url']),
+            'image_url': self.image_url,
             'sequence': self.data['sequence']
         }
 
         self._test_deserialzation(self.data, expected_validated_data)
-
-    def __test_raise_valiation_error_with_invalid_image_url(self, image_url, expected_message):
-        self.data['image_url'] = image_url
-
-        self._test_serializer_raise_validation_error(expected_message, data=self.data)
-
-    def test_raise_validation_error_image_url_not_starts_with_BASE_IMAGE_URL(self):
-        image_url = 'https://omios.com/product/sample/product_1.jpg'
-
-        self.__test_raise_valiation_error_with_invalid_image_url(
-            image_url, expected_message='Enter a valid BASE_IMAGE_URL.'
-        )
-
-    def test_raise_validation_error_image_url_object_not_found(self):
-        image_url = BASE_IMAGE_URL + 'product/sample/product_-999.jpg'
-
-        self.__test_raise_valiation_error_with_invalid_image_url(
-            image_url, expected_message='Not found.'
-        )
 
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
@@ -271,20 +251,23 @@ class ProductImageSerializerTestCase(SerializerTestCase):
 
 
 class ProductImageListSerializerTestCase(ListSerializerTestCase):
+    fixtures = ['temporary_image']
     _child_serializer_class = ProductImageSerializer
+    batch_size = 3
 
     @classmethod
     def setUpTestData(cls):
+        temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
         cls.product = ProductFactory()
         cls.product_images = [
-            ProductImageFactory(product=cls.product, sequence=i)
-            for i in range(1, 4)
+            ProductImageFactory(product=cls.product, sequence=i+1)
+            for i in range(cls.batch_size)
         ]
         cls.data = [
             {
-                'image_url': BASE_IMAGE_URL + 'product/sample/product_{0}.jpg'.format(i),
-                'sequence': i
-            } for i in range(1, 4)
+                'image_url': BASE_IMAGE_URL + temporary_images[i],
+                'sequence': i+1
+            } for i in range(cls.batch_size)
         ]
 
     def test_raise_validation_error_data_length_more_than_upper_limit(self):
@@ -459,6 +442,7 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
     
 
 class ProductColorSerializerTestCase(SerializerTestCase):
+    fixtures = ['temporary_image']
     _serializer_class = ProductColorSerializer
     options_num = 3
 
@@ -475,7 +459,7 @@ class ProductColorSerializerTestCase(SerializerTestCase):
                 {'size': option.size}
                 for option in cls.options
             ],
-            'image_url': SAMPLE_PRODUCT_IMAGE_URL,
+            'image_url': BASE_IMAGE_URL + TemporaryImage.objects.first().image_url,
         }
 
     def test_model_instance_serialization(self):
@@ -488,14 +472,6 @@ class ProductColorSerializerTestCase(SerializerTestCase):
             'on_sale': self.product_color.on_sale,
         }
         self._test_model_instance_serialization(self.product_color, expected_data)
-
-    def test_validated_image_url_value(self):
-        serializer = self._get_serializer_after_validation(data=self.data)
-
-        self.assertEqual(
-            serializer.validated_data['image_url'],
-            validate_url(self.data['image_url'])
-        )
 
     def test_raise_validation_error_update_color_data(self):
         color = ColorFactory()
@@ -542,16 +518,18 @@ class ProductColorSerializerTestCase(SerializerTestCase):
 
 
 class ProductColorListSerializerTestCase(ListSerializerTestCase):
+    fixtures = ['temporary_image']
     _child_serializer_class = ProductColorSerializer
     batch_size = 3
 
     @classmethod
     def setUpTestData(cls):
+        cls.temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
         cls.product = ProductFactory()
-        cls.product_colors = ProductColorFactory.create_batch(
-            size=cls.batch_size, product=cls.product, display_color_name=None
-        )
-        for product_color in cls.product_colors:
+
+        for i in range(cls.batch_size):
+            ProductColorFactory(product=cls.product, image_url=cls.temporary_images[i])
+        for product_color in cls.product.colors.all():
             OptionFactory(product_color=product_color)
 
         cls.update_data = [
@@ -566,7 +544,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
                     }for option in product_color.options.all()
                 ],
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
-            }for product_color in cls.product_colors
+            }for product_color in cls.product.colors.all()
         ]
 
         cls.create_data = copy.deepcopy(cls.update_data)
@@ -574,7 +552,10 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
             data.pop('id')
 
     def test_raise_validation_error_input_data_length_more_than_upper_limit(self):
-        product_colors = ProductColorFactory.create_batch(size=PRODUCT_COLOR_MAX_LENGTH+1)
+        for i in range(PRODUCT_COLOR_MAX_LENGTH - self.batch_size + 1):
+            ProductColorFactory(product=self.product, image_url=self.temporary_images[i+self.batch_size])
+
+        product_colors = self.product.colors.all()
         for product_color in product_colors:
             OptionFactory(product_color=product_color)
 
@@ -781,7 +762,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
                     prefetch_images
                 ).filter(id__in=[self.product.id])
         serializer = self._get_serializer(products, many=True, context={'detail': False})
-        expected_data = [False for product in products]
+        expected_data = [False for _ in products]
         
         self.assertListEqual(
             [data['shopper_like'] for data in serializer.data],
@@ -789,28 +770,35 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         )
 
 class ProductWriteSerializerTestCase(SerializerTestCase):
+    batch_size = 2
+    fixtures = ['temporary_image']
     _serializer_class = ProductWriteSerializer
 
     @classmethod
     def setUpTestData(cls):
+        cls.image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
         cls.product = ProductFactory()
-        ProductMaterialFactory.create_batch(size=2, product=cls.product, mixing_rate=50)
+        ProductMaterialFactory.create_batch(size=cls.batch_size, product=cls.product, mixing_rate=50)
 
-        cls.product_colors = ProductColorFactory.create_batch(size=2, product=cls.product)
+        cls.product_colors = [
+            ProductColorFactory(product=cls.product, image_url=cls.image_url_list.pop())
+            for _ in range(cls.batch_size)
+        ]
+
         for product_color in cls.product_colors:
-            OptionFactory.create_batch(size=2, product_color=product_color)
+            OptionFactory.create_batch(size=cls.batch_size, product_color=product_color)
 
-        for i in range(2):
-            ProductImageFactory(product=cls.product, sequence=i+1)
+        for i in range(cls.batch_size):
+            ProductImageFactory(product=cls.product, image_url=cls.image_url_list.pop(), sequence=i+1)
 
-        laundry_informations = LaundryInformationFactory.create_batch(size=2)
-        tags = TagFactory.create_batch(size=2)
+        laundry_informations = LaundryInformationFactory.create_batch(size=cls.batch_size)
+        tags = TagFactory.create_batch(size=cls.batch_size)
         cls.product.laundry_informations.add(*laundry_informations)
         cls.product.tags.add(*tags)
 
     def __get_input_data(self):
         product = ProductFactory()
-        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=3)]
+        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=self.batch_size)]
         tag_id_list.sort()
         laundry_information_id_list = [
             laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
@@ -845,15 +833,15 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'theme': product.theme_id,
             'images': [
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
+                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
                     'sequence': 1
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_12.jpg',
+                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
                     'sequence': 2
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_13.jpg',
+                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
                     'sequence': 3
                 }
             ],
@@ -865,7 +853,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
+                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
                 },
                 {
                     'color': color_id_list[1],
@@ -874,7 +862,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
+                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
                 }
             ]
         }
@@ -918,9 +906,10 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_raise_validation_error_color_length_more_than_limit(self):
-        product_colors = ProductColorFactory.create_batch(
-            size = PRODUCT_COLOR_MAX_LENGTH + 1, product=self.product, display_color_name=None
-        )
+        product_colors = [
+            ProductColorFactory(product=self.product, image_url=self.image_url_list.pop())
+            for _ in range(PRODUCT_COLOR_MAX_LENGTH + 1)
+        ]
         for product_color in product_colors:
             OptionFactory(product_color=product_color)
         data = [
@@ -1020,7 +1009,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             list(product.images.all().order_by('id').values('image_url', 'sequence')),
             [
                 {
-                    'image_url': validate_url(data['image_url']),
+                    'image_url': data['image_url'].split(BASE_IMAGE_URL)[-1],
                     'sequence': data['sequence'],
                 } for data in data['images']
             ]
@@ -1035,7 +1024,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'display_color_name': data['display_color_name'] 
                         if data['display_color_name'] is not None 
                         else Color.objects.get(id=data['color']).name,
-                    'image_url': validate_url(data['image_url']),
+                    'image_url': data['image_url'].split(BASE_IMAGE_URL)[-1],
                 }for data in data['colors']
             ]
         )
@@ -1183,7 +1172,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'display_color_name': d['display_color_name']
                         if d['display_color_name'] is not None
                         else Color.objects.get(id=d['color']).name,
-                    'image_url': validate_url(d['image_url']),
+                    'image_url': d['image_url'].split(BASE_IMAGE_URL)[-1],
                 }for d in data['colors']
             ]
         )
@@ -1201,10 +1190,11 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
     def test_update_product_colors_except_options(self):
         update_color_obj = self.product.colors.latest('id')
+        update_image_url = TemporaryImage.objects.first().image_url
         update_data = {
             'id': update_color_obj.id,
             'display_color_name': '_updated',
-            'image_url': SAMPLE_PRODUCT_IMAGE_URL,
+            'image_url': BASE_IMAGE_URL + update_image_url
         }
         data = {'colors': [update_data]}
         serializer = self._get_serializer_after_validation(
@@ -1214,7 +1204,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         updated_color_obj = self.product.colors.get(id=update_color_obj.id)
         expected_dict = update_data
-        expected_dict['image_url'] = validate_url(expected_dict['image_url'])
+        expected_dict['image_url'] = update_image_url
 
         self.assertDictEqual(
             model_to_dict(updated_color_obj, fields=('id', 'display_color_name', 'image_url')),

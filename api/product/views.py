@@ -263,7 +263,7 @@ class ProductViewSet(viewsets.GenericViewSet):
         shopper = self.request.user.shopper
         like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
 
-        return like_products_id_list        
+        return like_products_id_list
 
     def __get_response_for_list(self, queryset, **extra_data):
         page = self.paginate_queryset(queryset)
@@ -325,10 +325,7 @@ class ProductViewSet(viewsets.GenericViewSet):
     @transaction.atomic
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
-
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         product = serializer.save()
 
         return get_response(status=HTTP_201_CREATED, data={'id': product.id})
@@ -356,10 +353,9 @@ class ProductViewSet(viewsets.GenericViewSet):
     def partial_update(self, request, id=None):
         product = self.get_object(self.get_queryset())
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
-        
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-        
+
+        serializer.is_valid(raise_exception=True)
+
         serializer.save()
 
         return get_response(data={'id': product.id})
