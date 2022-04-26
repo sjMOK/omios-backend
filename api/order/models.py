@@ -106,6 +106,7 @@ class StatusHistory(Model):
 
     class Meta:
         db_table = 'status_history'
+        ordering = ['id']
 
 
 class Refund(Model):

@@ -41,7 +41,8 @@ router.register(r'orders/(?P<order_id>\d+)', ClaimViewSet, basename='order-claim
 urlpatterns = [
    re_path(r'^swagger$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
    path('users', include('user.urls')),
-   path('products', include('product.urls'))
+   path('products', include('product.urls')),
+   path('orders', include('order.urls')),
 ]
 
 urlpatterns += router.urls

@@ -11,9 +11,8 @@ from rest_framework.exceptions import ValidationError, APIException
 from common.serializers import has_duplicate_element, get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element
 from product.models import Option
 from product.serializers import OptionInOrderItemSerializer
-from .models import Order, OrderItem, ShippingAddress, Refund, CancellationInformation
+from .models import Order, OrderItem, ShippingAddress, Refund, CancellationInformation, Status, StatusHistory
 
-# todo 전화번호 정규표현식
 
 class ShippingAddressSerializer(ModelSerializer):
     class Meta:
@@ -39,32 +38,22 @@ class OrderItemListSerializer(ListSerializer):
         if has_duplicate_element(value):
             raise ValidationError('option is duplicated.')
 
+    def __create_status_history(self, queryset):
+        return StatusHistorySerializer().create(queryset)
+
     def create(self, validated_data):
-        self.child.Meta.model.objects.bulk_create([OrderItem(**item) for item in validated_data])
+        model = self.child.Meta.model
+        model.objects.bulk_create([model(**item) for item in validated_data])
+        
+        queryset = model.objects.filter(order=validated_data[0]['order'])
+        self.__create_status_history(queryset)
 
-    def __set_claim(self, item, claim, claim_field):
-        setattr(item, claim_field, claim)
-        if isinstance(claim, CancellationInformation):
-            if claim.refund is None:
-                item.status_id = 102
-            else:
-                item.status_id = 103
+        return queryset
 
-    def update(self, queryset, claim_field):
-        if claim_field == 'cancellation_information':
-            serializer = CancellationInformationSerializer()
+    def update(self, queryset, update_fields):
+        self.child.Meta.model.objects.bulk_update(queryset, update_fields)
 
-
-        # todo
-        # try catch?
-
-        for item in queryset:
-            # instance = serializer.create({'item': item})
-            # setattr(item, update_field, instance)
-            # item.save(update_fields=[update_field])
-
-            self.__set_claim(item, serializer.create({'item': item}), claim_field)
-            item.save(update_fields=[claim_field, 'status'])
+        self.__create_status_history(queryset)
 
         return queryset
 
@@ -220,10 +209,11 @@ class OrderWriteSerializer(OrderSerializer):
         items = add_data_in_each_element(items, 'order', order)
         self.fields['items'].create(items)
 
-        shopper.update_point(-1 * used_point, '적립금 결제', order)
+        shopper.update_point(-1 * used_point, '적립금으로 결제', order.id)
 
         # todo
         # 가격, 재고 관련 작업
+        # transaction
 
         return order
 
@@ -238,18 +228,76 @@ class RefundSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class OrderItemClaimSerializer(Serializer):
+    order_items = PrimaryKeyRelatedField(queryset=OrderItem.objects.all(), many=True)
+
+
+
 class CancellationInformationSerializer(ModelSerializer):
+    order_items = PrimaryKeyRelatedField(queryset=OrderItem.objects.select_related('order', 'option__product_color__product').all(), many=True, allow_empty=False, write_only=True)
     refund = RefundSerializer(required=False)
 
     class Meta:
         model = CancellationInformation
         fields = '__all__'
+        extra_kwargs = {
+            'order_item': {'read_only': True},
+        }
+
+    def validate_order_items(self, value):
+        validation_set = list(set([(order_item.order.shopper_id, order_item.order_id, order_item.status_id) for order_item in value]))
+        if len(validation_set) != 1:
+            raise ValidationError('You can only make a request for one shopper, for one order, and for order items that are all in the same status.')
+        elif validation_set[0][0] != self.context['shopper'].user_id:
+            raise ValidationError('You can only request your own order.')
+        elif validation_set[0][1] != self.context['order_id']:
+            raise ValidationError('The order requested and the order items are different.')
+        elif validation_set[0][2] not in self.context['status_id']:
+            raise ValidationError('The order_items cannot be requested.')
+
+        return value
 
     def create(self, validated_data):
-        item = validated_data['item']
+        order_items = validated_data['order_items']
+        total_used_point = 0
+        order_items_to_recover_point = []
+        datas_for_creation = []
+        for order_item in order_items:
+            data = {'order_item': order_item}
+            if order_item.status_id == 101:
+                # todo 환불 (한번에)
+                # 쿠폰 재발급
+                order_item.status_id = 103
+                data['refund'] = self.fields['refund'].create({'price': order_item.payment_price})
+            else:
+                order_item.status_id = 102
+            
+            datas_for_creation.append(data)
 
-        refund = None
-        if item.status_id == 101:
-            refund = self.fields['refund'].create({'price': item.payment_price})
+            total_used_point += order_item.used_point
+            order_items_to_recover_point.append({'point': order_item.used_point, 'product_name': order_item.option.product_color.product.name})
 
-        return self.Meta.model.objects.create(refund=refund)
+        
+        # transaction
+
+        OrderItemWriteSerializer(many=True).update(order_items, ['status_id'])
+        self.context['shopper'].update_point(total_used_point, '주문 취소로 인한 사용 포인트 복구', self.context['order_id'], order_items_to_recover_point)
+
+        model = self.Meta.model
+        return model.objects.bulk_create([model(**data) for data in datas_for_creation])     
+
+
+class StatusHistorySerializer(ModelSerializer):
+    class Meta:
+        model = StatusHistory
+        exclude = ['order_item']
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        result['status'] = instance.status.name
+
+        return result
+
+    def create(self, order_items):
+        model = self.Meta.model
+        return model.objects.bulk_create([model(order_item=order_item, status_id=order_item.status_id) for order_item in order_items])
