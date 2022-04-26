@@ -109,17 +109,17 @@ class Shopper(User):
 
         super().save(*args, **kwargs)
 
-    def update_point(self, point, content, order=None, product_name=None):
+    def update_point(self, point, content, order_id=None, order_items=[None]):
         self.point += point
         self.save(update_fields=['point'])
 
-        PointHistory.objects.create(
+        PointHistory.objects.bulk_create(PointHistory(
             shopper=self,
-            point=point, 
+            point=order_item['point'] if order_item is not None else point, 
             content=content, 
-            order=order,
-            product_name=product_name,
-        )
+            order_id= order_id,
+            product_name=order_item['product_name'] if order_item is not None else None,
+        ) for order_item in order_items)
 
 
 class ProductLike(Model):
@@ -222,3 +222,4 @@ class PointHistory(Model):
 
     class Meta:
         db_table = 'point_history'
+        ordering = ['id']
