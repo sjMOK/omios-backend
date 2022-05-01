@@ -5,7 +5,7 @@ from django.utils import timezone
 from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, lazy_attribute
 from factory.django import DjangoModelFactory
 
-from user.test.factory import WholesalerFactory
+from user.test.factory import WholesalerFactory, ShopperFactory
 
 
 class MainCategoryFactory(DjangoModelFactory):
@@ -171,3 +171,23 @@ class KeyWordFactory(DjangoModelFactory):
         model = 'product.Keyword'
 
     name = Sequence(lambda num: 'keyword_{0}'.format(num))
+
+
+class ProductQuestionAnswerClassificationFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductQuestionAnswerClassification'
+
+    name = Sequence(lambda num: 'classification_{0}'.format(num))
+
+
+class ProductQuestionAnswerFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductQuestionAnswer'
+
+    product = SubFactory(ProductFactory)
+    shopper = SubFactory(ShopperFactory)
+    classification = SubFactory(ProductQuestionAnswerClassificationFactory)
+    question = Faker('sentence')
+    answer = Faker('sentence')
+    answer_completed = Faker('pybool')
+    is_secret = Faker('pybool')

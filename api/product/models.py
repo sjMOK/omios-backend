@@ -272,3 +272,30 @@ class Theme(Model):
 
     def __str__(self):
         return self.name
+
+
+class ProductQuestionAnswerClassification(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        db_table = 'product_question_answer_classification'
+
+    def __str__(self):
+        return self.name
+
+
+class ProductQuestionAnswer(Model):
+    id = AutoField(primary_key=True)
+    product = ForeignKey('Product', DO_NOTHING, related_name='question_answers')
+    shopper = ForeignKey('user.Shopper', DO_NOTHING, related_name='question_answers')
+    classification = ForeignKey('ProductQuestionAnswerClassification', DO_NOTHING)
+    created_at = DateTimeField(auto_now_add=True)
+    question = CharField(max_length=1000)
+    answer = CharField(max_length=1000, null=True)
+    answer_completed = BooleanField(default=False)
+    is_secret = BooleanField(default=False)
+
+    class Meta:
+        db_table = 'product_question_answer'
+        ordering = ['-created_at']
