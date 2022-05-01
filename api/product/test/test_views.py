@@ -339,7 +339,6 @@ class ProductViewSetTestCase(ViewTestCase):
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
-    maxDiff = None
     fixtures = ['membership']
 
     @classmethod
@@ -351,13 +350,13 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self._set_authentication()
 
     def __get_list_allow_fields(self):
-        return ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+        return ('id', 'created_at', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
 
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
         queryset = Product.objects.prefetch_related(
             prefetch_images
-        ).filter(on_sale=True).order_by('-created').alias(Count('id'))
+        ).filter(on_sale=True).order_by('-created_at').alias(Count('id'))
 
         return queryset
 
@@ -560,14 +559,14 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
-        queryset = Product.objects.prefetch_related(prefetch_images).filter(wholesaler=self._user).order_by('-created')
+        queryset = Product.objects.prefetch_related(prefetch_images).filter(wholesaler=self._user).order_by('-created_at')
 
         return queryset
 
     def test_list(self):
         queryset = self.__get_queryset()
 
-        allow_fields = ('id', 'name', 'created', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+        allow_fields = ('id', 'name', 'created_at', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
         self._get()
 

@@ -37,13 +37,9 @@ class MainCategoryTestCase(ModelTestCase):
 class SubCategoryTestCase(ModelTestCase):
     _model_class = SubCategory
 
-    @classmethod
-    def setUpTestData(cls):
-        cls._main_category = MainCategoryFactory()
-
     def setUp(self):
         self._test_data = {
-            'main_category': self._main_category,
+            'main_category': MainCategoryFactory(),
             'name': '가디건',
             'require_product_additional_information': True,
             'require_laundry_information': True,
@@ -111,7 +107,6 @@ class ProductTestCase(ModelTestCase):
 
         self.assertEqual(product.base_discount_rate, 0)
         self.assertEqual(product.code, 'AA')
-        self.assertEqual(product.created, datetime.strptime(FREEZE_TIME, FREEZE_TIME_FORMAT))
         self.assertTrue(product.on_sale)
 
     def test_delete(self):
@@ -187,10 +182,8 @@ class ProductImagesTestCase(ModelTestCase):
     _model_class = ProductImage
 
     def setUp(self):
-        product = ProductFactory()
-
         self._test_data = {
-            'product': product,
+            'product': ProductFactory(),
             'image_url': 'product/sample/product_5.jpg',
             'sequence': 1,
         }
@@ -238,12 +231,9 @@ class ProductColorTestCase(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        product = ProductFactory()
-        color = ColorFactory()
-
         cls._test_data = {
-            'product': product,
-            'color': color,
+            'product': ProductFactory(),
+            'color': ColorFactory(),
             'display_color_name': 'display_color_name',
             'image_url': 'product/sample/product_21.jpg'
         }
@@ -281,11 +271,9 @@ class SubCategorySizeTestCase(ModelTestCase):
     _model_class = SubCategorySize
 
     def setUp(self):
-        sub_category = SubCategoryFactory()
-        size = SizeFactory()
         self._test_data = {
-            'sub_category': sub_category,
-            'size': size,
+            'sub_category': SubCategoryFactory(),
+            'size': SizeFactory(),
         }
 
     def test_create(self):
@@ -299,9 +287,8 @@ class OptionTestCase(ModelTestCase):
     _model_class = Option
 
     def setUp(self):
-        product_color = ProductColorFactory()
         self._test_data = {
-            'product_color': product_color,
+            'product_color': ProductColorFactory(),
             'size': 'Free'
         }
 
@@ -327,12 +314,12 @@ class KeywordTestCase(ModelTestCase):
 
 class StyleTestCase(ModelTestCase):
     _model_class = Style
-
+    
     def setUp(self):
         self._test_data = {
             'name': '로맨틱',
         }
-    
+
     def test_create(self):
         style = self._get_model_after_creation()
 
@@ -346,7 +333,7 @@ class LaundryInformationTestCase(ModelTestCase):
         self._test_data = {
             'name': '다림질 금지',
         }
-    
+
     def test_create(self):
         style = self._get_model_after_creation()
 
@@ -360,7 +347,7 @@ class MaterialTestCase(ModelTestCase):
         self._test_data = {
             'name': '나일론',
         }
-    
+
     def test_create(self):
         style = self._get_model_after_creation()
 
@@ -371,14 +358,12 @@ class ProductMaterialTestCase(ModelTestCase):
     _model_class = ProductMaterial
 
     def setUp(self):
-        product = ProductFactory()
-
         self._test_data = {
-            'product': product,
+            'product': ProductFactory(),
             'material': '가죽',
             'mixing_rate': 75,
         }
-    
+
     def test_create(self):
         product_material = self._get_model_after_creation()
 
@@ -403,10 +388,12 @@ class ThemeTestCase(ModelTestCase):
 class ProductQuestionAnswerClassificationTestCase(ModelTestCase):
     _model_class = ProductQuestionAnswerClassification
 
-    def test_create(self):
+    def setUp(self):
         self._test_data = {
             'name': '상품 문의',
         }
+
+    def test_create(self):
         classification = self._get_model_after_creation()
 
         self.assertDictEqual(
@@ -419,19 +406,21 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
     fixtures = ['membership']
     _model_class = ProductQuestionAnswer
 
-    def setUp(self):
-        self.default_fields = ('created_at', 'answer_completed', 'is_secret')
-        self._test_data = {
+    @classmethod
+    def setUpTestData(cls):
+        cls.default_fields = ('created_at', 'answer_completed', 'is_secret')
+        cls._test_data = {
             'product': ProductFactory(),
             'shopper': ShopperFactory(),
             'classification': ProductQuestionAnswerClassificationFactory(),
             'question': 'question',
             'answer': 'answer'
         }
+        cls._question_answer = cls._get_default_model_after_creation()
 
     def test_create(self):
         self.assertDictEqual(
-            model_to_dict(self._get_model_after_creation(), exclude=('id',) + self.default_fields),
+            model_to_dict(self._question_answer, exclude=('id',) + self.default_fields),
             {
                 **self._test_data,
                 'product': self._test_data['product'].id,
@@ -442,7 +431,5 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_value(self):
-        product_question_answer = self._get_model_after_creation()
-        self.assertEqual(product_question_answer.created_at, datetime.strptime(FREEZE_TIME, FREEZE_TIME_FORMAT))
-        self.assertTrue(not product_question_answer.answer_completed)
-        self.assertTrue(not product_question_answer.is_secret)
+        self.assertTrue(not self._question_answer.answer_completed)
+        self.assertTrue(not self._question_answer.is_secret)

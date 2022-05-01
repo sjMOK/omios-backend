@@ -45,7 +45,7 @@ class Product(Model):
     laundry_informations = ManyToManyField('LaundryInformation', through='ProductLaundryInformation')
     name = CharField(max_length=100)
     code = CharField(max_length=12, default='AA')
-    created = DateTimeField(default=timezone.now)
+    created_at = DateTimeField(auto_now_add=True)
     price = IntegerField()
     sale_price = IntegerField()
     base_discount_rate = IntegerField(default=0)

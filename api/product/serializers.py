@@ -386,7 +386,7 @@ class ProductReadSerializer(ProductSerializer):
     see_through = SeeThroughSerializer(read_only=True)
     flexibility = FlexibilitySerializer(read_only=True)
     theme = ThemeSerializer(read_only=True)
-    created = DateTimeField(read_only=True)
+    created_at = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
     total_like = IntegerField(read_only=True)

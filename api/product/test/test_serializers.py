@@ -655,7 +655,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'see_through': SeeThroughSerializer(product.see_through).data,
             'flexibility': FlexibilitySerializer(product.flexibility).data,
             'theme': ThemeSerializer(product.theme).data,
-            'created': datetime_to_iso(product.created),
+            'created_at': datetime_to_iso(product.created_at),
             'on_sale': product.on_sale,
             'code': product.code,
             'total_like': product.like_shoppers.all().count(),
