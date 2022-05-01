@@ -87,14 +87,13 @@ class UserSerializerTestCase(SerializerTestCase):
             'username': 'username'
         }
 
-    def _get_serializer(self, password=None, **kwargs):
-        if password is not None:
-            self.__test_data['password'] = password
+    def __get_test_data(self, password):
+        self.__test_data['password'] = password
 
-        return super()._get_serializer(data=self.__test_data, **kwargs)
+        return self.__test_data
 
-    def __test_password_regex_validation(self, test_data):
-        self._test_single_field_validation_failure('password', 'This value does not match the required pattern.', test_data)
+    def __test_password_regex_validation(self, password):
+        self._test_single_field_validation_failure('password', 'This value does not match the required pattern.', data=self.__get_test_data(password))
 
     def test_model_instance_serialization(self):
         self._test_model_instance_serialization(self._user, {
@@ -118,11 +117,11 @@ class UserSerializerTestCase(SerializerTestCase):
         self.__test_password_regex_validation('usernameUSERNAME')
 
     def test_password_similarity_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'The similarity between password and username is too large.', 'Username00')
+        self._test_single_field_validation_failure('non_field_errors', 'The similarity between password and username is too large.', data=self.__get_test_data('Username00'))
 
     def test_update(self):
         original_password = get_factory_password(self._user)
-        serializer = self._get_serializer_after_validation(instance=self._user, partial=True)
+        serializer = self._get_serializer_after_validation(instance=self._user, data=self.__test_data ,partial=True)
         self._user = serializer.save()
 
         self.assertEqual(self._user.username, self.__test_data['username'])
@@ -188,38 +187,41 @@ class BuildingSerializerTestCase(SerializerTestCase):
 class UserPasswordSerializerTestCase(SerializerTestCase):
     _serializer_class = UserPasswordSerializer
 
+    @classmethod
+    def setUpTestData(cls):
+        cls._user = UserFactory()
+
     def setUp(self):
-        self.__user = UserFactory()
         self.__test_data = {
-            'current_password': get_factory_password(self.__user),
-            'new_password': self.__user.username + '_New_Password',
+            'current_password': get_factory_password(self._user),
+            'new_password': self._user.username + '_New_Password',
         }
 
-    def _get_serializer(self, current_password=None, new_password=None, **kwargs):
+    def __get_test_data(self, current_password=None, new_password=None):
         if current_password is not None:
             self.__test_data['current_password'] = current_password
         if new_password is not None:
             self.__test_data['new_password'] = new_password
 
-        return super()._get_serializer(instance=self.__user, data=self.__test_data)
+        return self.__test_data
 
     def test_current_password_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'current password does not correct.', 'weird_password')
+        self._test_single_field_validation_failure('non_field_errors', 'current password does not correct.', instance=self._user, data=self.__get_test_data(current_password='weird_password'))
         
     def test_same_new_password_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'new password is same as the current password.', new_password=self.__test_data['current_password'])
+        self._test_single_field_validation_failure('non_field_errors', 'new password is same as the current password.', instance=self._user, data=self.__get_test_data(new_password=self.__test_data['current_password']))
 
     def test_update(self):
         test_tokens = []
         for _ in range(3):
-            test_tokens.append(RefreshToken.for_user(self.__user))
-        RefreshToken.for_user(self.__user).blacklist()
-        OutstandingToken.objects.filter(jti=RefreshToken.for_user(self.__user)['jti']).update(expires_at=datetime.now())
+            test_tokens.append(RefreshToken.for_user(self._user))
+        RefreshToken.for_user(self._user).blacklist()
+        OutstandingToken.objects.filter(jti=RefreshToken.for_user(self._user)['jti']).update(expires_at=datetime.now())
         RefreshToken.for_user(UserFactory())
-        serializer = self._get_serializer_after_validation()
+        serializer = self._get_serializer_after_validation(instance=self._user, data=self.__test_data)
         serializer.save()
 
-        self.assertTrue(self.__user.check_password(self.__test_data['new_password']))
+        self.assertTrue(self._user.check_password(self.__test_data['new_password']))
         self.assertEqual(len(OutstandingToken.objects.all()), 6)
         self.assertEqual(len(OutstandingToken.objects.filter(blacklistedtoken__isnull=False)), 4)
         self.assertEqual(len(OutstandingToken.objects.filter(jti__in=[token['jti'] for token in test_tokens], blacklistedtoken__isnull=False)), 3)
