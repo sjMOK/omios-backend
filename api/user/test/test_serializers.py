@@ -93,7 +93,7 @@ class UserSerializerTestCase(SerializerTestCase):
         return self.__test_data
 
     def __test_password_regex_validation(self, password):
-        self._test_single_field_validation_failure('password', 'This value does not match the required pattern.', data=self.__get_test_data(password))
+        self._test_serializer_raise_validation_error('This value does not match the required pattern.', data=self.__get_test_data(password))
 
     def test_model_instance_serialization(self):
         self._test_model_instance_serialization(self._user, {
@@ -117,7 +117,7 @@ class UserSerializerTestCase(SerializerTestCase):
         self.__test_password_regex_validation('usernameUSERNAME')
 
     def test_password_similarity_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'The similarity between password and username is too large.', data=self.__get_test_data('Username00'))
+        self._test_serializer_raise_validation_error('The similarity between password and username is too large.', data=self.__get_test_data('Username00'))
 
     def test_update(self):
         original_password = get_factory_password(self._user)
@@ -206,10 +206,10 @@ class UserPasswordSerializerTestCase(SerializerTestCase):
         return self.__test_data
 
     def test_current_password_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'current password does not correct.', instance=self._user, data=self.__get_test_data(current_password='weird_password'))
+        self._test_serializer_raise_validation_error('current password does not correct.', instance=self._user, data=self.__get_test_data(current_password='weird_password'))
         
     def test_same_new_password_validation(self):
-        self._test_single_field_validation_failure('non_field_errors', 'new password is same as the current password.', instance=self._user, data=self.__get_test_data(new_password=self.__test_data['current_password']))
+        self._test_serializer_raise_validation_error('new password is same as the current password.', instance=self._user, data=self.__get_test_data(new_password=self.__test_data['current_password']))
 
     def test_update(self):
         test_tokens = []

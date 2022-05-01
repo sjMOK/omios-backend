@@ -77,26 +77,18 @@ class SerializerTestCase(APITestCase):
 
         return serializer
 
-    def _test_single_field_validation_failure(self, expected_field, expected_message, *args, **kwargs):
-        serializer = self._get_serializer_after_validation(*args, **kwargs)
-
-        self.assertTrue(expected_field in serializer.errors)
-        self.assertEqual(serializer.errors[expected_field][0], expected_message)
-
     def _test_model_instance_serialization(self, instance, expected_data, context={}):
-        serializer = self._get_serializer(instance, context=context)
-        self.assertDictEqual(serializer.data, expected_data)
+        self.assertDictEqual(self._get_serializer(instance, context=context).data, expected_data)
 
     def _test_serializer_raise_validation_error(self, expected_message, *args, **kwargs):
-        serializer = self._get_serializer(*args, **kwargs)
         self.assertRaisesMessage(
             ValidationError,
             expected_message,
-            serializer.is_valid,
+            self._get_serializer(*args, **kwargs).is_valid,
             raise_exception=True
         )
 
-    def _test_deserialzation(self, data, expected_validated_data):
+    def _test_validated_data(self, data, expected_validated_data):
         serializer = self._get_serializer_after_validation(data=data)
 
         self.assertDictEqual(serializer.validated_data, expected_validated_data)

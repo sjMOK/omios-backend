@@ -229,7 +229,7 @@ class ProductImageSerializerTestCase(SerializerTestCase):
             'sequence': self.data['sequence']
         }
 
-        self._test_deserialzation(self.data, expected_validated_data)
+        self._test_validated_data(self.data, expected_validated_data)
 
     def __test_raise_valiation_error_with_invalid_image_url(self, image_url, expected_message):
         self.data['image_url'] = image_url
