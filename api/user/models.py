@@ -59,11 +59,15 @@ class User(AbstractBaseUser):
             if 'password' in update_fields:
                 self.__set_password(timezone.now())
                 update_fields.append('last_update_password')
-            if 'is_active' in update_fields:
+            if 'is_active' in update_fields and not self.is_active:
                 self.deleted_at = timezone.now()
                 update_fields.append('deleted_at')
 
         super().save(force_insert=force_insert, update_fields=update_fields, *args, **kwargs)
+
+    def delete(self):
+        self.is_active = False
+        self.save(update_fields=['is_active'])
 
 
 class Shopper(User):
@@ -100,16 +104,9 @@ class Shopper(User):
 
         super().save(*args, **kwargs)
 
-
-class ProductLike(Model):
-    id = BigAutoField(primary_key=True)
-    shopper = ForeignKey('Shopper', DO_NOTHING)
-    product = ForeignKey('product.Product', DO_NOTHING)
-    created_at = DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = 'product_like'
-        unique_together = (('shopper', 'product'),)
+    def delete(self):
+        self.question_answers.all().delete()
+        super().delete()
 
 
 class Wholesaler(User):
@@ -130,6 +127,18 @@ class Wholesaler(User):
 
     def __str__(self):
         return '{0} {1}'.format(self.username, self.name)
+
+
+class ProductLike(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    product = ForeignKey('product.Product', DO_NOTHING)
+    created_at = DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'product_like'
+        unique_together = (('shopper', 'product'),)
+
 
 
 class Floor(Model):

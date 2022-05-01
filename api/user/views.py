@@ -80,8 +80,7 @@ class UserViewSet(GenericViewSet):
 
     def destroy(self, request, user_id=None):
         user = self.get_object()
-        user.is_active = False
-        user.save(update_fields=['is_active'])
+        user.delete()
 
         return get_response(data={'id': user.id})
 

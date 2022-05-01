@@ -65,6 +65,12 @@ class Product(Model):
     def __str__(self):
         return self.name
 
+    def delete(self):
+        self.question_answers.all().delete()
+        self.colors.all().update(on_sale=False)
+        Option.objects.filter(product_color__product=self).update(on_sale=False)
+        self.on_sale = False
+        self.save(update_fields=('on_sale',))
 
 class Age(Model):
     id = AutoField(primary_key=True)

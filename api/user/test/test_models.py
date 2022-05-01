@@ -90,6 +90,11 @@ class UserTestCase(ModelTestCase):
 
         self.assertRaisesRegex(APIException, r'^The save method cannot be used when the public set_password method is used.$', self._user.save)
 
+    def test_fake_delete(self):
+        self._user.delete()
+
+        self.assertTrue(not self._user.is_active)        
+
 
 class ShopperTestCase(ModelTestCase):
     fixtures = ['membership']
@@ -131,6 +136,12 @@ class ShopperTestCase(ModelTestCase):
 
     def test_default_point(self):
         self.assertEqual(self._shopper.point, 0)
+    
+    def test_delete(self):
+        self._shopper.delete()
+
+        self.assertTrue(not self._shopper.is_active)
+        self.assertTrue(not self._shopper.question_answers.all().exists())
 
 
 class ProductLikeTestCase(ModelTestCase):

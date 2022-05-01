@@ -363,11 +363,7 @@ class ProductViewSet(GenericViewSet):
     @transaction.atomic
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
-        product.colors.all().update(on_sale=False)
-        ProductColor.objects.filter(product=product).update(on_sale=False)
-        Option.objects.filter(product_color__product=product).update(on_sale=False)
-        product.on_sale = False
-        product.save(update_fields=('on_sale',))
+        product.delete()
 
         return get_response(data={'id': product.id})
 
