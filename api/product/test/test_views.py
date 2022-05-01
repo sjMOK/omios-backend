@@ -338,7 +338,6 @@ class ProductViewSetTestCase(ViewTestCase):
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     maxDiff = None
-    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):

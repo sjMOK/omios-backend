@@ -1,7 +1,7 @@
 from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation
-from factory.django import DjangoModelFactory
+from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
-
+from factory.fuzzy import FuzzyDecimal
 
 def get_factory_password(user):
     return user.username + '_Password'
@@ -12,6 +12,15 @@ def get_factory_authentication_data(user):
         'username': user.username,
         'password': get_factory_password(user),
     }
+
+
+class MembershipFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.Membership'
+
+    name = Sequence(lambda num: f'membership{num}')
+    discount_rate = FuzzyDecimal(0, 5, 1)
+    qualification = 'qualification'
 
 
 class UserFactory(DjangoModelFactory):
@@ -26,6 +35,7 @@ class ShopperFactory(UserFactory):
     class Meta:
         model = 'user.Shopper'
 
+    membership = SubFactory(MembershipFactory)
     name = Faker('name', locale='ko-KR')
     birthday = "2021-11-20"
     gender = Sequence(lambda num: num % 2)

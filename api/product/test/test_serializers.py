@@ -635,7 +635,6 @@ class ProductSerializerTestCase(SerializerTestCase):
 class ProductReadSerializerTestCase(SerializerTestCase):
     maxDiff = None
     _serializer_class = ProductReadSerializer
-    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):

@@ -6,49 +6,11 @@ from django.db.models import (
 from django.utils import timezone
 
 
-# class PaymentStatus(Model):
-#     id = AutoField(primary_key=True)
-#     name = CharField(max_length=20)
-
-#     class Meta:
-#         db_table = 'payment_status'
-
-
-class Status(Model):
-    id = IntegerField(primary_key=True)
-    name = CharField(max_length=20)
-
-    class Meta:
-        db_table = 'status'
-
-    def __str__(self):
-        return self.name
-
-
-class ShippingAddress(Model):
-    id = BigAutoField(primary_key=True)
-    receiver_name = CharField(max_length=20)
-    mobile_number = CharField(max_length=11)
-    phone_number = CharField(max_length=11, null=True)
-    zip_code = CharField(max_length=5)
-    base_address = CharField(max_length=200)
-    detail_address = CharField(max_length=100)
-    shipping_message = CharField(max_length=50)
-
-    class Meta:
-        db_table = 'shipping_address'
-
-
 class Order(Model):
     id = BigAutoField(primary_key=True)
     number = BigIntegerField(unique=True) 
     shopper = ForeignKey('user.Shopper', DO_NOTHING)
-    # payment_status = ForeignKey('PaymentStatus', DO_NOTHING)
     shipping_address = ForeignKey('ShippingAddress', DO_NOTHING)
-    # total_price = IntegerField()
-    # discount_price = IntegerField(default=0)
-    # payment_price = IntegerField()
-    # refund_price = IntegerField(default=0)
     created_at = DateTimeField(default=timezone.now)
 
     class Meta:
@@ -63,7 +25,7 @@ class Order(Model):
                 break;
 
     def save(self, *args, **kwargs):
-        if self.number is None:
+        if kwargs.get('force_insert', False):
             self.__set_default_number()
 
         return super().save(*args, **kwargs)
@@ -89,24 +51,69 @@ class OrderItem(Model):
         db_table = 'order_item'
 
 
-class StatusTransition(Model):
-    id = AutoField(primary_key=True)
-    previous_status = ForeignKey('Status', DO_NOTHING, related_name='transition_previous_status')
-    next_status = ForeignKey('Status', DO_NOTHING, related_name='transition_next_status')
-    
+class Status(Model):
+    id = IntegerField(primary_key=True)
+    name = CharField(max_length=20)
+
     class Meta:
-        db_table = 'status_transition'
+        db_table = 'status'
+
+    def __str__(self):
+        return self.name
 
 
 class StatusHistory(Model):
     id = BigAutoField(primary_key=True)
     order_item = ForeignKey('OrderItem', DO_NOTHING, related_name='status_history')
     status = ForeignKey('Status', DO_NOTHING)
-    created_at = DateTimeField(default=timezone.now)
+    created_at = DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'status_history'
         ordering = ['id']
+
+
+class ShippingAddress(Model):
+    id = BigAutoField(primary_key=True)
+    receiver_name = CharField(max_length=20)
+    mobile_number = CharField(max_length=11)
+    phone_number = CharField(max_length=11, null=True)
+    zip_code = CharField(max_length=5)
+    base_address = CharField(max_length=200)
+    detail_address = CharField(max_length=100)
+    shipping_message = CharField(max_length=50)
+
+    class Meta:
+        db_table = 'shipping_address'
+
+
+class CancellationInformation(Model):
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
+    refund = ForeignKey('Refund', DO_NOTHING, null=True)
+    created_at = DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cancellation_information'
+
+
+class ExchangeInformation(Model):
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
+    new_order_item = OneToOneField('OrderItem', DO_NOTHING, related_name='origin_order_item_exchange_information')
+    created_at = DateTimeField(auto_now_add=True)
+    completed_at = DateTimeField(null=True)
+
+    class Meta:
+        db_table = 'exchange_information'
+
+
+class ReturnInformation(Model):
+    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
+    refund = ForeignKey('Refund', DO_NOTHING)
+    created_at = DateTimeField(auto_now_add=True)
+    
+
+    class Meta:
+        db_table = 'return_information'
 
 
 class Refund(Model):
@@ -121,30 +128,10 @@ class Refund(Model):
     # 환불 수단 추가
 
 
-class CancellationInformation(Model):
-    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
-    refund = ForeignKey('Refund', DO_NOTHING, null=True)
-    created_at = DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = 'cancellation_information'
-
-
-class ExchangeInformation(Model):
-    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
-    new_order_item = OneToOneField('OrderItem', DO_NOTHING, related_name='origin_order_item_exchange_information')
-    created_at = DateTimeField(default=timezone.now)
-    completed_at = DateTimeField(null=True)
-
-    class Meta:
-        db_table = 'exchange_information'
-
-
-class ReturnInformation(Model):
-    order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
-    refund = ForeignKey('Refund', DO_NOTHING)
-    created_at = DateTimeField(default=timezone.now)
+class StatusTransition(Model):
+    id = AutoField(primary_key=True)
+    previous_status = ForeignKey('Status', DO_NOTHING, related_name='transition_previous_status')
+    next_status = ForeignKey('Status', DO_NOTHING, related_name='transition_next_status')
     
-
     class Meta:
-        db_table = 'return_information'
+        db_table = 'status_transition'

@@ -4,7 +4,7 @@ from common.test.test_cases import FunctionTestCase, SerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso
 from .factory import (
     get_factory_password, get_factory_authentication_data, 
-    UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
+    MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
     ShopperShippingAddressFactory,
 )
 from ..models import OutstandingToken, Membership, Floor
@@ -12,7 +12,7 @@ from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
     UserSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, UserPasswordSerializer,
-    ShopperShippingAddressSerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer,
 )
 
 
@@ -30,7 +30,6 @@ class GetTokenTimeTestCase(FunctionTestCase):
 
 
 class IssuingTokenSerializerTestCase(SerializerTestCase):
-    fixtures = ['membership']
     _serializer_class = IssuingTokenSerializer
 
     def __get_refresh_token(self, user):
@@ -66,11 +65,10 @@ class RefreshingTokenSerializerTestCase(SerializerTestCase):
 
 
 class MembershipSerializerTestCase(SerializerTestCase):
-    fixtures = ['membership']
     _serializer_class = MembershipSerializer
 
     def test_model_instance_serialization(self):
-        membership = Membership.objects.get(id=1)
+        membership = MembershipFactory()
         self._test_model_instance_serialization(membership, {
             'id': membership.id,
             'name': membership.name,
@@ -133,7 +131,6 @@ class UserSerializerTestCase(SerializerTestCase):
 
 
 class ShopperSerializerTestCase(SerializerTestCase):
-    fixtures = ['membership']
     _serializer_class = ShopperSerializer
 
     def test_model_instance_serialization(self):
@@ -229,7 +226,6 @@ class UserPasswordSerializerTestCase(SerializerTestCase):
 
 
 class ShopperShippingAddressSerializerTestCase(SerializerTestCase):
-    fixtures = ['membership']
     _serializer_class = ShopperShippingAddressSerializer
 
     @classmethod
@@ -329,3 +325,9 @@ class ShopperShippingAddressSerializerTestCase(SerializerTestCase):
                     id=shipping_address.id
                 ).filter(is_default=True).exists()
         )
+
+
+class PointHistorySerializerTestCase(SerializerTestCase):
+    _serializer_class = PointHistorySerializer
+
+    # todo order test code 구현 이후에 작업
