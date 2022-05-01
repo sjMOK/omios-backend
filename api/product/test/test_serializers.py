@@ -13,12 +13,13 @@ from user.models import ProductLike
 from .factory import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
-    ProductMaterialFactory, OptionFactory, ThemeFactory, 
+    ProductMaterialFactory, OptionFactory, ThemeFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
+    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
@@ -1289,3 +1290,58 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         serializer.save()
 
         self.assertTrue(not Option.objects.get(id=delete_option_id).on_sale)
+
+
+class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductQuestionAnswerSerializer
+    fixtures = ['membership']
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.product = ProductFactory()
+        cls.shopper = ShopperFactory()
+        cls.question_answer = ProductQuestionAnswerFactory()
+
+    def test_model_instance_serialization(self):
+        expected_data = {
+            'id': self.question_answer.id,
+            'created_at': str(self.question_answer.created_at.date()),
+            'username': self.question_answer.shopper.username[:3] + '***',
+            'classification': ProductQuestionAnswerClassificationSerializer(self.question_answer.classification).data,
+            'question': self.question_answer.question,
+            'answer': self.question_answer.answer,
+            'answer_completed': self.question_answer.answer_completed,
+            'is_secret': self.question_answer.is_secret,
+        }
+
+        self._test_model_instance_serialization(self.question_answer, expected_data)
+
+    def test_create(self):
+        data = {
+            'question': 'question',
+            'is_secret': True,
+            'classification': ProductQuestionAnswerClassificationFactory().id,
+        }
+        serializer = self._get_serializer_after_validation(data=data)
+        question_answer = serializer.save(product=self.product, shopper=self.shopper)
+
+        self.assertEqual(question_answer.product, self.product)
+        self.assertEqual(question_answer.shopper, self.shopper)
+        self.assertEqual(question_answer.classification.id, data['classification'])
+        self.assertEqual(question_answer.question, data['question'])
+        self.assertTrue(not question_answer.answer_completed)
+        self.assertEqual(question_answer.is_secret, data['is_secret'])
+
+    def test_update(self):
+        data = {
+            'question': self.question_answer.question + '_update',
+            'is_secret': not self.question_answer.is_secret,
+            'classification':ProductQuestionAnswerClassificationFactory().id
+        }
+
+        serializer = self._get_serializer_after_validation(self.question_answer, data=data)
+        question_answer = serializer.save()
+
+        self.assertEqual(question_answer.question, data['question'])
+        self.assertEqual(question_answer.is_secret, data['is_secret'])
+        self.assertEqual(question_answer.classification.id, data['classification'])

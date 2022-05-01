@@ -13,17 +13,19 @@ from common.models import TemporaryImage
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
-    ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
+    ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
+    ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme, Tag, Option,
+    Product, ProductColor, Theme, Tag, Option, ProductQuestionAnswer,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
     SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer,
+    ProductQuestionAnswerSerializer,
 )
 
 
@@ -201,8 +203,7 @@ class GetAllCategoriesTestCase(ViewTestCase):
     _url = '/products/categories'
 
     def test_get(self):
-        MainCategoryFactory.create_batch(size=3)
-        main_categories = MainCategory.objects.all()
+        main_categories = MainCategoryFactory.create_batch(size=3)
         self._get()
 
         self._assert_success()
@@ -213,8 +214,7 @@ class GetMainCategoriesTestCase(ViewTestCase):
     _url = '/products/main-categories'
 
     def test_get(self):
-        MainCategoryFactory.create_batch(size=3)
-        main_categories = MainCategory.objects.all()
+        main_categories = MainCategoryFactory.create_batch(size=3)
         self._get()
 
         self._assert_success()
@@ -224,13 +224,14 @@ class GetMainCategoriesTestCase(ViewTestCase):
         )
 
 
+
 class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
     _url = '/products/main-categories'
 
     @classmethod
     def setUpTestData(cls):
         cls.main_category = MainCategoryFactory()
-        SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
+        cls.sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
 
     def test_get(self):
         self._url += '/{0}/sub-categories'.format(self.main_category.id)
@@ -239,7 +240,7 @@ class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
         self._assert_success()
         self.assertListEqual(
             self._response_data, 
-            SubCategorySerializer(self.main_category.sub_categories.all(), many=True).data
+            SubCategorySerializer(self.sub_categories, many=True).data
         )
 
     def test_get_raise_404(self):
@@ -254,12 +255,12 @@ class GetColorsTestCase(ViewTestCase):
     _url = '/products/colors'
 
     def test_get(self):
-        ColorFactory.create_batch(size=3)
+        colors = ColorFactory.create_batch(size=3)
         self._get()
 
         self.assertListEqual(
             self._response_data, 
-            ColorSerializer(Color.objects.all(), many=True).data
+            ColorSerializer(colors, many=True).data
         )
 
 
@@ -677,9 +678,58 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         product = Product.objects.filter(wholesaler=self._user).last()
         self._url += '/{0}'.format(product.id)
         self._delete()
+        deleted_product = Product.objects.get(id=self._response_data['id'])
 
         self._assert_success_with_id_response()
-        deleted_product = Product.objects.get(id=self._response_data['id'])
         self.assertTrue(not deleted_product.on_sale)
-        self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not deleted_product.colors.filter(on_sale=True).exists())
         self.assertTrue(not Option.objects.filter(product_color__product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not deleted_product.question_answers.all().exists())
+
+
+class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
+    maxDiff = None
+    fixtures = ['membership']
+    _url = '/products/{0}/question-answers'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.product = ProductFactory()
+        cls._url = cls._url.format(cls.product.id)
+
+        cls._test_data = {
+            'question': 'question',
+            'is_secret': True,
+            'classification': ProductQuestionAnswerClassificationFactory().id,
+        }
+
+    def setUp(self):
+        self._set_shopper()
+        self._set_authentication()
+        self.question_answer = ProductQuestionAnswerFactory(shopper=self._user, product=self.product)
+
+    def test_get(self):
+        ProductQuestionAnswerFactory.create_batch(size=5, product=self.product)
+        serializer = ProductQuestionAnswerSerializer(ProductQuestionAnswer.objects.all(), many=True)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, serializer.data)
+
+    def test_create(self):
+        self._post()
+
+        self._assert_success_with_id_response()
+
+    def test_partial_update(self):
+        self._url += '/{}'.format(self.question_answer.id)
+        self._patch()
+
+        self._assert_success_with_id_response()
+
+    def test_destroy(self):
+        self._url += '/{}'.format(self.question_answer.id)
+        self._delete()
+
+        self._assert_success_with_id_response()
+        self.assertTrue(not ProductQuestionAnswer.objects.filter(id=self._response_data['id']).exists())

@@ -1,4 +1,4 @@
-from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, SAFE_METHODS
 
 
 class ProductPermission(IsAuthenticated):
@@ -14,3 +14,10 @@ class ProductPermission(IsAuthenticated):
         if hasattr(request.user, 'wholesaler'):
             return obj.wholesaler_id == request.user.id
         return True
+
+
+class ProductQuestionAnswerPermission(IsAuthenticatedOrReadOnly):
+    def has_object_permission(self, request, view, obj):
+        if hasattr(request.user, 'shopper'):
+            return obj.shopper_id == request.user.id
+        return False

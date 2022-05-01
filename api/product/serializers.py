@@ -1,6 +1,6 @@
 from django.db import connection
 from rest_framework.serializers import (
-    Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
+    Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
 from rest_framework.exceptions import ValidationError
@@ -15,7 +15,7 @@ from common.serializers import (
 )
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme, ProductQuestionAnswer,
 )
 
 
@@ -691,3 +691,30 @@ class ProductWriteSerializer(ProductSerializer):
                 update_data.append(data)
 
         return (create_data, update_data, delete_data)
+
+
+class ProductQuestionAnswerClassificationSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(read_only=True)
+
+
+class ProductQuestionAnswerSerializer(ModelSerializer):
+    class Meta:
+        model = ProductQuestionAnswer
+        exclude = ['product', 'shopper']
+        extra_kwargs = {
+            'created_at': {'format': '%Y-%m-%d'},
+            'answer': {'read_only': True},
+            'answer_completed': {'read_only': True},
+            'classification': {'write_only': True}
+        }
+
+    def __get_username(self, username):
+        return username[:3] + '***'
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['classification'] = ProductQuestionAnswerClassificationSerializer(instance.classification).data
+        ret['username'] = self.__get_username(instance.shopper.username)
+
+        return ret

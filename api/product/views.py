@@ -13,16 +13,16 @@ from common.utils import get_response, querydict_to_dict, levenshtein, check_id_
 from common.views import upload_image_view
 from user.models import ProductLike
 from .models import (
-    Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option,
+    Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
     ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ThemeSerializer, 
+    ThemeSerializer, ProductQuestionAnswerSerializer,
 )
-from .permissions import ProductPermission
+from .permissions import ProductPermission, ProductQuestionAnswerPermission
 
 
 def sort_keywords_by_levenshtein_distance(keywords, search_word):
@@ -370,3 +370,53 @@ class ProductViewSet(GenericViewSet):
         product.save(update_fields=('on_sale',))
 
         return get_response(data={'id': product.id})
+
+
+class ProductQuestionAnswerViewSet(GenericViewSet):
+    permission_classes = [ProductQuestionAnswerPermission]
+    lookup_field = 'id'
+    lookup_url_kwarg = 'question_answer_id'
+    lookup_value_regex = r'[0-9]+'
+    queryset = ProductQuestionAnswer.objects.all()
+    serializer_class = ProductQuestionAnswerSerializer
+
+    def __get_product(self, product_id):
+        return get_object_or_404(Product, id=product_id)
+    
+    def __get_queryset(self, product_id):
+        return self.get_queryset().filter(product_id=product_id)
+
+    def __filter_queryset(self, queryset):
+        if 'open_qa' in self.request.query_params:
+            return queryset.filter(is_secret=False)
+
+        return queryset
+
+    def list(self, request, product_id):
+        queryset = self.__filter_queryset(
+            self.__get_queryset(product_id)
+        ).select_related('shopper', 'classification')
+        serializer = self.get_serializer(queryset, many=True)
+
+        return get_response(data=serializer.data)
+
+    def create(self, request, product_id):
+        product = self.__get_product(product_id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        question_answer = serializer.save(product=product, shopper=request.user.shopper)
+
+        return get_response(status=HTTP_201_CREATED, data={'id': question_answer.id})
+
+    def partial_update(self, request, product_id, question_answer_id):
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        question_answer = serializer.save()
+
+        return get_response(data={'id': question_answer.id})
+
+    def destroy(self, request, product_id, question_answer_id):
+        question_answer = self.get_object()
+        question_answer.delete()
+
+        return get_response(data={'id': int(question_answer_id)})
