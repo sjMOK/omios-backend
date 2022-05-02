@@ -1,4 +1,4 @@
-from django.test import tag
+from copy import deepcopy
 
 from rest_framework.test import APISimpleTestCase
 from rest_framework.serializers import Serializer, CharField, IntegerField
@@ -6,9 +6,18 @@ from rest_framework.exceptions import APIException
 
 from ..serializers import (
     has_duplicate_element, is_create_data, is_update_data, is_delete_data,
-    get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value, SerializerMixin,
+    get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value, 
+    get_sum_of_single_value, add_data_in_each_element, SerializerMixin,
 )
 from .test_cases import FunctionTestCase
+
+
+list_test_data = [
+    {'id': 1, 'name': 'name1'},
+    {'id': 2, 'name': 'name2'},
+    {'id': 3, 'name': 'name3'},
+    {'id': 4, 'name': 'name4'},
+]
 
 
 class HasDuplicateElementTestCase(FunctionTestCase):
@@ -83,18 +92,31 @@ class GetAttrsTestCase(APISimpleTestCase):
         self.assertListEqual(get_update_or_delete_attrs(self.attrs), update_or_delete_attrs)
 
 
-class GetListOfSingleItemTestCase(FunctionTestCase):
+class GetListOfSingleValueTestCase(FunctionTestCase):
     _function = get_list_of_single_value
 
     def test(self):
-        attrs = [
-            {'id': 1, 'name': 'name1'},
-            {'id': 2, 'name': 'name2'},
-            {'id': 3, 'name': 'name3'},
-            {'id': 4, 'name': 'name4'},
-        ]
+        self.assertListEqual(self._call_function(list_test_data, 'id'), [data['id'] for data in list_test_data])
 
-        self.assertEqual(self._call_function(attrs, 'id'), [1, 2, 3, 4])
+
+class GetSumOfSingleValue(FunctionTestCase):
+    _function = get_sum_of_single_value
+
+    def test(self):
+        self.assertEqual(self._call_function(list_test_data, 'id'), sum([data['id'] for data in list_test_data]))
+
+
+class AddDataInEachElement(FunctionTestCase):
+    _function = add_data_in_each_element
+
+    def test(self):
+        expected_result = deepcopy(list_test_data)
+        key = 'test_key'
+        value = 'test_value'
+        for element in expected_result:
+            element[key] = value
+
+        self.assertListEqual(self._call_function(list_test_data, key, value), expected_result)
 
 
 class SerializerMixinTestCase(APISimpleTestCase):
