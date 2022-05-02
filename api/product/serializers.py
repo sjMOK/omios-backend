@@ -1,4 +1,3 @@
-from django.db import connection
 from rest_framework.serializers import (
     Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
@@ -232,7 +231,11 @@ class OptionInOrderItemSerializer(Serializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+
+        if instance.product_color.product.images.all().exists():
+            ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+        else:
+            ret['product_image_url'] = DEFAULT_IMAGE_URL
 
         return ret
 

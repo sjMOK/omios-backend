@@ -19,7 +19,7 @@ from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
-    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
+    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial
@@ -440,7 +440,33 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
         self._test_serializer_raise_validation_error(
             expected_message, data=data, partial=True
         )
-    
+
+
+class OptionInOrderItemSerializerTestCase(SerializerTestCase):
+    _serializer_class = OptionInOrderItemSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._option = OptionFactory()
+        cls.expected_data = {
+            'id': cls._option.id,
+            'size': cls._option.size,
+            'display_color_name': cls._option.product_color.display_color_name,
+            'product_id': cls._option.product_color.product.id,
+            'product_name': cls._option.product_color.product.name,
+            'product_code': cls._option.product_color.product.code,
+        }
+
+    def test_model_instance_serialization_with_image(self):
+        img = ProductImageFactory(product=self._option.product_color.product)
+        self.expected_data['product_image_url'] = BASE_IMAGE_URL + img.image_url
+
+        self._test_model_instance_serialization(self._option, self.expected_data)
+
+    def test_model_instance_serialization_without_image(self):
+        self.expected_data['product_image_url'] = DEFAULT_IMAGE_URL
+
+        self._test_model_instance_serialization(self._option, self.expected_data)
 
 class ProductColorSerializerTestCase(SerializerTestCase):
     fixtures = ['temporary_image']
@@ -1289,6 +1315,19 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         serializer.save()
 
         self.assertTrue(not Option.objects.get(id=delete_option_id).on_sale)
+
+
+class ProductQuestionAnswerClassificationSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductQuestionAnswerClassificationSerializer
+
+    def test_model_instance_serialization(self):
+        classification = ProductQuestionAnswerClassificationFactory()
+        expected_data = {
+            'id': classification.id,
+            'name': classification.name,
+        }
+
+        self._test_model_instance_serialization(classification, expected_data)
 
 
 class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
