@@ -14,13 +14,13 @@ from common.views import upload_image_view
 from user.models import ProductLike
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer,
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer, ProductQuestionAnswerClassification,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
     ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ThemeSerializer, ProductQuestionAnswerSerializer,
+    ThemeSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
 
@@ -180,6 +180,13 @@ def get_registry_data(request):
         return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter sub_category must be id format.')
 
     return get_response(data=get_dynamic_registry_data(sub_category_id))
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_product_question_answer_classification(request):
+    queryset = ProductQuestionAnswerClassification.objects.all()
+    return get_response(data=ProductQuestionAnswerClassificationSerializer(queryset, many=True).data)
 
 
 class ProductViewSet(GenericViewSet):

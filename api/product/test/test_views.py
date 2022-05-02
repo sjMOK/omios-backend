@@ -20,12 +20,12 @@ from .factory import (
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme, Tag, Option, ProductQuestionAnswer,
+    Product, Theme, Tag, Option, ProductQuestionAnswer,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
     SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer,
-    ProductQuestionAnswerSerializer,
+    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 
 
@@ -336,6 +336,20 @@ class ProductViewSetTestCase(ViewTestCase):
         ProductImageFactory.create_batch(size=3, product=product)
 
         return product
+
+
+class GetProductQuestionAnswerClassificationTestCase(ViewTestCase):
+    _url = '/products/question-answers/classifications'
+
+    def test_get(self):
+        classifications = ProductQuestionAnswerClassificationFactory.create_batch(size=3)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(
+            self._response_data,
+            ProductQuestionAnswerClassificationSerializer(classifications, many=True).data
+        )
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):

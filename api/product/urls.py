@@ -8,7 +8,7 @@ from .documentations import (
     decorated_get_colors_view, decorated_get_tag_search_result_view, decorated_upload_product_image_view,
     decorated_get_related_search_words_view, decorated_get_registry_data_view,
 )
-
+from .views import get_product_question_answer_classification
 
 app_name = 'product'
 
@@ -24,6 +24,7 @@ urlpatterns = [
     path('/images', decorated_upload_product_image_view),
     path('/related-search-words', decorated_get_related_search_words_view),
     path('/registry-data', decorated_get_registry_data_view),
+    path('/question-answers/classifications', get_product_question_answer_classification),
 ]
 
 urlpatterns += router.urls
