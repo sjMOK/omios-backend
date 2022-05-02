@@ -17,7 +17,7 @@ from .serializers import (
 from .views import (
     ProductViewSet, ProductQuestionAnswerViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_related_search_words, get_registry_data,
+    upload_product_image, get_related_search_words, get_registry_data, get_product_question_answer_classification,
 )
 
 
@@ -263,3 +263,7 @@ decorated_get_related_search_words_view = swagger_auto_schema(
 decorated_get_registry_data_view = swagger_auto_schema(
     method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
 )(get_registry_data)
+
+decorated_get_product_question_answer_classification = swagger_auto_schema(
+    method='GET', **get_response(ProductQuestionAnswerClassificationSerializer(many=True)), security=[], operation_description='상품 Q&A 분류 리스트 조회'
+)(get_product_question_answer_classification)
