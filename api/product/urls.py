@@ -3,16 +3,17 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from .documentations import (
+    DecoratedProductQuestionAnswerViewSet,
     decorated_get_all_categories_view, decorated_get_main_categories_view, decorated_sub_category_view,
     decorated_get_colors_view, decorated_get_tag_search_result_view, decorated_upload_product_image_view,
     decorated_get_related_search_words_view, decorated_get_registry_data_view,
 )
-from .views import ProductQuestionAnswerViewSet
+
 
 app_name = 'product'
 
 router = SimpleRouter(trailing_slash=False)
-router.register(r'/(?P<product_id>\d+)/question-answers', ProductQuestionAnswerViewSet, 'question-answer')
+router.register(r'/(?P<product_id>\d+)/question-answers', DecoratedProductQuestionAnswerViewSet, 'question-answer')
 
 urlpatterns = [
     path('/categories', decorated_get_all_categories_view),
