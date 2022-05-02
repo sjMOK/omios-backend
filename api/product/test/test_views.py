@@ -707,7 +707,7 @@ class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
         self.question_answer = ProductQuestionAnswerFactory(shopper=self._user, product=self.product)
 
     def test_get(self):
-        ProductQuestionAnswerFactory.create_batch(size=5, product=self.product)
+        ProductQuestionAnswerFactory.create_batch(size=3, product=self.product)
         serializer = ProductQuestionAnswerSerializer(ProductQuestionAnswer.objects.all(), many=True)
         self._get()
 

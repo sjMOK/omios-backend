@@ -147,7 +147,7 @@ class ProductDetailResponse(ProductReadSerializer):
 
 
 class ProductQuestionAnswerResponse(ProductQuestionAnswerSerializer):
-    classification = ProductQuestionAnswerClassificationSerializer()
+    classification = CharField()
 
 
 class DecoratedProductViewSet(ProductViewSet):

@@ -706,7 +706,7 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
             'created_at': {'format': '%Y-%m-%d'},
             'answer': {'read_only': True},
             'answer_completed': {'read_only': True},
-            'classification': {'write_only': True}
+            'classification': {'write_only': True},
         }
 
     def __get_username(self, username):
@@ -714,7 +714,7 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['classification'] = ProductQuestionAnswerClassificationSerializer(instance.classification).data
+        ret['classification'] = instance.classification.name
         ret['username'] = self.__get_username(instance.shopper.username)
 
         return ret

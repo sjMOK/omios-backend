@@ -1306,7 +1306,7 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
             'id': self.question_answer.id,
             'created_at': str(self.question_answer.created_at.date()),
             'username': self.question_answer.shopper.username[:3] + '***',
-            'classification': ProductQuestionAnswerClassificationSerializer(self.question_answer.classification).data,
+            'classification': self.question_answer.classification.name,
             'question': self.question_answer.question,
             'answer': self.question_answer.answer,
             'answer_completed': self.question_answer.answer_completed,
