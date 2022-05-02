@@ -6,10 +6,14 @@ from freezegun import freeze_time
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
 from product.test.factory import ProductFactory
-from .factory import MembershipFactory, get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory, ShopperShippingAddressFactory
+from .factory import (
+    MembershipFactory, get_factory_password, get_factory_authentication_data, 
+    FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory,
+)
 from ..models import BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building
 from ..serializers import (
-    IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, ShopperShippingAddressSerializer,
+    IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, 
+    BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer,
 )
 
 
@@ -268,7 +272,7 @@ class UploadBusinessRegistrationImageTestCase(ViewTestCase):
 class GetBuildingTestCase(ViewTestCase):
     _url = '/users/wholesalers/buildings'
 
-    def test_sucess(self):
+    def test_success(self):
         floors = FloorFactory.create_batch(3)
         BuildingFactory(floors=floors)
         BuildingFactory(floors=floors[0:2])
@@ -520,3 +524,20 @@ class ShopperShippingAddressViewSet(ViewTestCase):
 
         self._assert_success()
         self.assertDictEqual(self._response_data, {})
+
+
+class GetPointHistoriesTestCase(ViewTestCase):
+    _url = '/users/shoppers/{0}/point-histories'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls._url = cls._url.format(cls._user.id)
+
+    def test_success(self):
+        self._set_authentication()
+        PointHistoryFactory.create_batch(2, shopper=self._user)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, PointHistorySerializer(self._user.point_histories.all(), many=True).data)

@@ -1,7 +1,9 @@
 from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation
 from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
-from factory.fuzzy import FuzzyDecimal
+from factory.fuzzy import FuzzyDecimal, FuzzyInteger
+
+from order.test.factories import OrderFactory
 
 def get_factory_password(user):
     return user.username + '_Password'
@@ -106,3 +108,14 @@ class ShopperShippingAddressFactory(DjangoModelFactory):
     base_address = '서울시 광진구 능동로19길 47'
     detail_address = '518호'
     is_default=False
+
+
+class PointHistoryFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.PointHistory'
+
+    shopper = SubFactory(ShopperFactory)
+    point = FuzzyInteger(10000)
+    content = 'test'
+    order = SubFactory(OrderFactory, shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
+    product_name = 'test'

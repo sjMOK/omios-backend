@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import re
 
 from django.http import JsonResponse
@@ -60,7 +60,7 @@ def gmt_to_kst(gmt):
 
 
 def datetime_to_iso(datetime_instance):
-    return datetime_instance.isoformat() if isinstance(datetime_instance, datetime) else None
+    return datetime_instance.isoformat() if isinstance(datetime_instance, datetime) or isinstance(datetime_instance, date) else None
 
 
 def levenshtein(a_text, b_text): 

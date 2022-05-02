@@ -5,9 +5,9 @@ from common.utils import gmt_to_kst, datetime_to_iso
 from .factory import (
     get_factory_password, get_factory_authentication_data, 
     MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
-    ShopperShippingAddressFactory,
+    ShopperShippingAddressFactory, PointHistoryFactory,
 )
-from ..models import OutstandingToken, Membership, Floor
+from ..models import OutstandingToken, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
@@ -332,4 +332,14 @@ class ShopperShippingAddressSerializerTestCase(SerializerTestCase):
 class PointHistorySerializerTestCase(SerializerTestCase):
     _serializer_class = PointHistorySerializer
 
-    # todo order test code 구현 이후에 작업
+    def test_model_instance_serialization(self):
+        point_history = PointHistoryFactory()
+
+        self._test_model_instance_serialization(point_history, {
+            'id': point_history.id,
+            'order_number': point_history.order.number,
+            'product_name': point_history.product_name,
+            'point': point_history.point,
+            'content': point_history.content,
+            'created_at': datetime_to_iso(point_history.created_at),
+        })
