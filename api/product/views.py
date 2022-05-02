@@ -376,9 +376,9 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
     queryset = ProductQuestionAnswer.objects.all()
     serializer_class = ProductQuestionAnswerSerializer
 
-    def __get_product(self, product_id):
-        return get_object_or_404(Product, id=product_id)
-    
+    def get_queryset(self):
+        return ProductQuestionAnswer.objects.select_related('shopper', 'classification')
+
     def __get_queryset(self, product_id):
         return self.get_queryset().filter(product_id=product_id)
 
@@ -397,7 +397,7 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
         return get_response(data=serializer.data)
 
     def create(self, request, product_id):
-        product = self.__get_product(product_id)
+        product = get_object_or_404(Product, id=product_id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question_answer = serializer.save(product=product, shopper=request.user.shopper)
