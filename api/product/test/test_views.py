@@ -389,13 +389,13 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
         queryset = self.__get_queryset().filter(condition)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         self.__test_list_response(queryset, max_price, query_params={'search_word': search_word})
 
     def test_list(self):
         queryset = self.__get_queryset()
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         self.__test_list_response(self.__get_queryset(), max_price)
 
@@ -406,7 +406,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         self._user.shopper.like_products.add(self._get_product())
         queryset = self.__get_queryset().filter(like_shoppers=self._user.shopper)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
         
         shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
         self.__test_list_response(
@@ -432,7 +432,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
             aggregate_qs = aggregate_qs.filter(
                                 **{filter_mapping['sub_category']: query_params['sub_category']}
                             )
-        max_price = aggregate_qs.aggregate(max_price=Max('price'))['max_price']
+        max_price = aggregate_qs.aggregate(max_price=Max('sale_price'))['max_price']
 
         for key, value in query_params.items():
             if isinstance(value, list):
@@ -457,12 +457,12 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_filtering({'sub_category': sub_category_id})
 
     def test_filter_minprice(self):
-        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+        price_avg = Product.objects.all().aggregate(avg=Avg('sale_price'))['avg']
 
         self.__test_filtering({'min_price': int(price_avg)})
 
     def test_filter_maxprice(self):
-        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+        price_avg = Product.objects.all().aggregate(avg=Avg('sale_price'))['avg']
 
         self.__test_filtering({'max_price': int(price_avg)})
 
@@ -479,8 +479,8 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def test_filter_multiple_key(self):
         aggregation = Product.objects.all().aggregate(
-                                max_price=Max('price'), min_price=Min('price'), 
-                                avg_price=Avg('price')
+                                max_price=Max('sale_price'), min_price=Min('sale_price'), 
+                                avg_price=Avg('sale_price')
                             )
 
         product = Product.objects.all().last()

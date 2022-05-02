@@ -314,7 +314,7 @@ class ProductViewSet(GenericViewSet):
             return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
         queryset = self.__initial_filtering(queryset, **request.query_params.dict())
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         queryset = self.sort_queryset(
             self.filter_queryset(queryset)
