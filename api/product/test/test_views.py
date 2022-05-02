@@ -46,7 +46,104 @@ class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
         self.assertListEqual(keywords_leven_distances, result_leven_distances)
 
 
-class GetRelatedSearchWordssTestCase(ViewTestCase):
+class GetAllCategoriesTestCase(ViewTestCase):
+    _url = '/products/categories'
+
+    def test_get(self):
+        main_categories = MainCategoryFactory.create_batch(size=3)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, MainCategorySerializer(main_categories, many=True).data)
+
+
+class GetMainCategoriesTestCase(ViewTestCase):
+    _url = '/products/main-categories'
+
+    def test_get(self):
+        main_categories = MainCategoryFactory.create_batch(size=3)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(
+            self._response_data, 
+            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data
+        )
+
+
+class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
+    _url = '/products/main-categories'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.main_category = MainCategoryFactory()
+        cls.sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
+
+    def test_get(self):
+        self._url += '/{0}/sub-categories'.format(self.main_category.id)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(
+            self._response_data, 
+            SubCategorySerializer(self.sub_categories, many=True).data
+        )
+
+    def test_get_raise_404(self):
+        main_category_id = MainCategory.objects.latest('id').id + 1
+        self._url += '/{0}/sub-categories'.format(main_category_id)
+        self._get()
+
+        self._assert_failure(404, 'Not found.')
+
+
+class GetColorsTestCase(ViewTestCase):
+    _url = '/products/colors'
+
+    def test_get(self):
+        colors = ColorFactory.create_batch(size=3)
+        self._get()
+
+        self.assertListEqual(
+            self._response_data, 
+            ColorSerializer(colors, many=True).data
+        )
+
+
+class GetTagSearchResultTest(ViewTestCase):
+    _url = '/products/tags'
+    limiting = 8
+
+    def test_get(self):
+        fake = Faker()
+        search_word = fake.word()
+        TagFactory.create_batch(size=3)
+        TagFactory(name=search_word)
+        TagFactory(name=(fake.word() + search_word))
+        TagFactory(name=(search_word + fake.word()))
+        TagFactory(name=(fake.word() + search_word + fake.word()))
+
+        self._get({'search_word': search_word})
+        tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:self.limiting]
+
+        self._assert_success()
+        self.assertListEqual(
+            TagSerializer(tags, many=True).data,
+            self._response_data
+        )
+
+    def test_search_without_search_word(self):
+        self._get()
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_search_with_empty_string(self):
+        self._get({'search_word': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+
+class GetRelatedSearchWordsTestCase(ViewTestCase):
     _url = '/products/related-search-words'
 
     @classmethod
@@ -197,104 +294,6 @@ class GetRegistryDataTestCase(ViewTestCase):
     def test_get_with_invalid_sub_category_format(self):
         self._get({'sub_category': 'aa'})
         self._assert_failure(400, 'Query parameter sub_category must be id format.')
-
-
-class GetAllCategoriesTestCase(ViewTestCase):
-    _url = '/products/categories'
-
-    def test_get(self):
-        main_categories = MainCategoryFactory.create_batch(size=3)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(self._response_data, MainCategorySerializer(main_categories, many=True).data)
-
-
-class GetMainCategoriesTestCase(ViewTestCase):
-    _url = '/products/main-categories'
-
-    def test_get(self):
-        main_categories = MainCategoryFactory.create_batch(size=3)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(
-            self._response_data, 
-            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data
-        )
-
-
-
-class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
-    _url = '/products/main-categories'
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.main_category = MainCategoryFactory()
-        cls.sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
-
-    def test_get(self):
-        self._url += '/{0}/sub-categories'.format(self.main_category.id)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(
-            self._response_data, 
-            SubCategorySerializer(self.sub_categories, many=True).data
-        )
-
-    def test_get_raise_404(self):
-        main_category_id = MainCategory.objects.latest('id').id + 1
-        self._url += '/{0}/sub-categories'.format(main_category_id)
-        self._get()
-
-        self._assert_failure(404, 'Not found.')
-
-
-class GetColorsTestCase(ViewTestCase):
-    _url = '/products/colors'
-
-    def test_get(self):
-        colors = ColorFactory.create_batch(size=3)
-        self._get()
-
-        self.assertListEqual(
-            self._response_data, 
-            ColorSerializer(colors, many=True).data
-        )
-
-
-class GetTagSearchResultTest(ViewTestCase):
-    _url = '/products/tags'
-    limiting = 8
-
-    def test_get(self):
-        fake = Faker()
-        search_word = fake.word()
-        TagFactory.create_batch(size=3)
-        TagFactory(name=search_word)
-        TagFactory(name=(fake.word() + search_word))
-        TagFactory(name=(search_word + fake.word()))
-        TagFactory(name=(fake.word() + search_word + fake.word()))
-
-        self._get({'search_word': search_word})
-        tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:self.limiting]
-
-        self._assert_success()
-        self.assertListEqual(
-            TagSerializer(tags, many=True).data,
-            self._response_data
-        )
-
-    def test_search_without_search_word(self):
-        self._get()
-
-        self._assert_failure(400, 'Unable to search with empty string.')
-
-    def test_search_with_empty_string(self):
-        self._get({'search_word': ''})
-
-        self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetTestCase(ViewTestCase):
