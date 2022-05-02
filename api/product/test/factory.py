@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, lazy_attribute
 from factory.django import DjangoModelFactory
+from factory.fuzzy import FuzzyInteger
 
 from user.test.factory import WholesalerFactory, ShopperFactory
 
@@ -77,10 +78,10 @@ class ProductFactory(DjangoModelFactory):
     style = SubFactory(StyleFactory)
     age = SubFactory(AgeFactory)
     name = Sequence(lambda num: 'product_{0}'.format(num))
-    price = 35000
-    sale_price = 70000
-    base_discount_rate = 10
-    base_discounted_price = 63000
+    price = FuzzyInteger(10000, 5000000, 100)
+    sale_price = LazyAttribute(lambda obj: obj.price * 2)
+    base_discount_rate = FuzzyInteger(0, 50)
+    base_discounted_price = LazyAttribute(lambda obj: obj.sale_price - int(obj.sale_price * obj.base_discount_rate / 100) // 100 * 100)
     thickness = SubFactory(ThicknessFactory)
     see_through = SubFactory(SeeThroughFactory)
     flexibility = SubFactory(FlexibilityFactory)

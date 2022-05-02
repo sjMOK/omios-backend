@@ -7,6 +7,7 @@ from django.db.models import (
 )
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
@@ -42,6 +43,14 @@ class User(AbstractBaseUser):
     objects = BaseUserManager()
 
     USERNAME_FIELD = 'username'
+
+    @cached_property
+    def is_shopper(self):
+        return Shopper.objects.filter(user=self).exists()
+
+    @cached_property
+    def is_wholesaler(self):
+        return Wholesaler.objects.filter(user=self).exists()
 
     def __set_password(self, update_time):
         super().set_password(self.password)
@@ -107,6 +116,18 @@ class Shopper(User):
     def delete(self):
         self.question_answers.all().delete()
         super().delete()
+
+    def update_point(self, point, content, order_id=None, order_items=[None]):
+        self.point += point
+        self.save(update_fields=['point'])
+
+        PointHistory.objects.bulk_create(PointHistory(
+            shopper=self,
+            point=order_item['point'] if order_item is not None else point, 
+            content=content, 
+            order_id= order_id,
+            product_name=order_item['product_name'] if order_item is not None else None,
+        ) for order_item in order_items)
 
 
 class Wholesaler(User):
@@ -197,3 +218,17 @@ class ShopperShippingAddress(Model):
             self.is_default = True
 
         super().save(*args, **kwargs)
+
+
+class PointHistory(Model):
+    id = BigAutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    order = ForeignKey('order.Order', DO_NOTHING, null=True)
+    product_name = CharField(max_length=100, null=True)
+    point = IntegerField()
+    content = CharField(max_length=200)
+    created_at = DateField(default=timezone.now)
+
+    class Meta:
+        db_table = 'point_history'
+        ordering = ['id']

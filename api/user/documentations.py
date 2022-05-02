@@ -6,12 +6,12 @@ from common.documentations import UniqueResponse, Image, get_response
 from .models import Shopper, Wholesaler
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, ShopperShippingAddressSerializer, 
-    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer,
+    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer
 )
 from .views import (
     IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet, ProductLikeView,
     ShopperShippingAddressViewSet,
-    upload_business_registration_image, get_buildings, change_password, is_unique,
+    upload_business_registration_image, get_buildings, change_password, is_unique, get_point_histories,
 )
 
 
@@ -188,3 +188,7 @@ decorated_product_like_view = swagger_auto_schema(
 )(swagger_auto_schema(
     method='DELETE', **get_response(ProductLikeViewResponse()), operation_description='상품 좋아요 삭제(좋아요 버튼 한번 더 클릭시 요청)'
 )(ProductLikeView.as_view()))
+
+decorated_shopper_point_history_view = swagger_auto_schema(
+    method='GET', **get_response(PointHistorySerializer()), operation_description='적립금 사용 내역 정보 가져오기'
+)(get_point_histories)

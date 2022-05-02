@@ -6,8 +6,8 @@ from freezegun import freeze_time
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
 from product.test.factory import ProductFactory
-from .factory import get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory, ShopperShippingAddressFactory
-from ..models import BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, Building
+from .factory import MembershipFactory, get_factory_password, get_factory_authentication_data, FloorFactory, BuildingFactory, ShopperShippingAddressFactory
+from ..models import BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building
 from ..serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, ShopperShippingAddressSerializer,
 )
@@ -107,7 +107,6 @@ class BlacklistingTokenViewTestCase(TokenViewTestCase):
 
 
 class ShopperViewSetTestCase(ViewTestCase):
-    fixtures = ['membership']
     _url = '/users/shoppers'
 
     @classmethod
@@ -135,6 +134,8 @@ class ShopperViewSetTestCase(ViewTestCase):
             "username": "xptmxm",
             "password": "Testtest00"
         }
+        if not Membership.objects.filter(id=1).exists():
+            MembershipFactory(id=1)
         self._post()
         user = Shopper.objects.get(username=self._test_data['username'])
 
@@ -301,7 +302,6 @@ class ChangePasswordTestCase(ViewTestCase):
 
 
 class IsUniqueTestCase(ViewTestCase):
-    fixtures = ['membership']
     _url = '/users/unique'
 
     @classmethod
@@ -366,7 +366,6 @@ class IsUniqueTestCase(ViewTestCase):
 
 
 class ProductLikeViewTestCase(ViewTestCase):
-    fixtures = ['membership']
     _url = '/users/shoppers/{0}/like/{1}'
 
     @classmethod
@@ -408,7 +407,6 @@ class ProductLikeViewTestCase(ViewTestCase):
 
 
 class ShopperShippingAddressViewSet(ViewTestCase):
-    fixtures = ['membership']
     _url = '/users/shoppers/{0}/addresses'
 
     @classmethod

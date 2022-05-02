@@ -229,7 +229,7 @@ class ProductImageSerializerTestCase(SerializerTestCase):
             'sequence': self.data['sequence']
         }
 
-        self._test_deserialzation(self.data, expected_validated_data)
+        self._test_validated_data(self.data, expected_validated_data)
 
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
         key = random.choice(list(self.data.keys()))
@@ -617,7 +617,6 @@ class ProductSerializerTestCase(SerializerTestCase):
 class ProductReadSerializerTestCase(SerializerTestCase):
     maxDiff = None
     _serializer_class = ProductReadSerializer
-    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):

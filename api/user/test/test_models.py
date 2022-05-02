@@ -1,17 +1,19 @@
-from datetime import datetime
-
-from freezegun import freeze_time
+from django.utils import timezone
+from django.forms import model_to_dict
 
 from rest_framework.exceptions import APIException
+
+from freezegun import freeze_time
 
 from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
 from product.test.factory import ProductFactory
-from .factory import ShopperFactory, BuildingFactory, FloorFactory
+from order.test.factories import OrderFactory
+from .factory import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory
 from ..models import (
     Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
-    ProductLike,
+    ProductLike, PointHistory,
 )
 
 
@@ -44,6 +46,10 @@ class UserTestCase(ModelTestCase):
             'password': 'password',
         }
         cls._user = cls._get_default_model_after_creation()
+
+    def test_user_type(self):
+        self.assertTrue(not self._user.is_shopper)
+        self.assertTrue(not self._user.is_wholesaler)
 
     def test_create(self):
         self.assertTrue(self._user.check_password(self._test_data['password']))
@@ -97,11 +103,11 @@ class UserTestCase(ModelTestCase):
 
 
 class ShopperTestCase(ModelTestCase):
-    fixtures = ['membership']
     _model_class = Shopper
 
     @classmethod
     def setUpTestData(cls):
+        MembershipFactory(id=1)
         cls._test_data = {
             "username": "shopper",
             "password": "password",
@@ -112,6 +118,10 @@ class ShopperTestCase(ModelTestCase):
             "mobile_number": "01012345678",
         }
         cls._shopper = cls._get_default_model_after_creation()
+
+    def test_user_type(self):
+        self.assertTrue(self._shopper.is_shopper)
+        self.assertTrue(not self._shopper.is_wholesaler)
 
     def test_create(self):
         self.assertIsInstance(self._shopper.user, User)
@@ -124,6 +134,7 @@ class ShopperTestCase(ModelTestCase):
         self.assertEqual(self._shopper.birthday, self._test_data['birthday'])
         self.assertIsNone(self._shopper.height)
         self.assertIsNone(self._shopper.weight)
+        self.assertEqual(self._shopper.point, 0)
 
     def test_default_nickname(self):
         self._shopper.nickname = self._test_data['username'] = 'shopper2'
@@ -133,9 +144,6 @@ class ShopperTestCase(ModelTestCase):
 
         self.assertEqual(self._shopper.nickname, self._test_data['username'])
         self.assertTrue(shopper.nickname.startswith('omios_'))
-
-    def test_default_point(self):
-        self.assertEqual(self._shopper.point, 0)
     
     def test_delete(self):
         self._shopper.delete()
@@ -143,9 +151,38 @@ class ShopperTestCase(ModelTestCase):
         self.assertTrue(not self._shopper.is_active)
         self.assertTrue(not self._shopper.question_answers.all().exists())
 
+    def test_update_point(self):
+        point = 1000
+        content = 'test_update_point'
+        self._shopper.update_point(point, content)
+
+        self.assertEqual(self._shopper.point, point)
+        self.assertTrue(PointHistory.objects.get(shopper=self._shopper, point=point, content=content))
+
+    def test_update_point_including_order_items(self):
+        order = OrderFactory(shopper=self._shopper)
+        order_items = [
+            {
+                'product_name': 'product1',
+                'point': 200,
+            },
+            {
+                'product_name': 'product2',
+                'point': 300,
+            },
+        ]
+        total_point = sum([order_item['point'] for order_item in order_items])
+        self._shopper.update_point(total_point, 'test_update_point', order.id, order_items)
+
+        self.assertEqual(self._shopper.point, total_point)
+        self.assertTrue([PointHistory.objects.get(
+            order=order, 
+            product_name=order_item['product_name'], 
+            point=order_item['point'],
+        ) for order_item in order_items])
+
 
 class ProductLikeTestCase(ModelTestCase):
-    fixtures = ['membership']
     _model_class = ProductLike
 
     @freeze_time(FREEZE_TIME)
@@ -164,8 +201,9 @@ class ProductLikeTestCase(ModelTestCase):
 class WholesalerTestCase(ModelTestCase):
     _model_class = Wholesaler
 
-    def setUp(self):
-        self._test_data = {
+    @classmethod
+    def setUpTestData(cls):
+        cls._test_data = {
             'username': 'wholesaler',
             'password': 'password',
             'name': 'wholesaler_name',
@@ -178,22 +216,25 @@ class WholesalerTestCase(ModelTestCase):
             'base_address': '서울시 광진구 능동로19길 47',
             'detail_address': '화양타워 518호',
         }
+        cls._wholesaler = cls._get_default_model_after_creation()
+
+    def test_user_type(self):
+        self.assertTrue(not self._wholesaler.is_shopper)
+        self.assertTrue(self._wholesaler.is_wholesaler)
 
     def test_create(self):
-        wholesaler = self._get_model_after_creation()
-
-        self.assertIsInstance(wholesaler.user, User)
-        self.assertEqual(wholesaler.name, self._test_data['name'])
-        self.assertEqual(wholesaler.mobile_number, self._test_data['mobile_number'])
-        self.assertEqual(wholesaler.phone_number, self._test_data['phone_number'])
-        self.assertEqual(wholesaler.email, self._test_data['email'])
-        self.assertEqual(wholesaler.company_registration_number, self._test_data['company_registration_number'])
-        self.assertIsInstance(wholesaler.business_registration_image_url.storage, MediaStorage)
-        self.assertEqual(wholesaler.business_registration_image_url.name, self._test_data['business_registration_image_url'])
-        self.assertEqual(wholesaler.zip_code, self._test_data['zip_code'])
-        self.assertEqual(wholesaler.base_address, self._test_data['base_address'])
-        self.assertEqual(wholesaler.detail_address, self._test_data['detail_address'])
-        self.assertTrue(not wholesaler.is_approved)
+        self.assertIsInstance(self._wholesaler.user, User)
+        self.assertEqual(self._wholesaler.name, self._test_data['name'])
+        self.assertEqual(self._wholesaler.mobile_number, self._test_data['mobile_number'])
+        self.assertEqual(self._wholesaler.phone_number, self._test_data['phone_number'])
+        self.assertEqual(self._wholesaler.email, self._test_data['email'])
+        self.assertEqual(self._wholesaler.company_registration_number, self._test_data['company_registration_number'])
+        self.assertIsInstance(self._wholesaler.business_registration_image_url.storage, MediaStorage)
+        self.assertEqual(self._wholesaler.business_registration_image_url.name, self._test_data['business_registration_image_url'])
+        self.assertEqual(self._wholesaler.zip_code, self._test_data['zip_code'])
+        self.assertEqual(self._wholesaler.base_address, self._test_data['base_address'])
+        self.assertEqual(self._wholesaler.detail_address, self._test_data['detail_address'])
+        self.assertTrue(not self._wholesaler.is_approved)
 
 
 class BuildingTestCase(ModelTestCase):
@@ -247,14 +288,12 @@ class BuildingFloorTestCase(ModelTestCase):
 
 
 class ShopperShippingAddressTestCase(ModelTestCase):
-    fixtures = ['membership']
     _model_class = ShopperShippingAddress
 
     @classmethod
     def setUpTestData(cls):
-        cls.__shopper = ShopperFactory()
         cls._test_data = {
-            'shopper': cls.__shopper,
+            'shopper': ShopperFactory(),
             'receiver_name': '수령자',
             'receiver_mobile_number': '01012345678',
             'zip_code': '05009',
@@ -266,7 +305,7 @@ class ShopperShippingAddressTestCase(ModelTestCase):
     def test_create(self):
         shipping_address = self._get_model_after_creation()
 
-        self.assertEqual(shipping_address.shopper, self.__shopper)
+        self.assertEqual(shipping_address.shopper, self._test_data['shopper'])
         self.assertIsNone(shipping_address.name)
         self.assertEqual(shipping_address.receiver_name, self._test_data['receiver_name'])
         self.assertEqual(shipping_address.receiver_mobile_number, self._test_data['receiver_mobile_number'])
@@ -303,3 +342,35 @@ class ShopperShippingAddressTestCase(ModelTestCase):
         self.assertTrue(
             not self._model_class.objects.exclude(id=shipping_address.id).filter(is_default=True).exists()
         )
+
+
+class PointHistoryTestCase(ModelTestCase):
+    _model_class = PointHistory
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._test_data = {
+            'shopper': ShopperFactory(),
+            'point': -1000,
+            'content': '적립금 결제',
+        }
+
+    @freeze_time(FREEZE_TIME)
+    def test_create(self):
+        point_history = model_to_dict(self._get_model_after_creation(), exclude=['id'])
+
+        self.assertDictEqual(point_history, {
+            **self._test_data,
+            'shopper': self._test_data['shopper'].user_id,
+            'order': None,
+            'product_name': None,
+            'created_at' : timezone.now(),
+        })
+
+    def test_create_including_order(self):
+        self._test_data['order'] = OrderFactory(shopper=self._test_data['shopper'])
+        self._test_data['product_name'] = 'test_product_name'
+        point_history = self._get_model_after_creation()
+
+        self.assertEqual(point_history.order, self._test_data['order'])
+        self.assertEqual(point_history.product_name, self._test_data['product_name'])

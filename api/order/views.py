@@ -1,20 +1,22 @@
 from django.db.models import Q
 from django.db.models.query import Prefetch
-from django.shortcuts import get_object_or_404
 
+from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.exceptions import APIException
 
 from common.utils import get_response
 from common.exceptions import BadRequestError
+from user.models import Shopper
 from product.models import Product, ProductImage, Option
 from .models import (
-    Order, OrderItem, ShippingAddress, Status,
+    Order, OrderItem, ShippingAddress, Status, StatusHistory,
 )
 from .serializers import (
-    OrderItemSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer
+    OrderItemSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
+    ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer,
 )
 from .permissions import OrderPermission, OrderItemPermission
 
@@ -41,10 +43,10 @@ class OrderViewSet(GenericViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'wholesaler'):
+        if self.request.user.is_wholesaler:
             pass
-        elif hasattr(self.request.user, 'shopper'):
-            condition = Q(shopper=self.request.user.shopper)
+        elif self.request.user.is_shopper:
+            condition = Q(shopper_id=self.request.user.id)
         else:
             raise APIException('Unrecognized user.')
 
@@ -57,20 +59,19 @@ class OrderViewSet(GenericViewSet):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)        
 
     def create(self, request):
-        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+        shopper = Shopper.objects.select_related('membership').get(user=request.user)
+        serializer = self.get_serializer(data=request.data, context={'shopper': shopper})
 
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+        serializer.is_valid(raise_exception=True)
 
         # todo
-        # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료 or 결제 오류)
+        # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료)
 
         order = serializer.save(status_id=101)
 
-        return get_response(data={'id': order.id})
-        # return get_response(data=connection.queries)
+        return get_response(status=HTTP_201_CREATED, data={'id': order.id})
     
-    def retrieve(self, request, id):
+    def retrieve(self, request, order_id):
         return get_response(data=self.get_serializer(self.get_object()).data)
 
     @action(['put'], True, 'shipping-address')
@@ -82,11 +83,6 @@ class OrderViewSet(GenericViewSet):
         serializer.save()
 
         return get_response(data={'id': order_id})
-
-    # @action(['post'], False)
-    # def cancel(self, reqeust):
-    #     pass
-
 
 
 class OrderItemViewSet(GenericViewSet):
@@ -115,71 +111,50 @@ class OrderItemViewSet(GenericViewSet):
             return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
 
         serializer = self.get_serializer(self.get_object(), request.data, partial=True)
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         serializer.save()
 
         return get_response(data={'id': item_id})
-
-    # @action(['post'], False)
-    # def cancel(self, request):
-    #     if 'items' not in request.data:
-    #         return get_response(status=HTTP_400_BAD_REQUEST, message='Requests must include items field.')
-        
-    #     if hasattr(self.request.user, 'shopper') and 'order' not in request.data:
-    #         return get_response(status=HTTP_400_BAD_REQUEST, message='Requests must include order field.')
-
-    #     queryset = self.get_queryset()
-    #     if len(request.data['items']) != len(queryset):
-    #         return get_response(status=HTTP_400_BAD_REQUEST, message='Invalid item requested.')
-
-    #     serializer = self.get_serializer(self.get_queryset(), many=True)
-    #     serializer.update(serializer.instance, 'cancellation_information')        
-
-    #     return get_response(data=serializer.data)
 
     # todo 발주확인 관련
 
 
 class ClaimViewSet(GenericViewSet):
     permission_classes = [OrderPermission]
-    serializer_class = OrderItemWriteSerializer
-    # lookup_field = 'id'
-    # lookup_url_kwarg = 'order_id'
 
-    def get_queryset(self):
-        condition = Q(order__shopper=self.request.user.shopper) & Q(order_id=self.kwargs['order_id'])
-        if 'items' in self.request.data:
-            condition &= Q(id__in=self.request.data['items'])
+    def get_serializer_class(self):
+        if self.action == 'cancel':
+            return CancellationInformationSerializer
 
-        queryset = OrderItem.objects.filter(condition)
-
-        self.__check_queryset(queryset)
-
-        return queryset
-
-    def __check_queryset(self, queryset):
-        if 'items' in self.request.data and len(queryset) != len(self.request.data['items']):
-            raise BadRequestError('It contains invalid items.')
-        
-        if len(queryset) == 0:
-            raise NotFound('The order does not exist.')
-
-        status_set = list(set([instance.status_id for instance in queryset]))
-
-        if len(status_set) != 1:
-            raise BadRequestError('It cannot request multiple status items at once.')
-
-        if self.action == 'cancel' and status_set[0] not in [100, 101]:
-            raise BadRequestError('The items cannot be canceled.')
+    def __get_context(self, status_id):
+        return {
+            'shopper': self.request.user.shopper,
+            'order_id': int(self.kwargs['order_id']),
+            'status_id': status_id,
+        }
 
     @action(['post'], False)
     def cancel(self, request, order_id):
-        queryset = self.get_queryset()
+        serializer = self.get_serializer(data=request.data, context=self.__get_context([100, 101]))
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-        serializer = self.get_serializer(queryset, many=True)
-        serializer.update(queryset, 'cancellation_information')
-        #todo 환불
+        return get_response(status=HTTP_201_CREATED, data={'id': request.data['order_items']})
 
-        return get_response(data={'id': [item.id for item in queryset]})
+    # todo
+    # 교환 요청, 교환 요청 철회, 교환 완료, 교환 수락, 교환 거부
+    # 반품 요청, 반품 요청 철회, 반품 완료, 반품 수락, 반품 거부
+
+
+class StatusHistoryAPIView(GenericAPIView):
+    permission_classes = [OrderItemPermission]
+    serializer_class = StatusHistorySerializer
+
+    def get_queryset(self):
+        order_item = get_object_or_404(OrderItem.objects.select_related('order'), id=self.kwargs['item_id'])
+        self.check_object_permissions(self.request, order_item)
+        
+        return StatusHistory.objects.filter(order_item=order_item)
+
+    def get(self, request, item_id):
+        return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)
