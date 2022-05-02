@@ -43,9 +43,9 @@ class Product(Model):
     age = ForeignKey('Age', DO_NOTHING)
     tags = ManyToManyField('Tag', db_table='product_tag')
     laundry_informations = ManyToManyField('LaundryInformation', through='ProductLaundryInformation')
-    name = CharField(max_length=60)
+    name = CharField(max_length=100)
     code = CharField(max_length=12, default='AA')
-    created = DateTimeField(default=timezone.now)
+    created_at = DateTimeField(auto_now_add=True)
     price = IntegerField()
     sale_price = IntegerField()
     base_discount_rate = IntegerField(default=0)
@@ -65,6 +65,12 @@ class Product(Model):
     def __str__(self):
         return self.name
 
+    def delete(self):
+        self.question_answers.all().delete()
+        self.colors.all().update(on_sale=False)
+        Option.objects.filter(product_color__product=self).update(on_sale=False)
+        self.on_sale = False
+        self.save(update_fields=('on_sale',))
 
 class Age(Model):
     id = AutoField(primary_key=True)
@@ -272,3 +278,30 @@ class Theme(Model):
 
     def __str__(self):
         return self.name
+
+
+class ProductQuestionAnswerClassification(Model):
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True, max_length=20)
+
+    class Meta:
+        db_table = 'product_question_answer_classification'
+
+    def __str__(self):
+        return self.name
+
+
+class ProductQuestionAnswer(Model):
+    id = AutoField(primary_key=True)
+    product = ForeignKey('Product', DO_NOTHING, related_name='question_answers')
+    shopper = ForeignKey('user.Shopper', DO_NOTHING, related_name='question_answers')
+    classification = ForeignKey('ProductQuestionAnswerClassification', DO_NOTHING)
+    created_at = DateTimeField(auto_now_add=True)
+    question = CharField(max_length=1000)
+    answer = CharField(max_length=1000, null=True)
+    answer_completed = BooleanField(default=False)
+    is_secret = BooleanField(default=False)
+
+    class Meta:
+        db_table = 'product_question_answer'
+        ordering = ['-created_at']

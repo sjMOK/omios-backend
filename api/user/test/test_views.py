@@ -369,7 +369,7 @@ class IsUniqueTestCase(ViewTestCase):
         self._assert_failure(400, 'Invalid parameter name.')
 
 
-class LikeProductTestCase(ViewTestCase):
+class ProductLikeViewTestCase(ViewTestCase):
     _url = '/users/shoppers/{0}/like/{1}'
 
     @classmethod

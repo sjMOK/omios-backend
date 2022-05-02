@@ -13,16 +13,16 @@ from common.utils import get_response, querydict_to_dict, levenshtein, check_id_
 from common.views import upload_image_view
 from user.models import ProductLike
 from .models import (
-    Flexibility, MainCategory, ProductColor, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, Option,
+    Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
     ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ThemeSerializer, 
+    ThemeSerializer, ProductQuestionAnswerSerializer,
 )
-from .permissions import ProductPermission
+from .permissions import ProductPermission, ProductQuestionAnswerPermission
 
 
 def sort_keywords_by_levenshtein_distance(keywords, search_word):
@@ -186,8 +186,8 @@ class ProductViewSet(GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
-    __default_sorting = '-created'
-    __default_fields = ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+    __default_sorting = '-created_at'
+    __default_fields = ('id', 'created_at', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
     __read_action = ('retrieve', 'list')
     __require_write_serializer_action = ('create', 'partial_update')
 
@@ -232,8 +232,8 @@ class ProductViewSet(GenericViewSet):
 
         filter_set = {}
         filter_mapping = {
-            'min_price': 'price__gte',
-            'max_price': 'price__lte',
+            'min_price': 'sale_price__gte',
+            'max_price': 'sale_price__lte',
             'color': 'colors__color_id',
         }
 
@@ -248,8 +248,8 @@ class ProductViewSet(GenericViewSet):
 
     def sort_queryset(self, queryset):
         sort_mapping = {
-            'price_asc': 'price',
-            'price_desc': '-price',
+            'price_asc': 'sale_price',
+            'price_desc': '-sale_price',
         }
         sort_set = [self.__default_sorting]
         sort_key = self.request.query_params.get('sort', None)
@@ -263,7 +263,7 @@ class ProductViewSet(GenericViewSet):
         shopper = self.request.user.shopper
         like_products_id_list = list(shopper.like_products.all().values_list('id', flat=True))
 
-        return like_products_id_list        
+        return like_products_id_list
 
     def __get_response_for_list(self, queryset, **extra_data):
         page = self.paginate_queryset(queryset)
@@ -314,7 +314,7 @@ class ProductViewSet(GenericViewSet):
             return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
         queryset = self.__initial_filtering(queryset, **request.query_params.dict())
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         queryset = self.sort_queryset(
             self.filter_queryset(queryset)
@@ -325,10 +325,7 @@ class ProductViewSet(GenericViewSet):
     @transaction.atomic
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'wholesaler': request.user.wholesaler})
-
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         product = serializer.save()
 
         return get_response(status=HTTP_201_CREATED, data={'id': product.id})
@@ -356,10 +353,9 @@ class ProductViewSet(GenericViewSet):
     def partial_update(self, request, id=None):
         product = self.get_object(self.get_queryset())
         serializer = ProductWriteSerializer(product, data=request.data, partial=True)
-        
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-        
+
+        serializer.is_valid(raise_exception=True)
+
         serializer.save()
 
         return get_response(data={'id': product.id})
@@ -367,10 +363,56 @@ class ProductViewSet(GenericViewSet):
     @transaction.atomic
     def destroy(self, request, id=None):
         product = self.get_object(self.get_queryset())
-        product.colors.all().update(on_sale=False)
-        ProductColor.objects.filter(product=product).update(on_sale=False)
-        Option.objects.filter(product_color__product=product).update(on_sale=False)
-        product.on_sale = False
-        product.save(update_fields=('on_sale',))
+        product.delete()
 
         return get_response(data={'id': product.id})
+
+
+class ProductQuestionAnswerViewSet(GenericViewSet):
+    permission_classes = [ProductQuestionAnswerPermission]
+    lookup_field = 'id'
+    lookup_url_kwarg = 'question_answer_id'
+    lookup_value_regex = r'[0-9]+'
+    queryset = ProductQuestionAnswer.objects.all()
+    serializer_class = ProductQuestionAnswerSerializer
+
+    def __get_product(self, product_id):
+        return get_object_or_404(Product, id=product_id)
+    
+    def __get_queryset(self, product_id):
+        return self.get_queryset().filter(product_id=product_id)
+
+    def __filter_queryset(self, queryset):
+        if 'open_qa' in self.request.query_params:
+            return queryset.filter(is_secret=False)
+
+        return queryset
+
+    def list(self, request, product_id):
+        queryset = self.__filter_queryset(
+            self.__get_queryset(product_id)
+        ).select_related('shopper', 'classification')
+        serializer = self.get_serializer(queryset, many=True)
+
+        return get_response(data=serializer.data)
+
+    def create(self, request, product_id):
+        product = self.__get_product(product_id)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        question_answer = serializer.save(product=product, shopper=request.user.shopper)
+
+        return get_response(status=HTTP_201_CREATED, data={'id': question_answer.id})
+
+    def partial_update(self, request, product_id, question_answer_id):
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        question_answer = serializer.save()
+
+        return get_response(data={'id': question_answer.id})
+
+    def destroy(self, request, product_id, question_answer_id):
+        question_answer = self.get_object()
+        question_answer.delete()
+
+        return get_response(data={'id': int(question_answer_id)})

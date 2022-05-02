@@ -1,23 +1,23 @@
 from django.db import connection
 from rest_framework.serializers import (
-    Serializer, ListSerializer, IntegerField, CharField, ImageField, DateTimeField,
+    Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
 from rest_framework.exceptions import ValidationError
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX
-from common.validators import validate_all_required_fields_included
+from common.validators import validate_all_required_fields_included, validate_url
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     DynamicFieldsSerializer,
 )
-from .validators import validate_url
 from .models import (
     LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme, ProductQuestionAnswer,
 )
+
 
 PRODUCT_IMAGE_MAX_LENGTH = 10
 PRODUCT_COLOR_MAX_LENGTH = 10
@@ -386,7 +386,7 @@ class ProductReadSerializer(ProductSerializer):
     see_through = SeeThroughSerializer(read_only=True)
     flexibility = FlexibilitySerializer(read_only=True)
     theme = ThemeSerializer(read_only=True)
-    created = DateTimeField(read_only=True)
+    created_at = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
     total_like = IntegerField(read_only=True)
@@ -691,3 +691,30 @@ class ProductWriteSerializer(ProductSerializer):
                 update_data.append(data)
 
         return (create_data, update_data, delete_data)
+
+
+class ProductQuestionAnswerClassificationSerializer(Serializer):
+    id = IntegerField(read_only=True)
+    name = CharField(read_only=True)
+
+
+class ProductQuestionAnswerSerializer(ModelSerializer):
+    class Meta:
+        model = ProductQuestionAnswer
+        exclude = ['product', 'shopper']
+        extra_kwargs = {
+            'created_at': {'format': '%Y-%m-%d'},
+            'answer': {'read_only': True},
+            'answer_completed': {'read_only': True},
+            'classification': {'write_only': True}
+        }
+
+    def __get_username(self, username):
+        return username[:3] + '***'
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['classification'] = ProductQuestionAnswerClassificationSerializer(instance.classification).data
+        ret['username'] = self.__get_username(instance.shopper.username)
+
+        return ret

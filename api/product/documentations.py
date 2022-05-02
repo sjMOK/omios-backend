@@ -123,7 +123,7 @@ class ProductCreateRequest(ProductWriteSerializer):
 class ProductListResponse(Serializer):
     class ResultsResponse(Serializer):
         id = IntegerField()
-        created = DateTimeField()
+        created_at = DateTimeField()
         name = CharField()
         price = IntegerField
         sale_price = IntegerField()

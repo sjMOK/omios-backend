@@ -1,0 +1,81 @@
+[{
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_1.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_2.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_3.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_4.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_5.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_6.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_7.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_8.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_9.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_10.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_11.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_12.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_13.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_14.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_15.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_16.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_17.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_18.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_19.jpg",
+    "fields": {}
+}, {
+    "model": "common.TemporaryImage",
+    "pk": "product/sample/product_20.jpg",
+    "fields": {}
+}]

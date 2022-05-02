@@ -8,21 +8,24 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
-from common.utils import levenshtein
+from common.utils import levenshtein, BASE_IMAGE_URL
+from common.models import TemporaryImage
 from user.test.factory import WholesalerFactory
 from user.models import Wholesaler
 from .factory import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, ProductImageFactory, 
-    ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
+    ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
+    ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, ProductColor, Theme, Tag, Option,
+    Product, ProductColor, Theme, Tag, Option, ProductQuestionAnswer,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
     SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer,
+    ProductQuestionAnswerSerializer,
 )
 
 
@@ -200,8 +203,7 @@ class GetAllCategoriesTestCase(ViewTestCase):
     _url = '/products/categories'
 
     def test_get(self):
-        MainCategoryFactory.create_batch(size=3)
-        main_categories = MainCategory.objects.all()
+        main_categories = MainCategoryFactory.create_batch(size=3)
         self._get()
 
         self._assert_success()
@@ -212,8 +214,7 @@ class GetMainCategoriesTestCase(ViewTestCase):
     _url = '/products/main-categories'
 
     def test_get(self):
-        MainCategoryFactory.create_batch(size=3)
-        main_categories = MainCategory.objects.all()
+        main_categories = MainCategoryFactory.create_batch(size=3)
         self._get()
 
         self._assert_success()
@@ -223,13 +224,14 @@ class GetMainCategoriesTestCase(ViewTestCase):
         )
 
 
+
 class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
     _url = '/products/main-categories'
 
     @classmethod
     def setUpTestData(cls):
         cls.main_category = MainCategoryFactory()
-        SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
+        cls.sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
 
     def test_get(self):
         self._url += '/{0}/sub-categories'.format(self.main_category.id)
@@ -238,7 +240,7 @@ class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
         self._assert_success()
         self.assertListEqual(
             self._response_data, 
-            SubCategorySerializer(self.main_category.sub_categories.all(), many=True).data
+            SubCategorySerializer(self.sub_categories, many=True).data
         )
 
     def test_get_raise_404(self):
@@ -253,12 +255,12 @@ class GetColorsTestCase(ViewTestCase):
     _url = '/products/colors'
 
     def test_get(self):
-        ColorFactory.create_batch(size=3)
+        colors = ColorFactory.create_batch(size=3)
         self._get()
 
         self.assertListEqual(
             self._response_data, 
-            ColorSerializer(Color.objects.all(), many=True).data
+            ColorSerializer(colors, many=True).data
         )
 
 
@@ -337,7 +339,8 @@ class ProductViewSetTestCase(ViewTestCase):
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
-    maxDiff = None
+    fixtures = ['membership']
+    __default_sorting = '-created_at'
 
     @classmethod
     def setUpTestData(cls):
@@ -348,11 +351,13 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self._set_authentication()
 
     def __get_list_allow_fields(self):
-        return ('id', 'created', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+        return ('id', 'created_at', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
 
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
-        queryset = Product.objects.prefetch_related(prefetch_images).filter(on_sale=True).order_by('-created')
+        queryset = Product.objects.prefetch_related(
+            prefetch_images
+        ).filter(on_sale=True).order_by('-created_at').alias(Count('id'))
 
         return queryset
 
@@ -384,13 +389,13 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         condition = Q(tags__id__in=tag_id_list) | Q(name__contains=search_word)
 
         queryset = self.__get_queryset().filter(condition)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         self.__test_list_response(queryset, max_price, query_params={'search_word': search_word})
 
     def test_list(self):
         queryset = self.__get_queryset()
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
         self.__test_list_response(self.__get_queryset(), max_price)
 
@@ -401,7 +406,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         self._user.shopper.like_products.add(self._get_product())
         queryset = self.__get_queryset().filter(like_shoppers=self._user.shopper)
-        max_price = queryset.aggregate(max_price=Max('price'))['max_price']
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
         
         shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
         self.__test_list_response(
@@ -413,8 +418,8 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         filter_mapping = {
             'main_category': 'sub_category__main_category_id',
             'sub_category': 'sub_category_id',
-            'min_price': 'price__gte',
-            'max_price': 'price__lte',
+            'min_price': 'sale_price__gte',
+            'max_price': 'sale_price__lte',
             'color': 'colors__color_id',
         }
 
@@ -427,7 +432,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
             aggregate_qs = aggregate_qs.filter(
                                 **{filter_mapping['sub_category']: query_params['sub_category']}
                             )
-        max_price = aggregate_qs.aggregate(max_price=Max('price'))['max_price']
+        max_price = aggregate_qs.aggregate(max_price=Max('sale_price'))['max_price']
 
         for key, value in query_params.items():
             if isinstance(value, list):
@@ -452,12 +457,12 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_filtering({'sub_category': sub_category_id})
 
     def test_filter_minprice(self):
-        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+        price_avg = Product.objects.all().aggregate(avg=Avg('sale_price'))['avg']
 
         self.__test_filtering({'min_price': int(price_avg)})
 
     def test_filter_maxprice(self):
-        price_avg = Product.objects.all().aggregate(avg=Avg('price'))['avg']
+        price_avg = Product.objects.all().aggregate(avg=Avg('sale_price'))['avg']
 
         self.__test_filtering({'max_price': int(price_avg)})
 
@@ -474,8 +479,8 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def test_filter_multiple_key(self):
         aggregation = Product.objects.all().aggregate(
-                                max_price=Max('price'), min_price=Min('price'), 
-                                avg_price=Avg('price')
+                                max_price=Max('sale_price'), min_price=Min('sale_price'), 
+                                avg_price=Avg('sale_price')
                             )
 
         product = Product.objects.all().last()
@@ -502,11 +507,11 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def __test_sorting(self, sort_key):
         sort_mapping = {
-            'price_asc': 'price',
-            'price_desc': '-price',
+            'price_asc': 'sale_price',
+            'price_desc': '-sale_price',
         }
-
-        products = self.__get_queryset().order_by(sort_mapping[sort_key])
+        sort_fields = [sort_mapping[sort_key], self.__default_sorting]
+        products = self.__get_queryset().order_by(*sort_fields)
         allow_fields = self.__get_list_allow_fields()
         serializer = ProductReadSerializer(products, many=True, allow_fields=allow_fields, context={'detail': False})
 
@@ -535,6 +540,7 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
+    fixtures = ['temporary_image']
     @classmethod
     def setUpTestData(cls):
         cls._set_wholesaler()
@@ -554,14 +560,14 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def __get_queryset(self):
         prefetch_images = Prefetch('images', to_attr='related_images')
-        queryset = Product.objects.prefetch_related(prefetch_images).filter(wholesaler=self._user).order_by('-created')
+        queryset = Product.objects.prefetch_related(prefetch_images).filter(wholesaler=self._user).order_by('-created_at')
 
         return queryset
 
     def test_list(self):
         queryset = self.__get_queryset()
 
-        allow_fields = ('id', 'name', 'created', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
+        allow_fields = ('id', 'name', 'created_at', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
         serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context={'detail': False})
         self._get()
 
@@ -582,13 +588,12 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def test_create(self):
         tag_id_list = [tag.id for tag in TagFactory.create_batch(size=3)]
-        tag_id_list.sort()
         laundry_information_id_list = [
             laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
         ]
-        laundry_information_id_list.sort()
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
-
+        image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
+        
         self._test_data = {
             'name': 'name',
             'price': 50000,
@@ -615,15 +620,15 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'theme': Theme.objects.last().id,
             'images': [
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_11.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 1
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_12.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 2
                 },
                 {
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_13.jpg',
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                     'sequence': 3
                 }
             ],
@@ -635,7 +640,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_21.jpg'
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 },
                 {
                     'color': color_id_list[1],
@@ -644,7 +649,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/product/sample/product_22.jpg'
+                    'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 }
             ]
         }
@@ -671,9 +676,58 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         product = Product.objects.filter(wholesaler=self._user).last()
         self._url += '/{0}'.format(product.id)
         self._delete()
+        deleted_product = Product.objects.get(id=self._response_data['id'])
 
         self._assert_success_with_id_response()
-        deleted_product = Product.objects.get(id=self._response_data['id'])
         self.assertTrue(not deleted_product.on_sale)
-        self.assertTrue(not ProductColor.objects.filter(product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not deleted_product.colors.filter(on_sale=True).exists())
         self.assertTrue(not Option.objects.filter(product_color__product=deleted_product, on_sale=True).exists())
+        self.assertTrue(not deleted_product.question_answers.all().exists())
+
+
+class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
+    maxDiff = None
+    fixtures = ['membership']
+    _url = '/products/{0}/question-answers'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.product = ProductFactory()
+        cls._url = cls._url.format(cls.product.id)
+
+        cls._test_data = {
+            'question': 'question',
+            'is_secret': True,
+            'classification': ProductQuestionAnswerClassificationFactory().id,
+        }
+
+    def setUp(self):
+        self._set_shopper()
+        self._set_authentication()
+        self.question_answer = ProductQuestionAnswerFactory(shopper=self._user, product=self.product)
+
+    def test_get(self):
+        ProductQuestionAnswerFactory.create_batch(size=5, product=self.product)
+        serializer = ProductQuestionAnswerSerializer(ProductQuestionAnswer.objects.all(), many=True)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, serializer.data)
+
+    def test_create(self):
+        self._post()
+
+        self._assert_success_with_id_response()
+
+    def test_partial_update(self):
+        self._url += '/{}'.format(self.question_answer.id)
+        self._patch()
+
+        self._assert_success_with_id_response()
+
+    def test_destroy(self):
+        self._url += '/{}'.format(self.question_answer.id)
+        self._delete()
+
+        self._assert_success_with_id_response()
+        self.assertTrue(not ProductQuestionAnswer.objects.filter(id=self._response_data['id']).exists())

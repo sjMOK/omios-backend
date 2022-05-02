@@ -1,3 +1,8 @@
-from django.db import models
+from django.db.models import Model, CharField
 
-# Create your models here.
+
+class TemporaryImage(Model):
+    image_url = CharField(primary_key=True, max_length=200)
+
+    class Meta:
+        db_table = 'temporary_image'
