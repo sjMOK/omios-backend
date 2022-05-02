@@ -340,6 +340,7 @@ class ProductViewSetTestCase(ViewTestCase):
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     fixtures = ['membership']
+    __default_sorting = '-created_at'
 
     @classmethod
     def setUpTestData(cls):
@@ -417,8 +418,8 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         filter_mapping = {
             'main_category': 'sub_category__main_category_id',
             'sub_category': 'sub_category_id',
-            'min_price': 'price__gte',
-            'max_price': 'price__lte',
+            'min_price': 'sale_price__gte',
+            'max_price': 'sale_price__lte',
             'color': 'colors__color_id',
         }
 
@@ -506,11 +507,11 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
     def __test_sorting(self, sort_key):
         sort_mapping = {
-            'price_asc': 'price',
-            'price_desc': '-price',
+            'price_asc': 'sale_price',
+            'price_desc': '-sale_price',
         }
-
-        products = self.__get_queryset().order_by(sort_mapping[sort_key])
+        sort_fields = [sort_mapping[sort_key], self.__default_sorting]
+        products = self.__get_queryset().order_by(*sort_fields)
         allow_fields = self.__get_list_allow_fields()
         serializer = ProductReadSerializer(products, many=True, allow_fields=allow_fields, context={'detail': False})
 
@@ -587,11 +588,9 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
     def test_create(self):
         tag_id_list = [tag.id for tag in TagFactory.create_batch(size=3)]
-        tag_id_list.sort()
         laundry_information_id_list = [
             laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
         ]
-        laundry_information_id_list.sort()
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
         image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
         

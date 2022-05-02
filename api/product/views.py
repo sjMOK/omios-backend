@@ -232,8 +232,8 @@ class ProductViewSet(GenericViewSet):
 
         filter_set = {}
         filter_mapping = {
-            'min_price': 'price__gte',
-            'max_price': 'price__lte',
+            'min_price': 'sale_price__gte',
+            'max_price': 'sale_price__lte',
             'color': 'colors__color_id',
         }
 
@@ -248,8 +248,8 @@ class ProductViewSet(GenericViewSet):
 
     def sort_queryset(self, queryset):
         sort_mapping = {
-            'price_asc': 'price',
-            'price_desc': '-price',
+            'price_asc': 'sale_price',
+            'price_desc': '-sale_price',
         }
         sort_set = [self.__default_sorting]
         sort_key = self.request.query_params.get('sort', None)
