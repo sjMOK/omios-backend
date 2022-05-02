@@ -364,7 +364,6 @@ class PointHistoryTestCase(ModelTestCase):
             'shopper': self._test_data['shopper'].user_id,
             'order': None,
             'product_name': None,
-            'created_at' : timezone.now(),
         })
 
     def test_create_including_order(self):

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from django.http import QueryDict
 from django.http import JsonResponse
@@ -106,6 +106,11 @@ class GmtToKstTestCase(FunctionTestCase):
 
 class DateTimeToIsoTestCase(FunctionTestCase):
     _function = datetime_to_iso
+
+    def test_date(self):
+        test_data = date.today()
+
+        self.assertEqual(self._call_function(date.today()), test_data.isoformat())
 
     def test_datetime(self):
         test_data = datetime.now()
