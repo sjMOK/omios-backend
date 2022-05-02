@@ -213,12 +213,12 @@ class ShopperShippingAddress(Model):
 
 class PointHistory(Model):
     id = BigAutoField(primary_key=True)
-    shopper = ForeignKey('Shopper', DO_NOTHING)
+    shopper = ForeignKey('Shopper', DO_NOTHING, related_name='point_histories')
     order = ForeignKey('order.Order', DO_NOTHING, null=True)
     product_name = CharField(max_length=100, null=True)
     point = IntegerField()
     content = CharField(max_length=200)
-    created_at = DateField(default=timezone.now)
+    created_at = DateField(auto_now_add=True)
 
     class Meta:
         db_table = 'point_history'
