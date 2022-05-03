@@ -5,9 +5,10 @@ from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import APIException
 
 from ..serializers import (
-    has_duplicate_element, is_create_data, is_update_data, is_delete_data,
-    get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value, 
-    get_sum_of_single_value, add_data_in_each_element, SerializerMixin,
+    SerializerMixin,
+    has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_create_attrs,
+    get_update_attrs, get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, 
+    get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element,
 )
 from .test_cases import FunctionTestCase
 
@@ -81,6 +82,15 @@ class GetAttrsTestCase(APISimpleTestCase):
         ]
         self.attrs = self.create_attrs + self.update_attrs + self.delete_attrs
     
+    def test_get_create_attrs(self):
+        self.assertListEqual(get_create_attrs(self.attrs), self.create_attrs)
+
+    def test_get_update_attrs(self):
+        self.assertListEqual(get_update_attrs(self.attrs), self.update_attrs)
+
+    def test_get_delete_attrs(self):
+        self.assertListEqual(get_delete_attrs(self.attrs), self.delete_attrs)
+
     def test_get_create_or_update_attrs(self):
         create_or_update_attrs = self.create_attrs + self.update_attrs
 

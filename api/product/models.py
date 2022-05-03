@@ -72,6 +72,7 @@ class Product(Model):
         self.on_sale = False
         self.save(update_fields=('on_sale',))
 
+
 class Age(Model):
     id = AutoField(primary_key=True)
     name = CharField(max_length=10)
@@ -286,6 +287,7 @@ class ProductQuestionAnswerClassification(Model):
 
     class Meta:
         db_table = 'product_question_answer_classification'
+        ordering = ['id']
 
     def __str__(self):
         return self.name

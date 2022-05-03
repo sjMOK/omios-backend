@@ -14,13 +14,13 @@ from common.views import upload_image_view
 from user.models import ProductLike
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer,
+    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer, ProductQuestionAnswerClassification,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
     ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ThemeSerializer, ProductQuestionAnswerSerializer,
+    ThemeSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
 
@@ -180,6 +180,13 @@ def get_registry_data(request):
         return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter sub_category must be id format.')
 
     return get_response(data=get_dynamic_registry_data(sub_category_id))
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_product_question_answer_classification(request):
+    queryset = ProductQuestionAnswerClassification.objects.all()
+    return get_response(data=ProductQuestionAnswerClassificationSerializer(queryset, many=True).data)
 
 
 class ProductViewSet(GenericViewSet):
@@ -369,6 +376,7 @@ class ProductViewSet(GenericViewSet):
 
 
 class ProductQuestionAnswerViewSet(GenericViewSet):
+    pagination_class = None
     permission_classes = [ProductQuestionAnswerPermission]
     lookup_field = 'id'
     lookup_url_kwarg = 'question_answer_id'
@@ -376,9 +384,9 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
     queryset = ProductQuestionAnswer.objects.all()
     serializer_class = ProductQuestionAnswerSerializer
 
-    def __get_product(self, product_id):
-        return get_object_or_404(Product, id=product_id)
-    
+    def get_queryset(self):
+        return ProductQuestionAnswer.objects.select_related('shopper', 'classification')
+
     def __get_queryset(self, product_id):
         return self.get_queryset().filter(product_id=product_id)
 
@@ -395,15 +403,17 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
         serializer = self.get_serializer(queryset, many=True)
 
         return get_response(data=serializer.data)
-
+    
+    @transaction.atomic
     def create(self, request, product_id):
-        product = self.__get_product(product_id)
+        product = get_object_or_404(Product, id=product_id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question_answer = serializer.save(product=product, shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'id': question_answer.id})
 
+    @transaction.atomic
     def partial_update(self, request, product_id, question_answer_id):
         serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -411,6 +421,7 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
 
         return get_response(data={'id': question_answer.id})
 
+    @transaction.atomic
     def destroy(self, request, product_id, question_answer_id):
         question_answer = self.get_object()
         question_answer.delete()

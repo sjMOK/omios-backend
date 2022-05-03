@@ -4,18 +4,20 @@ from rest_framework.serializers import (
     Serializer, CharField, ListField, BooleanField, IntegerField, URLField, ChoiceField, DateTimeField,
 )
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg.openapi import Parameter, IN_QUERY, TYPE_STRING
 
 from common.documentations import Image, get_response
 from .serializers import (
     SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer,
     SeeThroughSerializer, FlexibilitySerializer, AgeSerializer, ThemeSerializer, ColorSerializer, StyleSerializer,
     MaterialSerializer, TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
-    ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer,
+    ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer, ProductQuestionAnswerSerializer,
+    ProductQuestionAnswerClassificationSerializer,
 )
 from .views import (
-    ProductViewSet,
+    ProductViewSet, ProductQuestionAnswerViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_related_search_words, get_registry_data,
+    upload_product_image, get_related_search_words, get_registry_data, get_product_question_answer_classification,
 )
 
 
@@ -24,6 +26,10 @@ sub_category 쿼리스트링을 넘기지 않을 경우 공통 데이터("color"
 sub_category 쿼리스트링을 넘길 경우 동적 데이터("size", "thickness", "see_through", "flexibility", "lining", "laundry_information")를 반환
 동적 데이터는 sub_category에 따라 각 데이터(배열)의 길이가 달라지며 빈 배열일 수 있음
 '''
+
+
+class RegistryDynamicQuerySerializer(Serializer):
+    sub_category = IntegerField()
 
 
 class SearchQuerySerializer(Serializer):
@@ -44,8 +50,27 @@ class ProductListQuerySerializer(Serializer):
     )
 
 
-class RegistryDynamicQuerySerializer(Serializer):
-    sub_category = IntegerField()
+class ProductCreateRequest(ProductWriteSerializer):
+    class ProductMaterialCreateRequest(ProductMaterialSerializer):
+        id = None  
+
+
+    class ProductImageCreateRequest(ProductImageSerializer):
+        id = None
+
+
+    class OptionCreateRequest(OptionSerializer):
+        id = None
+
+
+    class ProductColorCreateRequest(ProductColorSerializer):
+        id = None
+
+
+    options = OptionCreateRequest()
+    images = ProductImageCreateRequest()
+    materials = ProductMaterialCreateRequest()
+    colors = ProductColorCreateRequest()
 
 
 class MainCategoryResponse(MainCategorySerializer):
@@ -97,29 +122,6 @@ class RegistryDataResponse(Serializer):
     laundry_information = LaundryInformationSerializer(many=True, required=False, allow_empty=True)
 
 
-class ProductCreateRequest(ProductWriteSerializer):
-    class ProductMaterialCreateRequest(ProductMaterialSerializer):
-        id = None  
-
-
-    class ProductImageCreateRequest(ProductImageSerializer):
-        id = None
-
-
-    class OptionCreateRequest(OptionSerializer):
-        id = None
-
-
-    class ProductColorCreateRequest(ProductColorSerializer):
-        id = None
-
-
-    options = OptionCreateRequest()
-    images = ProductImageCreateRequest()
-    materials = ProductMaterialCreateRequest()
-    colors = ProductColorCreateRequest()
-
-
 class ProductListResponse(Serializer):
     class ResultsResponse(Serializer):
         id = IntegerField()
@@ -142,6 +144,10 @@ class ProductListResponse(Serializer):
 class ProductDetailResponse(ProductReadSerializer):
     main_category = MainCategoryResponse()
     shopper_like = BooleanField()
+
+
+class ProductQuestionAnswerResponse(ProductQuestionAnswerSerializer):
+    classification = CharField()
 
 
 class DecoratedProductViewSet(ProductViewSet):
@@ -177,27 +183,53 @@ class DecoratedProductViewSet(ProductViewSet):
     '''
 
     @swagger_auto_schema(query_serializer=ProductListQuerySerializer, **get_response(ProductListResponse()), operation_description=list_description + shopper_token_discription)
-    def list(self, request):
-        return super().list(request)
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(ProductDetailResponse()), operation_description='상품 Id로 상품 정보 조회\n'+ shopper_token_discription)
-    def retrieve(self, request, id=None):
-        return super().retrieve(request, id)
+    def retrieve(self, *args, **kwargs):
+        return super().retrieve(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=ProductCreateRequest, **get_response(code=201), operation_description='상품 등록')
+    @swagger_auto_schema(request_body=ProductCreateRequest(), **get_response(code=201), operation_description='상품 등록')
     @transaction.atomic
-    def create(self, request):
-        return super().create(request)
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ProductWriteSerializer(), **get_response(), operation_description=partial_update_description)
     @transaction.atomic
-    def partial_update(self, request, id=None):
-        return super().partial_update(request, id)
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='상품 Id로 상품 삭제')
     @transaction.atomic
-    def destroy(self, request, id=None):
-        return super().destroy(request, id)
+    def destroy(self, *args, **kwargs):
+        return super().destroy(*args, **kwargs)
+
+
+class DecoratedProductQuestionAnswerViewSet(ProductQuestionAnswerViewSet):
+    list_description = '''
+    Q&A 리스트 조회
+    비밀 글 제외 시 "open_qa" 키를 query parameter로 넘김(value 없이 key만)
+    '''
+
+    @swagger_auto_schema(manual_parameters=[Parameter('open_qa', IN_QUERY, type=TYPE_STRING, description='비밀 글 제외')], security=[], **get_response(ProductQuestionAnswerResponse(many=True)), operation_description=list_description)
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ProductQuestionAnswerSerializer(), **get_response(code=201), operation_description='Q&A 등록')
+    @transaction.atomic
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ProductQuestionAnswerSerializer(), **get_response(), operation_description='Q&A 수정')
+    @transaction.atomic
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
+
+    @swagger_auto_schema(**get_response(), operation_description='Q&A 삭제')
+    @transaction.atomic
+    def destroy(self, *args, **kwargs):
+        return super().destroy(*args, **kwargs)
 
 
 decorated_get_all_categories_view = swagger_auto_schema(
@@ -231,3 +263,7 @@ decorated_get_related_search_words_view = swagger_auto_schema(
 decorated_get_registry_data_view = swagger_auto_schema(
     method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
 )(get_registry_data)
+
+decorated_get_product_question_answer_classification = swagger_auto_schema(
+    method='GET', **get_response(ProductQuestionAnswerClassificationSerializer(many=True)), security=[], operation_description='상품 Q&A 분류 리스트 조회'
+)(get_product_question_answer_classification)

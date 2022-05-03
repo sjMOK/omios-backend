@@ -1,4 +1,3 @@
-from django.db import connection
 from rest_framework.serializers import (
     Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
@@ -232,7 +231,11 @@ class OptionInOrderItemSerializer(Serializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+
+        if instance.product_color.product.images.all().exists():
+            ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+        else:
+            ret['product_image_url'] = DEFAULT_IMAGE_URL
 
         return ret
 
@@ -706,7 +709,7 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
             'created_at': {'format': '%Y-%m-%d'},
             'answer': {'read_only': True},
             'answer_completed': {'read_only': True},
-            'classification': {'write_only': True}
+            'classification': {'write_only': True},
         }
 
     def __get_username(self, username):
@@ -714,7 +717,7 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['classification'] = ProductQuestionAnswerClassificationSerializer(instance.classification).data
+        ret['classification'] = instance.classification.name
         ret['username'] = self.__get_username(instance.shopper.username)
 
         return ret
