@@ -134,7 +134,7 @@ class ProductImageSerializer(Serializer):
         return attrs
 
     def validate_image_url(self, value):
-        return validate_url(value)
+        return validate_image_url(value)
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -292,7 +292,7 @@ class ProductColorSerializer(Serializer):
         return attrs
 
     def validate_image_url(self, value):
-        return validate_url(value)
+        return validate_image_url(value)
 
     def __validate_partial_update(self, attrs):
         if is_create_data(attrs):
