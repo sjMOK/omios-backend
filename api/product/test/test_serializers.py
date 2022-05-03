@@ -22,7 +22,7 @@ from ..serializers import (
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
-from ..models import Product, ProductColor, Color, Option, ProductMaterial
+from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):
@@ -207,68 +207,63 @@ class ProductImageSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.image_url = TemporaryImage.objects.first().image_url
-        cls.product_image = ProductImageFactory()
-        cls.data = {
-            'image_url': BASE_IMAGE_URL + cls.image_url,
+        cls.__image_url = TemporaryImage.objects.first().image_url
+        cls.__product_image = ProductImageFactory()
+        cls.__data = {
+            'image_url': BASE_IMAGE_URL + cls.__image_url,
             'sequence': 1
         }
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.product_image.id,
-            'image_url': BASE_IMAGE_URL + self.product_image.image_url,
-            'sequence': self.product_image.sequence,
+            'id': self.__product_image.id,
+            'image_url': BASE_IMAGE_URL + self.__product_image.image_url,
+            'sequence': self.__product_image.sequence,
         }
 
-        self._test_model_instance_serialization(self.product_image, expected_data)
+        self._test_model_instance_serialization(self.__product_image, expected_data)
 
     def test_deserialization(self):
         expected_validated_data = {
-            'image_url': self.image_url,
-            'sequence': self.data['sequence']
+            'image_url': self.__image_url,
+            'sequence': self.__data['sequence']
         }
 
-        self._test_validated_data(self.data, expected_validated_data)
+        self._test_validated_data(self.__data, expected_validated_data)
 
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
-        key = random.choice(list(self.data.keys()))
-        self.data.pop(key)
+        key = random.choice(list(self.__data.keys()))
+        self.__data.pop(key)
 
         expected_message = '{0} field is required.'.format(key)
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_image, data=self.data, partial=True
+            expected_message, instance=self.__product_image, data=self.__data, partial=True
         )
 
     def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
-        key = random.choice(list(self.data.keys()))
-        self.data.pop(key)
-        self.data['id'] = self.product_image.id
+        key = random.choice(list(self.__data.keys()))
+        self.__data.pop(key)
+        self.__data['id'] = self.__product_image.id
 
         expected_message = '{0} field is required.'.format(key)
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_image, data=self.data, partial=True
+            expected_message, instance=self.__product_image, data=self.__data, partial=True
         )
 
 
 class ProductImageListSerializerTestCase(ListSerializerTestCase):
     fixtures = ['temporary_image']
     _child_serializer_class = ProductImageSerializer
-    batch_size = 3
+    __batch_size = 3
 
     @classmethod
     def setUpTestData(cls):
         temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
-        cls.product = ProductFactory()
-        cls.product_images = [
-            ProductImageFactory(product=cls.product, sequence=i+1)
-            for i in range(cls.batch_size)
-        ]
-        cls.data = [
+        cls.__data = [
             {
                 'image_url': BASE_IMAGE_URL + temporary_images[i],
                 'sequence': i+1
-            } for i in range(cls.batch_size)
+            } for i in range(cls.__batch_size)
         ]
 
     def test_raise_validation_error_data_length_more_than_upper_limit(self):
@@ -283,22 +278,27 @@ class ProductImageListSerializerTestCase(ListSerializerTestCase):
         self._test_serializer_raise_validation_error(expected_message, data=data)
 
     def test_raise_validation_error_sequences_not_startswith_one(self):
-        for d in self.data:
+        for d in self.__data:
             d['sequence'] += 1
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self._test_serializer_raise_validation_error(expected_message, data=self.data)
+        self._test_serializer_raise_validation_error(expected_message, data=self.__data)
 
     def test_raise_validation_error_omitted_sequences(self):
-        self.data[-1]['sequence'] += 1
+        self.__data[-1]['sequence'] += 1
         expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self._test_serializer_raise_validation_error(expected_message, data=self.data)
+        self._test_serializer_raise_validation_error(expected_message, data=self.__data)
 
     def test_raise_validation_error_data_length_is_zero(self):
+        product = ProductFactory()
+        product_images = [
+            ProductImageFactory(product=product, sequence=i+1)
+            for i in range(self.__batch_size)
+        ]
         data = [
             {'id': product_image.id} 
-            for product_image in self.product_images
+            for product_image in product_images
         ]
         expected_message = 'The product must have at least one image.'
 
@@ -310,63 +310,63 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.product_material = ProductMaterialFactory()
-        cls.data = {
+        cls.__product_material = ProductMaterialFactory()
+        cls.__data = {
             'material': '가죽',
             'mixing_rate': 100
         }
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.product_material.id,
-            'material': self.product_material.material,
-            'mixing_rate': self.product_material.mixing_rate,
+            'id': self.__product_material.id,
+            'material': self.__product_material.material,
+            'mixing_rate': self.__product_material.mixing_rate,
         }
 
-        self._test_model_instance_serialization(self.product_material, expected_data)
+        self._test_model_instance_serialization(self.__product_material, expected_data)
 
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
-        key = random.choice(list(self.data.keys()))
-        self.data.pop(key)
+        key = random.choice(list(self.__data.keys()))
+        self.__data.pop(key)
         expected_message = '{0} field is required.'.format(key)
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_material, data=self.data, partial=True
+            expected_message, instance=self.__product_material, data=self.__data, partial=True
         )
         
     def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
-        key = random.choice(list(self.data.keys()))
-        self.data.pop(key)
-        self.data['id'] = self.product_material.id
+        key = random.choice(list(self.__data.keys()))
+        self.__data.pop(key)
+        self.__data['id'] = self.__product_material.id
         expected_message = '{0} field is required.'.format(key)
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_material, data=self.data, partial=True
+            expected_message, instance=self.__product_material, data=self.__data, partial=True
         )
 
 
 class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
     _child_serializer_class = ProductMaterialSerializer
-    materials_num = 2
+    __material_num = 2
 
     @classmethod
     def setUpTestData(cls):
         total_mixing_rates = cls._child_serializer_class.Meta.list_serializer_class.total_mixing_rates
-        mixing_rate = total_mixing_rates / cls.materials_num
+        mixing_rate = total_mixing_rates / cls.__material_num
 
-        cls.product = ProductFactory()
-        cls.product_materials = ProductMaterialFactory.create_batch(
-            cls.materials_num, product=cls.product, mixing_rate=mixing_rate
+        cls.__product = ProductFactory()
+        ProductMaterialFactory.create_batch(
+            cls.__material_num, product=cls.__product, mixing_rate=mixing_rate
         )
-        cls.data = [
+        cls.__data = [
             {
                 'material': ProductMaterialFactory.build().material,
                 'mixing_rate': mixing_rate
-            }for i in range(cls.materials_num)
+            }for i in range(cls.__material_num)
         ]
 
     def test_raise_validation_error_total_mixing_rates_does_not_match_criteria(self):
-        data = self.data
+        data = self.__data
         data[0]['mixing_rate'] += 10
         expected_message = 'The total of material mixing rates must be 100.'
 
@@ -375,7 +375,7 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         )
 
     def test_raise_validation_error_duplicated_material_name(self):
-        data = self.data
+        data = self.__data
         data[-1]['material'] = data[0]['material']
         expected_message = 'Material is duplicated.'
 
@@ -390,39 +390,39 @@ class OptionSerializerTestCase(SerializerTestCase):
     @classmethod
     def setUpTestData(cls):
         size = SizeFactory()
-        cls.option = OptionFactory(size = size.name)
-        cls.data = {'size': 'Free'}
+        cls.__option = OptionFactory(size = size.name)
+        cls.__data = {'size': 'Free'}
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.option.id, 
-            'size': self.option.size,
-            'on_sale': self.option.on_sale,
+            'id': self.__option.id, 
+            'size': self.__option.size,
+            'on_sale': self.__option.on_sale,
         }
 
-        self._test_model_instance_serialization(self.option, expected_data)
+        self._test_model_instance_serialization(self.__option, expected_data)
 
     def test_raise_validation_error_update_size_data(self):
-        self.data['id'] = self.option.id
-        self.data['size'] = self.data['size'] + 'update'
+        self.__data['id'] = self.__option.id
+        self.__data['size'] = self.__data['size'] + 'update'
         expected_message = 'Size data cannot be updated.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, data=self.data, partial=True
+            expected_message, data=self.__data, partial=True
         )
 
 
 class OptionListSerializerTestCase(ListSerializerTestCase):
     _child_serializer_class = OptionSerializer
-    options_num = 3
+    __option_num = 3
 
     @classmethod
     def setUpTestData(cls):
-        cls.product_color = ProductColorFactory()
-        cls.options = OptionFactory.create_batch(size=cls.options_num, product_color=cls.product_color)
+        product_color = ProductColorFactory()
+        OptionFactory.create_batch(size=cls.__option_num, product_color=product_color)
         cls.create_data = [
             {'size': SizeFactory().id}
-            for _ in range(cls.options_num)
+            for _ in range(cls.__option_num)
         ]
 
     def test_raise_validation_error_duplicated_size_data_in_create(self):
@@ -447,67 +447,68 @@ class OptionInOrderItemSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls._option = OptionFactory()
-        cls.expected_data = {
-            'id': cls._option.id,
-            'size': cls._option.size,
-            'display_color_name': cls._option.product_color.display_color_name,
-            'product_id': cls._option.product_color.product.id,
-            'product_name': cls._option.product_color.product.name,
-            'product_code': cls._option.product_color.product.code,
+        cls.__option = OptionFactory()
+        cls.__expected_data = {
+            'id': cls.__option.id,
+            'size': cls.__option.size,
+            'display_color_name': cls.__option.product_color.display_color_name,
+            'product_id': cls.__option.product_color.product.id,
+            'product_name': cls.__option.product_color.product.name,
+            'product_code': cls.__option.product_color.product.code,
         }
 
     def test_model_instance_serialization_with_image(self):
-        img = ProductImageFactory(product=self._option.product_color.product)
-        self.expected_data['product_image_url'] = BASE_IMAGE_URL + img.image_url
+        img = ProductImageFactory(product=self.__option.product_color.product)
+        self.__expected_data['product_image_url'] = BASE_IMAGE_URL + img.image_url
 
-        self._test_model_instance_serialization(self._option, self.expected_data)
+        self._test_model_instance_serialization(self.__option, self.__expected_data)
 
     def test_model_instance_serialization_without_image(self):
-        self.expected_data['product_image_url'] = DEFAULT_IMAGE_URL
+        self.__expected_data['product_image_url'] = DEFAULT_IMAGE_URL
 
-        self._test_model_instance_serialization(self._option, self.expected_data)
+        self._test_model_instance_serialization(self.__option, self.__expected_data)
+
+
 
 class ProductColorSerializerTestCase(SerializerTestCase):
     fixtures = ['temporary_image']
     _serializer_class = ProductColorSerializer
-    options_num = 3
 
     @classmethod
     def setUpTestData(cls):
-        cls.product_color = ProductColorFactory()
-        cls.options = OptionFactory.create_batch(
-            size=cls.options_num, product_color=cls.product_color
+        cls.__product_color = ProductColorFactory()
+        cls.__options = OptionFactory.create_batch(
+            size=3, product_color=cls.__product_color
         )
         cls.data = {
             'display_color_name': 'deepblue',
-            'color': cls.product_color.color.id,
+            'color': cls.__product_color.color.id,
             'options': [
                 {'size': option.size}
-                for option in cls.options
+                for option in cls.__options
             ],
             'image_url': BASE_IMAGE_URL + TemporaryImage.objects.first().image_url,
         }
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.product_color.id,
-            'display_color_name': self.product_color.display_color_name,
-            'color': self.product_color.color.id,
-            'options': OptionSerializer(self.options, many=True).data,
-            'image_url': BASE_IMAGE_URL + self.product_color.image_url,
-            'on_sale': self.product_color.on_sale,
+            'id': self.__product_color.id,
+            'display_color_name': self.__product_color.display_color_name,
+            'color': self.__product_color.color.id,
+            'options': OptionSerializer(self.__options, many=True).data,
+            'image_url': BASE_IMAGE_URL + self.__product_color.image_url,
+            'on_sale': self.__product_color.on_sale,
         }
-        self._test_model_instance_serialization(self.product_color, expected_data)
+        self._test_model_instance_serialization(self.__product_color, expected_data)
 
     def test_raise_validation_error_update_color_data(self):
         color = ColorFactory()
-        self.data['id'] = self.product_color.id
+        self.data['id'] = self.__product_color.id
         self.data['color'] = color.id
         expected_message = 'Color data cannot be updated.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_color, data=self.data, partial=True
+            expected_message, instance=self.__product_color, data=self.data, partial=True
         )
 
     def test_raise_validation_error_create_data_not_include_all_required_field_in_partial(self):
@@ -516,47 +517,47 @@ class ProductColorSerializerTestCase(SerializerTestCase):
         expected_message = '{0} field is required.'.format(key)
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_color, data=self.data, partial=True
+            expected_message, instance=self.__product_color, data=self.data, partial=True
         )
 
     def test_raise_validation_error_update_non_unique_size_in_partial(self):
-        self.data['id'] = self.product_color.id
-        new_option_data = {'size': self.options[1].size}
+        self.data['id'] = self.__product_color.id
+        new_option_data = {'size': self.__options[1].size}
         self.data['options'] = [new_option_data]
         expected_message = 'The option with the size already exists.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_color, data=self.data, partial=True
+            expected_message, instance=self.__product_color, data=self.data, partial=True
         )
 
     def test_raise_validation_error_delete_all_options(self):
         data = {
-            'id': self.product_color.id,
+            'id': self.__product_color.id,
             'options': [
                 {'id': option.id}
-                for option in self.options
+                for option in self.__options
             ]
         }
         expected_message = 'The product color must have at least one option.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product_color, data=data, partial=True
+            expected_message, instance=self.__product_color, data=data, partial=True
         )
 
 
 class ProductColorListSerializerTestCase(ListSerializerTestCase):
     fixtures = ['temporary_image']
     _child_serializer_class = ProductColorSerializer
-    batch_size = 3
+    __batch_size = 3
 
     @classmethod
     def setUpTestData(cls):
-        cls.temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
-        cls.product = ProductFactory()
+        cls.__temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
+        cls.__product = ProductFactory()
 
-        for i in range(cls.batch_size):
-            ProductColorFactory(product=cls.product, image_url=cls.temporary_images[i])
-        for product_color in cls.product.colors.all():
+        for i in range(cls.__batch_size):
+            ProductColorFactory(product=cls.__product, image_url=cls.__temporary_images[i])
+        for product_color in cls.__product.colors.all():
             OptionFactory(product_color=product_color)
 
         cls.update_data = [
@@ -571,7 +572,7 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
                     }for option in product_color.options.all()
                 ],
                 'image_url': BASE_IMAGE_URL + product_color.image_url,
-            }for product_color in cls.product.colors.all()
+            }for product_color in cls.__product.colors.all()
         ]
 
         cls.create_data = copy.deepcopy(cls.update_data)
@@ -579,10 +580,10 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
             data.pop('id')
 
     def test_raise_validation_error_input_data_length_more_than_upper_limit(self):
-        for i in range(PRODUCT_COLOR_MAX_LENGTH - self.batch_size + 1):
-            ProductColorFactory(product=self.product, image_url=self.temporary_images[i+self.batch_size])
+        for i in range(PRODUCT_COLOR_MAX_LENGTH - self.__batch_size + 1):
+            ProductColorFactory(product=self.__product, image_url=self.__temporary_images[i+self.__batch_size])
 
-        product_colors = self.product.colors.all()
+        product_colors = self.__product.colors.all()
         for product_color in product_colors:
             OptionFactory(product_color=product_color)
 
@@ -627,33 +628,32 @@ class ProductSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory()
+        cls.__product = ProductFactory()
 
     def test_sort_dictionary_by_field_name(self):
         fields = list(self._get_serializer().get_fields().keys())
         random.shuffle(fields)
 
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.__product.id)
         serializer = self._get_serializer(product, context={'field_order': fields})
 
         self.assertListEqual(list(serializer.data.keys()), fields)
 
 
 class ProductReadSerializerTestCase(SerializerTestCase):
-    maxDiff = None
     _serializer_class = ProductReadSerializer
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory()
-        ProductMaterialFactory(product=cls.product)
-        ProductColorFactory(product=cls.product)
-        ProductImageFactory.create_batch(size=3, product=cls.product)
+        cls.__product = ProductFactory()
+        ProductMaterialFactory(product=cls.__product)
+        ProductColorFactory(product=cls.__product)
+        ProductImageFactory.create_batch(size=3, product=cls.__product)
         laundry_informations = LaundryInformationFactory.create_batch(size=3)
         tags = TagFactory.create_batch(size=3)
-        cls.product.laundry_informations.add(*laundry_informations)
-        cls.product.tags.add(*tags)
+        cls.__product.laundry_informations.add(*laundry_informations)
+        cls.__product.tags.add(*tags)
 
     def __get_expected_data(self, product):
         expected_data = {
@@ -689,25 +689,25 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         return expected_data
 
     def test_model_instance_serialization_detail(self):
-        expected_data = self.__get_expected_data(self.product)
+        expected_data = self.__get_expected_data(self.__product)
         expected_data['shopper_like'] = False
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(
                     prefetch_images
-                ).annotate(total_like=Count('like_shoppers')).get(id=self.product.id)
+                ).annotate(total_like=Count('like_shoppers')).get(id=self.__product.id)
 
         self._test_model_instance_serialization(product, expected_data, context={'detail': True})
 
     def test_model_instance_serialization_list(self):
         expected_data = [
-            self.__get_expected_data(self.product)
+            self.__get_expected_data(self.__product)
         ]
         for data in expected_data:
             data['main_image'] = data['images'][0]['image_url']
         prefetch_images = Prefetch('images', to_attr='related_images')
         product = Product.objects.prefetch_related(
                     prefetch_images
-                ).filter(id__in=[self.product.id]).annotate(total_like=Count('like_shoppers'))
+                ).filter(id__in=[self.__product.id]).annotate(total_like=Count('like_shoppers'))
         serializer = self._get_serializer(product, many=True, context={'detail': False})
         
         for data in serializer.data:
@@ -754,10 +754,10 @@ class ProductReadSerializerTestCase(SerializerTestCase):
 
     def test_model_instance_serialization_like_true(self):
         shopper = ShopperFactory()
-        shopper.like_products.add(self.product)
+        shopper.like_products.add(self.__product)
 
         prefetch_images = Prefetch('images', to_attr='related_images')
-        product = Product.objects.prefetch_related(prefetch_images).get(id=self.product.id)
+        product = Product.objects.prefetch_related(prefetch_images).get(id=self.__product.id)
         serializer = self._get_serializer(
             product, context={'detail': True, 'shopper_like': ProductLike.objects.filter(shopper=shopper, product=product).exists()}
         )
@@ -768,7 +768,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         prefetch_images = Prefetch('images', to_attr='related_images')
         products = Product.objects.prefetch_related(
                     prefetch_images
-                ).filter(id__in=[self.product.id])
+                ).filter(id__in=[self.__product.id])
         shopper = ShopperFactory()
         shopper.like_products.add(*products)
 
@@ -786,7 +786,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         prefetch_images = Prefetch('images', to_attr='related_images')
         products = Product.objects.prefetch_related(
                     prefetch_images
-                ).filter(id__in=[self.product.id])
+                ).filter(id__in=[self.__product.id])
         serializer = self._get_serializer(products, many=True, context={'detail': False})
         expected_data = [False for _ in products]
         
@@ -795,50 +795,48 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             expected_data
         )
 
+
 class ProductWriteSerializerTestCase(SerializerTestCase):
-    batch_size = 2
+    __batch_size = 2
     fixtures = ['temporary_image']
     _serializer_class = ProductWriteSerializer
 
     @classmethod
     def setUpTestData(cls):
-        cls.image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
-        cls.product = ProductFactory()
-        ProductMaterialFactory.create_batch(size=cls.batch_size, product=cls.product, mixing_rate=50)
+        cls.__image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
+        cls.__product = ProductFactory()
+        ProductMaterialFactory.create_batch(size=cls.__batch_size, product=cls.__product, mixing_rate=50)
 
-        cls.product_colors = [
-            ProductColorFactory(product=cls.product, image_url=cls.image_url_list.pop())
-            for _ in range(cls.batch_size)
+        cls.__product_colors = [
+            ProductColorFactory(product=cls.__product, image_url=cls.__image_url_list.pop())
+            for _ in range(cls.__batch_size)
         ]
 
-        for product_color in cls.product_colors:
-            OptionFactory.create_batch(size=cls.batch_size, product_color=product_color)
+        for product_color in cls.__product_colors:
+            OptionFactory.create_batch(size=cls.__batch_size, product_color=product_color)
 
-        for i in range(cls.batch_size):
-            ProductImageFactory(product=cls.product, image_url=cls.image_url_list.pop(), sequence=i+1)
+        for i in range(cls.__batch_size):
+            ProductImageFactory(product=cls.__product, image_url=cls.__image_url_list.pop(), sequence=i+1)
 
-        laundry_informations = LaundryInformationFactory.create_batch(size=cls.batch_size)
-        tags = TagFactory.create_batch(size=cls.batch_size)
-        cls.product.laundry_informations.add(*laundry_informations)
-        cls.product.tags.add(*tags)
+        laundry_informations = LaundryInformationFactory.create_batch(size=cls.__batch_size)
+        tags = TagFactory.create_batch(size=cls.__batch_size)
+        cls.__product.laundry_informations.add(*laundry_informations)
+        cls.__product.tags.add(*tags)
 
     def __get_input_data(self):
-        product = ProductFactory()
-        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=self.batch_size)]
-        tag_id_list.sort()
+        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=self.__batch_size)]
         laundry_information_id_list = [
             laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
         ]
-        laundry_information_id_list.sort()
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
 
         data = {
             'name': 'name',
             'price': 50000,
             'base_discount_rate': 10,
-            'sub_category': product.sub_category_id,
-            'style': product.style_id,
-            'age': product.age_id,
+            'sub_category': self.__product.sub_category_id,
+            'style': self.__product.style_id,
+            'age': self.__product.age_id,
             'tags': tag_id_list,
             'materials': [
                 {
@@ -851,23 +849,23 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 },
             ],
             'laundry_informations': laundry_information_id_list,
-            'thickness': product.thickness_id,
-            'see_through': product.see_through_id,
-            'flexibility': product.flexibility_id,
+            'thickness': self.__product.thickness_id,
+            'see_through': self.__product.see_through_id,
+            'flexibility': self.__product.flexibility_id,
             'lining': True,
-            'manufacturing_country': product.manufacturing_country,
-            'theme': product.theme_id,
+            'manufacturing_country': self.__product.manufacturing_country,
+            'theme': self.__product.theme_id,
             'images': [
                 {
-                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
                     'sequence': 1
                 },
                 {
-                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
                     'sequence': 2
                 },
                 {
-                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
                     'sequence': 3
                 }
             ],
@@ -879,7 +877,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
                 },
                 {
                     'color': color_id_list[1],
@@ -888,7 +886,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': BASE_IMAGE_URL + self.image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
                 }
             ]
         }
@@ -908,12 +906,12 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 'id': image.id,
                 'image_url': BASE_IMAGE_URL + image.image_url,
                 'sequence': image.sequence,
-            } for image in list(self.product.images.all())[:-1]
+            } for image in list(self.__product.images.all())[:-1]
         ]
         expected_message = 'You must contain all exact data that the product has.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product, data={'images': data}, partial=True
+            expected_message, instance=self.__product, data={'images': data}, partial=True
         )
 
     def test_raise_validation_erorr_does_not_pass_all_exact_material_data(self):
@@ -922,18 +920,18 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 'id': material.id,
                 'material': material.material,
                 'mixing_rate': material.mixing_rate,
-            } for material in list(self.product.materials.all())[:-1]
+            } for material in list(self.__product.materials.all())[:-1]
         ]
         data[0]['mixing_rate'] += data[-1]['mixing_rate']
         expected_message = 'You must contain all exact data that the product has.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product, data={'materials': data}, partial=True
+            expected_message, instance=self.__product, data={'materials': data}, partial=True
         )
 
     def test_raise_validation_error_color_length_more_than_limit(self):
         product_colors = [
-            ProductColorFactory(product=self.product, image_url=self.image_url_list.pop())
+            ProductColorFactory(product=self.__product, image_url=self.__image_url_list.pop())
             for _ in range(PRODUCT_COLOR_MAX_LENGTH + 1)
         ]
         for product_color in product_colors:
@@ -952,33 +950,33 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         data += [
             {
                 'id': product_color.id
-            }for product_color in self.product_colors
+            }for product_color in self.__product_colors
         ]
         expected_message = 'The product cannot have more than ten colors.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product, data={'colors': data}, partial=True
+            expected_message, instance=self.__product, data={'colors': data}, partial=True
         )
 
     def test_raise_validation_error_delete_all_colors(self):
-        data = [{'id': product_color.id} for product_color in self.product.colors.all()]
+        data = [{'id': product_color.id} for product_color in self.__product.colors.all()]
         expected_message = 'The product must have at least one color.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product, data={'colors': data}, partial=True
+            expected_message, instance=self.__product, data={'colors': data}, partial=True
         )
 
     def test_raise_validation_error_pass_non_unique_display_color_name(self):
         data = [
             {
-                'id': self.product_colors[0].id,
-                'display_color_name': self.product_colors[1].display_color_name
+                'id': self.__product_colors[0].id,
+                'display_color_name': self.__product_colors[1].display_color_name
             }
         ]
         expected_message = 'The product with the display_color_name already exists.'
         
         self._test_serializer_raise_validation_error(
-            expected_message, instance=self.product, data={'colors': data}, partial=True
+            expected_message, instance=self.__product, data={'colors': data}, partial=True
         )
 
     def test_make_price_data(self):
@@ -1004,6 +1002,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
         product = serializer.save()
 
+        self.assertTrue(Product.objects.filter(id=product.id).exists())
         self.assertEqual(product.name, data['name'])
         self.assertEqual(product.price, data['price'])
         self.assertEqual(product.sub_category_id, data['sub_category'])
@@ -1064,22 +1063,23 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
     def test_update_product_attribute(self):
         update_data = {}
-        update_data['name'] = self.product.name + '_update'
-        update_data['price'] = self.product.price + 10000
+        update_data['name'] = self.__product.name + '_update'
+        update_data['price'] = self.__product.price + 10000
         update_data['sub_category'] = SubCategoryFactory().id
         update_data['style'] = StyleFactory().id
         update_data['age'] = AgeFactory().id
         update_data['thickness'] = ThicknessFactory().id
         update_data['see_through'] = SeeThroughFactory().id
         update_data['flexibility'] = FlexibilityFactory().id
-        update_data['lining'] = not self.product.lining
-        update_data['manufacturing_country'] = self.product.manufacturing_country + '_update'
+        update_data['lining'] = not self.__product.lining
+        update_data['manufacturing_country'] = self.__product.manufacturing_country + '_update'
         update_data['theme'] = ThemeFactory().id
         serializer = self._get_serializer_after_validation(
-            self.product, data=update_data, partial=True
+            self.__product, data=update_data, partial=True
         )
         product = serializer.save()
 
+        self.assertTrue(Product.objects.filter(id=product.id).exists())
         self.assertEqual(product.name, update_data['name'])
         self.assertEqual(product.price, update_data['price'])
         self.assertEqual(product.sub_category_id, update_data['sub_category'])
@@ -1095,7 +1095,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     def test_update_id_only_m2m_fields(self):
         tags = TagFactory.create_batch(size=2)
         remaining_tags = random.sample(
-            list(self.product.tags.all().values_list('id', flat=True)), 
+            list(self.__product.tags.all().values_list('id', flat=True)), 
             2
         )
         tag_id_list = [tag.id for tag in tags] + remaining_tags
@@ -1103,7 +1103,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         update_data = {'tags': tag_id_list}
         serializer = self._get_serializer_after_validation(
-            self.product, data=update_data, partial=True
+            self.__product, data=update_data, partial=True
         )
         product = serializer.save()
 
@@ -1113,7 +1113,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_update_many_to_one_fields(self):
-        materials = self.product.materials.all()
+        materials = self.__product.materials.all()
         delete_materials = materials[:1]
         update_materials = materials[1:]
         create_data = [
@@ -1140,7 +1140,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
         
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         product = serializer.save()
 
@@ -1160,14 +1160,14 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_delete_product_colors_in_update(self):
-        delete_product_color_id = self.product.colors.latest('id').id
+        delete_product_color_id = self.__product.colors.latest('id').id
         data = {
             'colors': [
                 {'id': delete_product_color_id}
             ]
         }
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         serializer.save()
         self.assertTrue(not ProductColor.objects.get(id=delete_product_color_id).on_sale)
@@ -1176,20 +1176,20 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_create_product_colors_in_update(self):
-        existing_color_id_list = list(self.product.colors.all().values_list('id', flat=True))
+        existing_color_id_list = list(self.__product.colors.all().values_list('id', flat=True))
         create_color_data = self.__get_input_data()['colors']
         create_option_data = [
             option_data for color_data in create_color_data for option_data in color_data['options']
         ]
         data = {'colors': create_color_data}
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         serializer.save()
 
         self.assertListEqual(
             list(
-                ProductColor.objects.filter(product=self.product).exclude(id__in=existing_color_id_list)
+                ProductColor.objects.filter(product=self.__product).exclude(id__in=existing_color_id_list)
                 .order_by('id').values('color', 'display_color_name', 'image_url')
             ),
             [
@@ -1204,7 +1204,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
         self.assertListEqual(
             list(
-                Option.objects.filter(product_color__product=self.product)
+                Option.objects.filter(product_color__product=self.__product)
                 .exclude(product_color_id__in=existing_color_id_list).order_by('id')
                 .values('size')
             ),
@@ -1215,7 +1215,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_update_product_colors_except_options(self):
-        update_color_obj = self.product.colors.latest('id')
+        update_color_obj = self.__product.colors.latest('id')
         update_image_url = TemporaryImage.objects.first().image_url
         update_data = {
             'id': update_color_obj.id,
@@ -1224,11 +1224,11 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
         data = {'colors': [update_data]}
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         serializer.save()
 
-        updated_color_obj = self.product.colors.get(id=update_color_obj.id)
+        updated_color_obj = self.__product.colors.get(id=update_color_obj.id)
         expected_dict = update_data
         expected_dict['image_url'] = update_image_url
 
@@ -1238,7 +1238,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_create_option_in_update(self):
-        update_color_obj = self.product.colors.latest('id')
+        update_color_obj = self.__product.colors.latest('id')
         existing_option_id_list = list(update_color_obj.options.values_list('id', flat=True))
         update_data = {
             'id': update_color_obj.id,
@@ -1248,7 +1248,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
         data = {'colors': [update_data]}
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         serializer.save()
 
@@ -1263,7 +1263,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     def test_update_price(self):
         update_data = {'price': 60000}
         serializer = self._get_serializer_after_validation(
-            self.product, data=update_data, partial=True
+            self.__product, data=update_data, partial=True
         )
         product = serializer.save()
         expected_sale_price = update_data['price'] * 2
@@ -1276,7 +1276,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     def test_update_base_discount_rate(self):
         update_data = {'base_discount_rate': 20}
         serializer = self._get_serializer_after_validation(
-            self.product, data=update_data, partial=True
+            self.__product, data=update_data, partial=True
         )
         product = serializer.save()
         expected_base_discounted_price = product.sale_price - (product.sale_price * product.base_discount_rate / 100) // 100 * 100
@@ -1286,7 +1286,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     def test_update_price_and_base_discount_rate(self):
         update_data = {'price': 60000, 'base_discount_rate': 20}
         serializer = self._get_serializer_after_validation(
-            self.product, data=update_data, partial=True
+            self.__product, data=update_data, partial=True
         )
         product = serializer.save()
         expected_sale_price = update_data['price'] * 2
@@ -1298,7 +1298,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         
 
     def test_delete_option(self):
-        update_color_obj = self.product.colors.latest('id')
+        update_color_obj = self.__product.colors.latest('id')
         delete_option_id = update_color_obj.options.latest('id').id
         update_data = {
             'id': update_color_obj.id,
@@ -1310,7 +1310,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         }
         data = {'colors': [update_data]}
         serializer = self._get_serializer_after_validation(
-            self.product, data=data, partial=True
+            self.__product, data=data, partial=True
         )
         serializer.save()
 
@@ -1336,35 +1336,36 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory()
-        cls.shopper = ShopperFactory()
-        cls.question_answer = ProductQuestionAnswerFactory()
+        cls.__question_answer = ProductQuestionAnswerFactory()
 
     def test_model_instance_serialization(self):
         expected_data = {
-            'id': self.question_answer.id,
-            'created_at': str(self.question_answer.created_at.date()),
-            'username': self.question_answer.shopper.username[:3] + '***',
-            'classification': self.question_answer.classification.name,
-            'question': self.question_answer.question,
-            'answer': self.question_answer.answer,
-            'answer_completed': self.question_answer.answer_completed,
-            'is_secret': self.question_answer.is_secret,
+            'id': self.__question_answer.id,
+            'created_at': str(self.__question_answer.created_at.date()),
+            'username': self.__question_answer.shopper.username[:3] + '***',
+            'classification': self.__question_answer.classification.name,
+            'question': self.__question_answer.question,
+            'answer': self.__question_answer.answer,
+            'answer_completed': self.__question_answer.answer_completed,
+            'is_secret': self.__question_answer.is_secret,
         }
 
-        self._test_model_instance_serialization(self.question_answer, expected_data)
+        self._test_model_instance_serialization(self.__question_answer, expected_data)
 
     def test_create(self):
+        product = ProductFactory()
+        shopper = ShopperFactory()
         data = {
             'question': 'question',
             'is_secret': True,
             'classification': ProductQuestionAnswerClassificationFactory().id,
         }
         serializer = self._get_serializer_after_validation(data=data)
-        question_answer = serializer.save(product=self.product, shopper=self.shopper)
+        question_answer = serializer.save(product=product, shopper=shopper)
 
-        self.assertEqual(question_answer.product, self.product)
-        self.assertEqual(question_answer.shopper, self.shopper)
+        self.assertTrue(ProductQuestionAnswer.objects.filter(id=question_answer.id).exists())
+        self.assertEqual(question_answer.product, product)
+        self.assertEqual(question_answer.shopper, shopper)
         self.assertEqual(question_answer.classification.id, data['classification'])
         self.assertEqual(question_answer.question, data['question'])
         self.assertTrue(not question_answer.answer_completed)
@@ -1372,14 +1373,15 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
 
     def test_update(self):
         data = {
-            'question': self.question_answer.question + '_update',
-            'is_secret': not self.question_answer.is_secret,
+            'question': self.__question_answer.question + '_update',
+            'is_secret': not self.__question_answer.is_secret,
             'classification':ProductQuestionAnswerClassificationFactory().id
         }
 
-        serializer = self._get_serializer_after_validation(self.question_answer, data=data)
+        serializer = self._get_serializer_after_validation(self.__question_answer, data=data)
         question_answer = serializer.save()
 
+        self.assertTrue(ProductQuestionAnswer.objects.filter(id=question_answer.id).exists())
         self.assertEqual(question_answer.question, data['question'])
         self.assertEqual(question_answer.is_secret, data['is_secret'])
         self.assertEqual(question_answer.classification.id, data['classification'])

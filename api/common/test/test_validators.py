@@ -30,11 +30,11 @@ class ValidateRequireDataInPartialUpdateTestCase(FunctionTestCase):
 
 class ValidateURLTestCase(APITestCase):
     def setUp(self):
-        self.temporary_image = TemporaryImageFactory()
+        self.__temporary_image = TemporaryImageFactory()
 
     def test_image_url_not_startswith_base_image_url(self):
         domain = 'https://omios.com/'
-        self.image_url = domain + self.temporary_image.image_url
+        self.image_url = domain + self.__temporary_image.image_url
         
         self.assertRaisesMessage(
             ValidationError,
@@ -54,6 +54,6 @@ class ValidateURLTestCase(APITestCase):
 
     def test_validation_success(self):
         self.assertEqual(
-            validate_url(BASE_IMAGE_URL+ self.temporary_image.image_url), self.temporary_image.image_url
+            validate_url(BASE_IMAGE_URL+ self.__temporary_image.image_url), self.__temporary_image.image_url
         )
-        self.assertTrue(not TemporaryImage.objects.filter(image_url=self.temporary_image.image_url).exists())
+        self.assertTrue(not TemporaryImage.objects.filter(image_url=self.__temporary_image.image_url).exists())

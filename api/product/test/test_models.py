@@ -408,7 +408,7 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.default_fields = ('created_at', 'answer_completed', 'is_secret')
+        cls.__default_fields = ('created_at', 'answer_completed', 'is_secret')
         cls._test_data = {
             'product': ProductFactory(),
             'shopper': ShopperFactory(),
@@ -420,7 +420,7 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     def test_create(self):
         self.assertDictEqual(
-            model_to_dict(self._question_answer, exclude=('id',) + self.default_fields),
+            model_to_dict(self._question_answer, exclude=('id',) + self.__default_fields),
             {
                 **self._test_data,
                 'product': self._test_data['product'].id,
