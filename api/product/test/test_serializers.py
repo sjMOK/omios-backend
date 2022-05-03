@@ -408,7 +408,7 @@ class OptionSerializerTestCase(SerializerTestCase):
         expected_message = 'Size data cannot be updated.'
 
         self._test_serializer_raise_validation_error(
-            expected_message, data=self.__data, partial=True
+            expected_message, self.__option, data=self.__data, partial=True
         )
 
 

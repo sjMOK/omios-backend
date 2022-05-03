@@ -2,11 +2,11 @@ from rest_framework.serializers import (
     Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
     PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
 )
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX
-from common.validators import validate_all_required_fields_included, validate_url
+from common.validators import validate_all_required_fields_included, validate_image_url
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
@@ -128,9 +128,14 @@ class ProductImageSerializer(Serializer):
         list_serializer_class = ProductImageListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and not is_delete_data(attrs):
-            validate_all_required_fields_included(attrs, self.fields)
+        if self.root.instance is not None:
+            self.__validate_update(attrs)
 
+        return attrs
+
+    def __validate_update(self, attrs):
+        if not is_delete_data(attrs):
+            validate_all_required_fields_included(attrs, self.fields)
         return attrs
 
     def validate_image_url(self, value):
@@ -175,7 +180,13 @@ class ProductMaterialSerializer(Serializer):
         list_serializer_class = ProductMaterialListSerializer
 
     def validate(self, attrs):
-        if self.root.partial and not is_delete_data(attrs):
+        if self.root.instance is not None:
+            self.__validate_update(attrs)
+
+        return attrs
+
+    def __validate_update(self, attrs):
+        if not is_delete_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
 
         return attrs
@@ -203,12 +214,14 @@ class OptionSerializer(Serializer):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
-        if self.root.partial:
-            self.__validate_partial_update(attrs)
+        # if self.root.partial:
+        #     self.__validate_partial_update(attrs)
+        if self.instance is not None:
+            self.__validate_update(attrs)
 
         return attrs
 
-    def __validate_partial_update(self, attrs):
+    def __validate_update(self, attrs):
         if is_create_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
         elif is_update_data(attrs):
@@ -285,16 +298,10 @@ class ProductColorSerializer(Serializer):
 
         return attrs
 
-    def __validate_update(self, attrs):
-        if self.root.partial:
-            return self.__validate_partial_update(attrs)
-
-        return attrs
-
     def validate_image_url(self, value):
         return validate_image_url(value)
 
-    def __validate_partial_update(self, attrs):
+    def __validate_update(self, attrs):
         if is_create_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
         elif is_update_data(attrs):
@@ -440,6 +447,12 @@ class ProductWriteSerializer(ProductSerializer):
         {'min_price': 40000, 'multiple': 2},
         {'min_price': 80000, 'multiple': 1.8},
     ]
+
+    def validate(self, attrs):
+        if self.instance is not None and not self.partial:
+            raise APIException('This serializer must have a partial=True parameter when update')
+
+        return attrs
 
     def validate_price(self, value):
         if value % 100 != 0:
