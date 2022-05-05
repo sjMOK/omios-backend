@@ -2,7 +2,8 @@ import string, random
 
 from django.utils import timezone
 
-from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, lazy_attribute
+from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, Faker, LazyFunction, lazy_attribute
+
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
@@ -88,6 +89,16 @@ class ProductFactory(DjangoModelFactory):
     lining = True
     manufacturing_country = Faker('country', locale='ko-KR')
     theme = SubFactory(ThemeFactory)
+        
+    @classmethod
+    def _generate(cls, strategy, params):
+        if 'product' in params:
+            product = params.pop('product')
+            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'theme']
+            for field in copy_fields:
+                params[field] = getattr(product, field, None)
+
+        return super()._generate(strategy, params)
 
 
 class TagFactory(DjangoModelFactory):
