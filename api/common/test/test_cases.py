@@ -7,8 +7,10 @@ from django.utils.module_loading import import_string
 
 from rest_framework.test import APISimpleTestCase, APITestCase
 from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.generics import GenericAPIView
 
 from common.utils import BASE_IMAGE_URL
+from common.exceptions import NotExcutableValidationError
 from user.test.factory import UserFactory, ShopperFactory, WholesalerFactory
 
 
@@ -72,8 +74,11 @@ class SerializerTestCase(APITestCase):
         return self._serializer_class(*args, **kwargs)
 
     def _get_serializer_after_validation(self, *args, **kwargs):
+        if len(args) < 2 and 'data' not in kwargs:
+            kwargs['data'] = self._test_data
+            
         serializer = self._get_serializer(*args, **kwargs)
-        serializer.is_valid()
+        serializer.is_valid(raise_exception=True)
 
         return serializer
 
@@ -84,14 +89,15 @@ class SerializerTestCase(APITestCase):
         self.assertRaisesMessage(
             ValidationError,
             expected_message,
-            self._get_serializer(*args, **kwargs).is_valid,
-            raise_exception=True
+            self._get_serializer_after_validation,
+            *args, **kwargs,
         )
 
-    def _test_validated_data(self, data, expected_validated_data):
-        serializer = self._get_serializer_after_validation(data=data)
+    def _test_validated_data(self, expected_data, *args, **kwargs):
+        self.assertDictEqual(self._get_serializer_after_validation(*args, **kwargs).validated_data, expected_data)
 
-        self.assertDictEqual(serializer.validated_data, expected_validated_data)
+    def _test_not_excutable_validation(self):
+        self.assertRaises(NotExcutableValidationError, self._get_serializer().validate)
 
 
 class ListSerializerTestCase(SerializerTestCase):
