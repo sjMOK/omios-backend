@@ -174,6 +174,8 @@ class ViewTestCase(APITestCase):
         self._response = response
         self._response_body = json.loads(response.content)
         self._response_data = self._response_body['data'] if 'data' in self._response_body else None
+        view = self._response.renderer_context['view']
+        self._serializer_class = view.get_serializer_class() if isinstance(view, GenericAPIView) else None
         self.__expected_success_status_code = expected_success_status_code
 
     def _get(self, data={}, *args, **kwargs):
