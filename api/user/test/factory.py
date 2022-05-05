@@ -3,7 +3,6 @@ from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
 from factory.fuzzy import FuzzyDecimal, FuzzyInteger
 
-from order.test.factories import OrderFactory
 
 def get_factory_password(user):
     return user.username + '_Password'
@@ -117,5 +116,5 @@ class PointHistoryFactory(DjangoModelFactory):
     shopper = SubFactory(ShopperFactory)
     point = FuzzyInteger(10000)
     content = 'test'
-    order = SubFactory(OrderFactory, shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
+    order = SubFactory('order.test.factories.OrderFactory', shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
     product_name = 'test'
