@@ -29,8 +29,9 @@ class OrderItemFactory(DjangoModelFactory):
     order = SubFactory(OrderFactory)
     option = SubFactory('product.test.factory.OptionFactory')
     status = SubFactory('order.test.factories.StatusFactory')
-    sale_price = LazyAttribute(lambda obj: obj.option.product_color.product.sale_price)
-    base_discount_price = LazyAttribute(lambda obj: obj.sale_price - obj.option.product_color.product.base_discounted_price)
+    count = FuzzyInteger(1, 5)
+    sale_price = LazyAttribute(lambda obj: obj.option.product_color.product.sale_price * obj.count)
+    base_discount_price = LazyAttribute(lambda obj: obj.sale_price - obj.option.product_color.product.base_discounted_price * obj.count)
     membership_discount_price = LazyAttribute(lambda obj: int((obj.sale_price - obj.base_discount_price) * float(obj.order.shopper.membership.discount_rate) // 100))
     payment_price = LazyAttribute(lambda obj: obj.sale_price - obj.base_discount_price - obj.membership_discount_price)
     earned_point = LazyAttribute(lambda obj: obj.payment_price // 100)
@@ -42,6 +43,14 @@ class StatusFactory(DjangoModelFactory):
 
     id = Sequence(lambda num: num)
     name = FuzzyText()
+
+
+class StatusHistoryFactory(DjangoModelFactory):
+    class Meta:
+        model = 'order.StatusHistory'
+
+    order_item = SubFactory(OrderItemFactory)
+    status = LazyAttribute(lambda obj: obj.order_item.status)
 
 
 class ShippingAddressFactory(DjangoModelFactory):
