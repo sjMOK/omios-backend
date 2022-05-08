@@ -44,7 +44,6 @@ def get_list_of_single_value(attrs, key):
 
     return ret_list
 
-# todo test code
 def get_sum_of_single_value(attrs, key):
     return sum(get_list_of_single_value(attrs, key))
 

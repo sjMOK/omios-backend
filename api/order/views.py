@@ -8,7 +8,6 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.exceptions import APIException
 
 from common.utils import get_response
-from common.exceptions import BadRequestError
 from user.models import Shopper
 from product.models import Product, ProductImage, Option
 from .models import (
