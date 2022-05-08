@@ -3,13 +3,24 @@ from factory.django import DjangoModelFactory
 from factory.faker import Faker
 from factory.fuzzy import FuzzyText, FuzzyInteger
 
+from product.test.factory import create_options
+
+
+def create_order_with_items(size=3):
+    order = OrderFactory()
+    for option in create_options(size):
+        OrderItemFactory(order=order, option=option)
+    
+    return order
+
+
 class OrderFactory(DjangoModelFactory):
     class Meta:
         model = 'order.Order'
 
     shopper = SubFactory('user.test.factory.ShopperFactory')
     shipping_address = SubFactory('order.test.factories.ShippingAddressFactory')
-    
+
 
 class OrderItemFactory(DjangoModelFactory):
     class Meta:

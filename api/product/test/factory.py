@@ -2,12 +2,18 @@ import string, random
 
 from django.utils import timezone
 
-from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, Faker, LazyFunction, lazy_attribute
+from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, lazy_attribute
 
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
 from user.test.factory import WholesalerFactory, ShopperFactory
+
+
+def create_options(size=2):
+    option = OptionFactory()
+
+    return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
 
 
 class MainCategoryFactory(DjangoModelFactory):
