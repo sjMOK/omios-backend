@@ -1,11 +1,13 @@
+from django.core.validators import URLValidator
+
 from rest_framework.serializers import (
     Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
-    PrimaryKeyRelatedField, URLField, BooleanField, RegexField,
+    PrimaryKeyRelatedField, BooleanField, RegexField,
 )
 from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX
+from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX, IMAGE_URL_REGEX
 from common.validators import validate_all_required_fields_included, validate_image_url
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
@@ -92,9 +94,9 @@ class TagSerializer(Serializer):
 
 class ProductImageListSerializer(ListSerializer):
     def validate(self, attrs):
-        create_or_update_attrs = get_create_or_update_attrs(attrs)
-        self.__validate_attrs_length(create_or_update_attrs)
-        self.__validate_sequence_ascending_order(create_or_update_attrs)
+        if self.root.instance is None:
+            self.__validate_attrs_length(attrs)
+            self.__validate_sequence_ascending_order(attrs)
 
         return attrs
 
@@ -102,10 +104,6 @@ class ProductImageListSerializer(ListSerializer):
         if len(attrs) > PRODUCT_IMAGE_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten images.'
-            )
-        elif len(attrs) == 0:
-            raise ValidationError(
-                'The product must have at least one image.'
             )
 
     def __validate_sequence_ascending_order(self, attrs):
@@ -121,25 +119,40 @@ class ProductImageListSerializer(ListSerializer):
 
 class ProductImageSerializer(Serializer):
     id = IntegerField(required=False)
-    image_url = URLField(max_length=200)
+    image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
     sequence = IntegerField(min_value=1)
 
     class Meta:
         list_serializer_class = ProductImageListSerializer
 
+    def validate_image_url(self, value):
+        return value.split(BASE_IMAGE_URL)[-1]
+
     def validate(self, attrs):
-        if self.root.instance is not None:
-            self.__validate_update(attrs)
+        if self.root.instance is None:
+            return self.__validate_create(attrs)
+        else:
+            return self.__validate_update(attrs)
+
+    def __validate_create(self, attrs):
+        validate_image_url(attrs['image_url'])
 
         return attrs
 
     def __validate_update(self, attrs):
-        if not is_delete_data(attrs):
+        if is_create_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
+            validate_image_url(attrs['image_url'])
+        elif is_update_data(attrs):
+            if 'image_url' in attrs:
+                self.__validate_image_url_update(attrs)
+
         return attrs
 
-    def validate_image_url(self, value):
-        return validate_image_url(value)
+    def __validate_image_url_update(self, attrs):
+        stored_image_url = ProductImage.objects.get(id=attrs.get('id')).image_url
+        if attrs['image_url'] != stored_image_url:
+            raise ValidationError('Image url data cannot be updated.')
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -214,8 +227,6 @@ class OptionSerializer(Serializer):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
-        # if self.root.partial:
-        #     self.__validate_partial_update(attrs)
         if self.instance is not None:
             self.__validate_update(attrs)
 
@@ -286,7 +297,7 @@ class ProductColorSerializer(Serializer):
     display_color_name = CharField(max_length=20)
     color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
-    image_url = URLField(max_length=200)
+    image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
     on_sale = BooleanField(read_only=True)
 
     class Meta:
@@ -299,7 +310,8 @@ class ProductColorSerializer(Serializer):
         return attrs
 
     def validate_image_url(self, value):
-        return validate_image_url(value)
+        image_url = value.split(BASE_IMAGE_URL)[-1]
+        return validate_image_url(image_url)
 
     def __validate_update(self, attrs):
         if is_create_data(attrs):
@@ -448,12 +460,6 @@ class ProductWriteSerializer(ProductSerializer):
         {'min_price': 80000, 'multiple': 1.8},
     ]
 
-    def validate(self, attrs):
-        if self.instance is not None and not self.partial:
-            raise APIException('This serializer must have a partial=True parameter when update')
-
-        return attrs
-
     def validate_price(self, value):
         if value % 100 != 0:
             raise ValidationError('The price must be a multiple of 100.')
@@ -462,9 +468,8 @@ class ProductWriteSerializer(ProductSerializer):
 
     def validate_images(self, attrs):
         if self.instance is not None:
-            self.__validate_pass_all_exact_data(
-                get_update_or_delete_attrs(attrs), self.instance.images
-            )
+            self.__validate_image_length(attrs)
+            self.__validate_sequence(attrs)
 
         return attrs
 
@@ -482,6 +487,49 @@ class ProductWriteSerializer(ProductSerializer):
             self.__validate_display_color_name_uniqueness(attrs)
 
         return attrs
+
+    def validate(self, attrs):
+        if self.instance is not None and not self.partial:
+            raise APIException('This serializer must have a partial=True parameter when update')
+
+        return attrs
+
+    def __validate_image_length(self, attrs):
+        create_image_length = len(get_create_attrs(attrs))
+        delete_image_length = len(get_delete_attrs(attrs))
+
+        stored_image_length = self.instance.images.all().count()
+        len_images = stored_image_length + create_image_length - delete_image_length
+
+        if len_images > PRODUCT_IMAGE_MAX_LENGTH:
+            raise ValidationError(
+                'The product cannot have more than ten images.'
+            )
+        elif len_images == 0:
+            raise ValidationError(
+                'The product must have at least one image.'
+            )
+
+    def __validate_sequence(self, attrs):
+        sequences = get_list_of_single_value(
+            get_create_or_update_attrs(attrs), 'sequence'
+        )
+        id_list = get_list_of_single_value(
+            get_update_or_delete_attrs(attrs), 'id'
+        )
+        stored_sequences = ProductImage.objects.filter(
+            product=self.instance
+        ).exclude(id__in=id_list).values_list('sequence', flat=True)
+
+        sequences += stored_sequences
+        sequences.sort()
+
+        for index, value in enumerate(sequences):
+            if value != (index+1):
+                raise ValidationError(
+                    'The sequence of the images must be ascending from 1 to n.'
+                )
+        
 
     def __validate_color_length(self, attrs):
         create_color_length = len(get_create_attrs(attrs))

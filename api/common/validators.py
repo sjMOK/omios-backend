@@ -16,10 +16,6 @@ def validate_all_required_fields_included(attrs, fields):
 
 
 def validate_image_url(image_url):
-    # if not image_url.startswith(BASE_IMAGE_URL):
-    #     raise ValidationError(detail='Enter a valid image url.')
-
-    image_url = image_url.split(BASE_IMAGE_URL)[-1]   
     queryset = TemporaryImage.objects.filter(image_url=image_url)
     if not queryset.exists():
         raise ValidationError(detail='Not found.')

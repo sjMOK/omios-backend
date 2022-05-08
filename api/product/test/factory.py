@@ -118,7 +118,7 @@ class ProductColorFactory(DjangoModelFactory):
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
-    display_color_name = Sequence(lambda num: 'display_cname_{0}'.format(num))
+    display_color_name = Sequence(lambda num: 'display_name_{0}'.format(num))
     image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
 
 
