@@ -15,6 +15,7 @@ class Order(Model):
 
     class Meta:
         db_table = 'order'
+        ordering = ['id']
 
     def __set_default_number(self):
         prefix = self.created_at.strftime('%Y%m%d%H%M%S')
@@ -49,6 +50,7 @@ class OrderItem(Model):
 
     class Meta:
         db_table = 'order_item'
+        ordering = ['id']
 
 
 class Status(Model):
