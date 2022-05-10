@@ -6,12 +6,15 @@ from factory.fuzzy import FuzzyText, FuzzyInteger
 from product.test.factory import create_options
 
 
-def create_order_with_items(size=3):
-    order = OrderFactory()
-    for option in create_options(size):
-        OrderItemFactory(order=order, option=option)
+def create_orders_with_items(order_size=1, item_size=3, **kwargs):
+    orders = OrderFactory.create_batch(order_size, **kwargs)
     
-    return order
+    options = create_options(order_size * item_size)
+    for i in range(order_size):
+        for j in range(item_size):
+            OrderItemFactory(order=orders[i], option=options[i * item_size + j])
+
+    return orders
 
 
 class OrderFactory(DjangoModelFactory):
@@ -31,8 +34,8 @@ class OrderItemFactory(DjangoModelFactory):
     status = SubFactory('order.test.factories.StatusFactory')
     count = FuzzyInteger(1, 5)
     sale_price = LazyAttribute(lambda obj: obj.option.product_color.product.sale_price * obj.count)
-    base_discount_price = LazyAttribute(lambda obj: obj.sale_price - obj.option.product_color.product.base_discounted_price * obj.count)
-    membership_discount_price = LazyAttribute(lambda obj: int((obj.sale_price - obj.base_discount_price) * float(obj.order.shopper.membership.discount_rate) // 100))
+    base_discount_price = LazyAttribute(lambda obj: (obj.option.product_color.product.sale_price - obj.option.product_color.product.base_discounted_price) * obj.count)
+    membership_discount_price = LazyAttribute(lambda obj: obj.option.product_color.product.base_discounted_price * obj.order.shopper.membership.discount_rate // 100 * obj.count)
     payment_price = LazyAttribute(lambda obj: obj.sale_price - obj.base_discount_price - obj.membership_discount_price)
     earned_point = LazyAttribute(lambda obj: obj.payment_price // 100)
 
