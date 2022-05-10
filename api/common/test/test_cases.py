@@ -82,6 +82,9 @@ class SerializerTestCase(APITestCase):
 
         return serializer
 
+    def _save(self, *args, **kwargs):
+        return self._get_serializer_after_validation(*args, **kwargs).save()
+
     def _test_model_instance_serialization(self, instance, expected_data, context={}):
         self.assertDictEqual(self._get_serializer(instance, context=context).data, expected_data)
 
@@ -96,8 +99,8 @@ class SerializerTestCase(APITestCase):
     def _test_validated_data(self, expected_data, *args, **kwargs):
         self.assertDictEqual(self._get_serializer_after_validation(*args, **kwargs).validated_data, expected_data)
 
-    def _test_not_excutable_validation(self):
-        self.assertRaises(NotExcutableValidationError, self._get_serializer().validate)
+    def _test_not_excutable_validation(self, *args, **kwargs):
+        self.assertRaises(NotExcutableValidationError, self._get_serializer(*args, **kwargs).validate, None)
 
 
 class ListSerializerTestCase(SerializerTestCase):
@@ -184,6 +187,9 @@ class ViewTestCase(APITestCase):
     def _post(self, data={}, *args, **kwargs):
         self.__set_response(self.client.post(self._url, dict(self._test_data, **data), *args, **kwargs), 201)
 
+    def _put(self, data={}, *args, **kwargs):
+        self.__set_response(self.client.put(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+
     def _patch(self, data={}, *args, **kwargs):
         self.__set_response(self.client.patch(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
     
@@ -222,6 +228,13 @@ class ViewTestCase(APITestCase):
         self.assertIsInstance(self._response_data['is_unique'], bool)
         self.assertEqual(self._response_data['is_unique'], is_unique)
 
+    def _assert_success_and_serializer_class(self, serializer_class):
+        self._assert_success_with_id_response()
+        self.assertEqual(serializer_class, self._serializer_class)
+
     def _assert_failure(self, expected_failure_status_code, expected_message):
         self.__assert_default_response(expected_failure_status_code, expected_message)
         self.assertTrue('data' not in self._response_body)
+
+    def _assert_failure_for_non_patchable_field(self):
+        self._assert_failure(400, 'It contains requests for fields that do not exist or cannot be modified.')
