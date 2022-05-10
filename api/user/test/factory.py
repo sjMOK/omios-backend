@@ -42,6 +42,7 @@ class ShopperFactory(UserFactory):
     gender = Sequence(lambda num: num % 2)
     email = Faker('email')
     mobile_number = Sequence(lambda num: '010%08d' % num)
+    point = FuzzyInteger(2000, 5000)
 
 
 class WholesalerFactory(UserFactory):

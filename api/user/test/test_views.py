@@ -1,6 +1,7 @@
 from django.forms import model_to_dict
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+
 from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
