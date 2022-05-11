@@ -98,38 +98,38 @@ class DecoratedRefreshingTokenView(RefreshingTokenView):
 
 class DecoratedShopperViewSet(ShopperViewSet):
     @swagger_auto_schema(**get_response(Shopper()), operation_description='Shopper 데이터 가져오기')
-    def retrieve(self, request, user_id=None):
-        return super().retrieve(request, user_id)
+    def retrieve(self, *args, **kwargs):
+        return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
-    def create(self, request):
-        return super().create(request)
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
-    def partial_update(self, request, user_id=None):
-        return super().partial_update(request, user_id)
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
-    def destroy(self, request, user_id=None):
-        return super().destroy(request, user_id)
+    def destroy(self, *args, **kwargs):
+        return super().destroy(*args, **kwargs)
 
 
 class DecoratedWholesalerViewSet(WholesalerViewSet):
     @swagger_auto_schema(**get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기')
-    def retrieve(self, request, user_id=None):
-        return super().retrieve(request, user_id)
+    def retrieve(self, *args, **kwargs):
+        return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
-    def create(self, request):
-        return super().create(request)
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
-    def partial_update(self, request, user_id=None):
-        return super().partial_update(request, user_id)
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
-    def destroy(self, request, user_id=None):
-        return super().destroy(request, user_id)
+    def destroy(self, *args, **kwargs):
+        return super().destroy(*args, **kwargs)
 
 
 class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
