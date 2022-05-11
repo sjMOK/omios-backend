@@ -68,7 +68,7 @@ class OrderItemTestCase(ModelTestCase):
             'status': self._test_data['status'].id,
             'base_discount_price': 0,
             'count': 1,
-            'shipping_fee': 0,
+            # 'shipping_fee': 0,
             'used_point': 0,
         })
 

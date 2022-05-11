@@ -46,7 +46,9 @@ class OrderItem(Model):
     used_point = IntegerField(default=0)
     payment_price = IntegerField()
     earned_point = IntegerField()
-    shipping_fee = IntegerField(default=0)
+    # shipping_fee = IntegerField(default=0)
+    # shipping_fee는 배송 쪽 테이블에 있는 게 맞는 것 같음
+    # 배송 테이블 foreign key 추가 필요
 
     class Meta:
         db_table = 'order_item'
