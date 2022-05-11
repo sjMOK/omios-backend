@@ -7,6 +7,11 @@ class IdResponse(Serializer):
     class Meta:
         ref_name = None
 
+class IdsResponse(Serializer):
+    id = ListField(child=IntegerField())
+
+    class Meta:
+        ref_name = None
 
 class UniqueResponse(Serializer):
     is_unique = BooleanField()
@@ -31,3 +36,6 @@ def get_response(serializer=IdResponse(), code=200):
             ref_name = None
     
     return {'responses': {code: Response}}
+
+def get_ids_response(code=200):
+    return get_response(IdsResponse(), code)
