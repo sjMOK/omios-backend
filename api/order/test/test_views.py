@@ -1,7 +1,7 @@
 from common.test.test_cases import ViewTestCase
 from common.querysets import get_order_queryset
 from product.models import Option
-from product.test.factory import OptionFactory
+from product.test.factories import OptionFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
 from .test_serializers import get_shipping_address_test_data, get_order_test_data
 from ..models import Order, OrderItem

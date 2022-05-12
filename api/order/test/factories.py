@@ -3,7 +3,7 @@ from factory.django import DjangoModelFactory
 from factory.faker import Faker
 from factory.fuzzy import FuzzyText, FuzzyInteger
 
-from product.test.factory import create_options
+from product.test.factories import create_options
 
 
 def create_orders_with_items(order_size=1, item_size=3, order_kwargs={}, item_kwargs={}):

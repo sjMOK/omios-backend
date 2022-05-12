@@ -13,10 +13,10 @@ from common.querysets import get_order_item_queryset, get_order_queryset
 from common.serializers import get_sum_of_single_value, add_data_in_each_element
 from common.utils import datetime_to_iso
 from user.models import Shopper
-from user.test.factory import ShopperFactory
+from user.test.factories import ShopperFactory
 from product.models import ProductImage
 from product.serializers import OptionInOrderItemSerializer
-from product.test.factory import ProductFactory, OptionFactory, create_options
+from product.test.factories import ProductFactory, OptionFactory, create_options
 from .factories import (
     create_orders_with_items, ShippingAddressFactory, OrderFactory, OrderItemFactory, 
     StatusFactory, StatusHistoryFactory,
