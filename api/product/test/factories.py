@@ -6,7 +6,7 @@ from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, la
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factories import WholesalerFactory, ShopperFactory
 
 
 class MainCategoryFactory(DjangoModelFactory):

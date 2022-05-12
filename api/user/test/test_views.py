@@ -5,8 +5,8 @@ from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
-from product.test.factory import ProductFactory
-from .factory import (
+from product.test.factories import ProductFactory
+from .factories import (
     MembershipFactory, get_factory_password, get_factory_authentication_data, 
     FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory,
 )

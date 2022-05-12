@@ -8,9 +8,9 @@ from freezegun import freeze_time
 from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
-from product.test.factory import ProductFactory
+from product.test.factories import ProductFactory
 from order.test.factories import OrderFactory
-from .factory import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory
+from .factories import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory
 from ..models import (
     Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
     ProductLike, PointHistory,

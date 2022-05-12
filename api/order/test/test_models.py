@@ -5,8 +5,8 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME
-from user.test.factory import ShopperFactory
-from product.test.factory import OptionFactory
+from user.test.factories import ShopperFactory
+from product.test.factories import OptionFactory
 from .factories import OrderFactory, OrderItemFactory, RefundFacotry, StatusFactory, ShippingAddressFactory
 from ..models import (
     Order, OrderItem, Status, StatusHistory, ShippingAddress,

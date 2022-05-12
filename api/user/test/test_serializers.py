@@ -2,7 +2,7 @@ from datetime import datetime
 
 from common.test.test_cases import FunctionTestCase, SerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso
-from .factory import (
+from .factories import (
     get_factory_password, get_factory_authentication_data, 
     MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
     ShopperShippingAddressFactory, PointHistoryFactory,

@@ -2,7 +2,6 @@ import random
 
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min, Count, Q
-from django.test import tag
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
@@ -10,9 +9,9 @@ from faker import Faker
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
-from user.test.factory import WholesalerFactory
+from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
-from .factory import (
+from .factories import (
     AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
     ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
     ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,

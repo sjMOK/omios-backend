@@ -3,7 +3,7 @@ from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.test import APITestCase
 
 from .test_cases import FunctionTestCase
-from .factory import TemporaryImageFactory
+from .factories import TemporaryImageFactory
 from ..models import TemporaryImage
 from ..validators import validate_all_required_fields_included, validate_image_url
 from ..utils import BASE_IMAGE_URL

@@ -1,17 +1,15 @@
-from freezegun import freeze_time
-from datetime import datetime
-
-from django.test import tag
 from django.forms import model_to_dict
 
+from freezegun import freeze_time
+
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
     Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
     ProductQuestionAnswerClassification, ProductQuestionAnswer,
 )
-from .factory import (
+from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
     ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
     ProductQuestionAnswerClassificationFactory,

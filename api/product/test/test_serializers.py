@@ -1,19 +1,17 @@
 import random
 
-from django.test import tag
 from django.db.models.query import Prefetch
 from django.db.models import Count
 from django.forms import model_to_dict
 
-from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from common.models import TemporaryImage
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
-from .factory import (
+from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ThemeFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
