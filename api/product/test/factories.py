@@ -7,7 +7,7 @@ from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, la
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factories import WholesalerFactory, ShopperFactory
 
 
 def create_options(size=2):
@@ -135,7 +135,7 @@ class ProductColorFactory(DjangoModelFactory):
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
-    display_color_name = Sequence(lambda num: 'display_cname_{0}'.format(num))
+    display_color_name = Sequence(lambda num: 'display_name_{0}'.format(num))
     image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
 
 
@@ -166,7 +166,6 @@ class ProductMaterialFactory(DjangoModelFactory):
         model = 'product.ProductMaterial'
 
     product = SubFactory(ProductFactory)
-    material = Sequence(lambda num: 'material{0}'.format(num))
     mixing_rate = 100
 
     @lazy_attribute
@@ -207,5 +206,4 @@ class ProductQuestionAnswerFactory(DjangoModelFactory):
     classification = SubFactory(ProductQuestionAnswerClassificationFactory)
     question = Faker('sentence')
     answer = Faker('sentence')
-    answer_completed = Faker('pybool')
     is_secret = Faker('pybool')

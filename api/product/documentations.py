@@ -240,7 +240,7 @@ decorated_get_main_categories_view = swagger_auto_schema(
     method='GET', **get_response(MainCategoryResponse(many=True)), security=[], operation_description='메인 카테고리 가져오기'
 )(get_main_categories)
 
-decorated_sub_category_view = swagger_auto_schema(
+decorated_get_sub_categories_by_main_category_view = swagger_auto_schema(
     method='GET', **get_response(SubCategorySerializer()), security=[], operation_description='특정 메인 카테고리 Id에 해당하는 서브 카테고리 가져오기'
 )(get_sub_categories_by_main_category)
 

@@ -37,69 +37,69 @@ class HasDuplicateElementTestCase(FunctionTestCase):
 
 class IsCreateDeleteUpdateDataTestCase(APISimpleTestCase):
     def setUp(self):
-        self.create_data = {
+        self.__create_data = {
             'name': 'omios',
             'age': 1,
         }
-        self.update_data = {
+        self.__update_data = {
             'id': 100,
             'name': 'omios',
             'age': 1,
         }
-        self.delete_data = {
+        self.__delete_data = {
             'id': 100,
         }
     
     def test_is_create_data(self):
-        self.assertTrue(is_create_data(self.create_data))
-        self.assertTrue(not is_create_data(self.update_data))
-        self.assertTrue(not is_create_data(self.delete_data))
+        self.assertTrue(is_create_data(self.__create_data))
+        self.assertTrue(not is_create_data(self.__update_data))
+        self.assertTrue(not is_create_data(self.__delete_data))
 
     def test_is_update_data(self):
-        self.assertTrue(not is_update_data(self.create_data))
-        self.assertTrue(is_update_data(self.update_data))
-        self.assertTrue(not is_update_data(self.delete_data))
+        self.assertTrue(not is_update_data(self.__create_data))
+        self.assertTrue(is_update_data(self.__update_data))
+        self.assertTrue(not is_update_data(self.__delete_data))
 
     def test_is_delete_data(self):
-        self.assertTrue(not is_delete_data(self.create_data))
-        self.assertTrue(not is_delete_data(self.update_data))
-        self.assertTrue(is_delete_data(self.delete_data))
+        self.assertTrue(not is_delete_data(self.__create_data))
+        self.assertTrue(not is_delete_data(self.__update_data))
+        self.assertTrue(is_delete_data(self.__delete_data))
 
 
 class GetAttrsTestCase(APISimpleTestCase):
     def setUp(self):
-        self.create_attrs = [
+        self.__create_attrs = [
             {'name': 'name1', 'age': 1},
             {'name': 'name2', 'age': 2},
         ]
-        self.update_attrs = [
+        self.__update_attrs = [
             {'id': 100, 'name': 'name100', 'age': 100},
             {'id': 101, 'name': 'name101', 'age': 101},
         ]
-        self.delete_attrs = [
+        self.__delete_attrs = [
             {'id': 200},
             {'id': 201},
         ]
-        self.attrs = self.create_attrs + self.update_attrs + self.delete_attrs
+        self.__attrs = self.__create_attrs + self.__update_attrs + self.__delete_attrs
     
     def test_get_create_attrs(self):
-        self.assertListEqual(get_create_attrs(self.attrs), self.create_attrs)
+        self.assertListEqual(get_create_attrs(self.__attrs), self.__create_attrs)
 
     def test_get_update_attrs(self):
-        self.assertListEqual(get_update_attrs(self.attrs), self.update_attrs)
+        self.assertListEqual(get_update_attrs(self.__attrs), self.__update_attrs)
 
     def test_get_delete_attrs(self):
-        self.assertListEqual(get_delete_attrs(self.attrs), self.delete_attrs)
+        self.assertListEqual(get_delete_attrs(self.__attrs), self.__delete_attrs)
 
     def test_get_create_or_update_attrs(self):
-        create_or_update_attrs = self.create_attrs + self.update_attrs
+        create_or_update_attrs = self.__create_attrs + self.__update_attrs
 
-        self.assertListEqual(get_create_or_update_attrs(self.attrs), create_or_update_attrs)
+        self.assertListEqual(get_create_or_update_attrs(self.__attrs), create_or_update_attrs)
 
     def test_get_update_or_delete_attrs(self):
-        update_or_delete_attrs = self.update_attrs + self.delete_attrs
+        update_or_delete_attrs = self.__update_attrs + self.__delete_attrs
 
-        self.assertListEqual(get_update_or_delete_attrs(self.attrs), update_or_delete_attrs)
+        self.assertListEqual(get_update_or_delete_attrs(self.__attrs), update_or_delete_attrs)
 
 
 class GetListOfSingleValueTestCase(FunctionTestCase):
@@ -142,30 +142,30 @@ class SerializerMixinTestCase(APISimpleTestCase):
 
 
     def setUp(self):
-        self.serializer_class = self.DummySerializer
-        self.test_serializer_class = self.DummyTestSerializer
-        self.allow_fields = self.exclude_fields = ('name', 'age')
+        self.__serializer_class = self.DummySerializer
+        self.__test_serializer_class = self.DummyTestSerializer
+        self.__allow_fields = self.__exclude_fields = ('name', 'age')
 
     def test_default_create_serializer(self):
-        serializer = self.serializer_class()
-        test_serializer = self.test_serializer_class()
+        serializer = self.__serializer_class()
+        test_serializer = self.__test_serializer_class()
 
         self.assertSetEqual(set(test_serializer.fields), set(serializer.fields))
 
     def test_allow_fields(self):
-        test_serializer = self.test_serializer_class(allow_fields=self.allow_fields)
+        test_serializer = self.__test_serializer_class(allow_fields=self.__allow_fields)
 
-        self.assertSetEqual(set(test_serializer.fields), set(self.allow_fields)) 
+        self.assertSetEqual(set(test_serializer.fields), set(self.__allow_fields)) 
 
     def test_exclude_fields(self):
-        serializer = self.serializer_class()
-        test_serializer = self.test_serializer_class(exclude_fields=self.exclude_fields)
+        serializer = self.__serializer_class()
+        test_serializer = self.__test_serializer_class(exclude_fields=self.__exclude_fields)
 
-        self.assertSetEqual(set(test_serializer.fields), set(serializer.fields) - set(self.exclude_fields))
+        self.assertSetEqual(set(test_serializer.fields), set(serializer.fields) - set(self.__exclude_fields))
 
     def test_allow_all_fields(self):
-        serializer = self.serializer_class()
-        test_serializer = self.test_serializer_class(allow_fields='__all__')
+        serializer = self.__serializer_class()
+        test_serializer = self.__test_serializer_class(allow_fields='__all__')
 
         self.assertSetEqual(set(test_serializer.fields), set(serializer.fields))
 
@@ -173,8 +173,8 @@ class SerializerMixinTestCase(APISimpleTestCase):
         self.assertRaisesRegex(
             APIException, 
             r'^allow and exclude are incompatible.$', 
-            self.test_serializer_class,
-            allow_fields=self.allow_fields, exclude_fields=self.exclude_fields
+            self.__test_serializer_class,
+            allow_fields=self.__allow_fields, exclude_fields=self.__exclude_fields
         )
 
     def test_allow_fields_must_be_tuple_or_list_by_string(self):
@@ -183,17 +183,17 @@ class SerializerMixinTestCase(APISimpleTestCase):
         self.assertRaisesRegex(
             APIException,
             r'^allow_fields must be tuple or list instance.$',
-            self.test_serializer_class,
+            self.__test_serializer_class,
             allow_fields=allow_fields
         )
 
     def test_allow_fields_must_be_tuple_or_list_by_set(self):
-        allow_fields = set(self.allow_fields)
+        allow_fields = set(self.__allow_fields)
 
         self.assertRaisesRegex(
             APIException,
             r'^allow_fields must be tuple or list instance.$',
-            self.test_serializer_class,
+            self.__test_serializer_class,
             allow_fields=allow_fields
         )
 
@@ -203,34 +203,34 @@ class SerializerMixinTestCase(APISimpleTestCase):
         self.assertRaisesRegex(
             APIException,
             r'^exclude_fields must be tuple or list instance.$',
-            self.test_serializer_class,
+            self.__test_serializer_class,
             exclude_fields=exclude_fields
         )
 
     def test_exclude_fields_must_be_tuple(self):
-        exclude_fields = set(self.exclude_fields)
+        exclude_fields = set(self.__exclude_fields)
 
         self.assertRaisesRegex(
             APIException,
             r'^exclude_fields must be tuple or list instance.$',
-            self.test_serializer_class,
+            self.__test_serializer_class,
             exclude_fields=exclude_fields
         )
 
     def test_allow_wrong_fields(self):
-        self.allow_fields += ('gender',)
+        self.__allow_fields += ('gender',)
         self.assertRaisesRegex(
             APIException,
             r'not in serializer.fields.$',
-            self.test_serializer_class,
-            allow_fields=self.allow_fields
+            self.__test_serializer_class,
+            allow_fields=self.__allow_fields
         )
 
     def test_exclude_wrong_fields(self):
-        self.exclude_fields += ('gender',)
+        self.__exclude_fields += ('gender',)
         self.assertRaisesRegex(
             APIException,
             r'not in serializer.fields.$',
-            self.test_serializer_class,
-            exclude_fields=self.exclude_fields
+            self.__test_serializer_class,
+            exclude_fields=self.__exclude_fields
         )

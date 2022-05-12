@@ -11,7 +11,7 @@ from rest_framework.generics import GenericAPIView
 
 from common.utils import BASE_IMAGE_URL
 from common.exceptions import NotExcutableValidationError
-from user.test.factory import UserFactory, ShopperFactory, WholesalerFactory
+from user.test.factories import UserFactory, ShopperFactory, WholesalerFactory
 
 
 FREEZE_TIME = '2021-11-20T01:02:03.456789'

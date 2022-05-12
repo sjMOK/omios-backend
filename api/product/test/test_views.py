@@ -2,7 +2,6 @@ import random
 
 from django.db.models.query import Prefetch
 from django.db.models import Avg, Max, Min, Count, Q
-from django.test import tag
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
@@ -10,9 +9,9 @@ from faker import Faker
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
-from user.test.factory import WholesalerFactory
+from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
-from .factory import (
+from .factories import (
     AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
     ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
     ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
@@ -46,33 +45,129 @@ class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
         self.assertListEqual(keywords_leven_distances, result_leven_distances)
 
 
-class GetRelatedSearchWordssTestCase(ViewTestCase):
+class GetAllCategoriesTestCase(ViewTestCase):
+    _url = '/products/categories'
+
+    def test_get(self):
+        main_categories = MainCategoryFactory.create_batch(size=3)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, MainCategorySerializer(main_categories, many=True).data)
+
+
+class GetMainCategoriesTestCase(ViewTestCase):
+    _url = '/products/main-categories'
+
+    def test_get(self):
+        main_categories = MainCategoryFactory.create_batch(size=3)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(
+            self._response_data, 
+            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data
+        )
+
+
+class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
+    _url = '/products/main-categories'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__main_category = MainCategoryFactory()
+        cls.__sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.__main_category)
+
+    def test_get(self):
+        self._url += '/{0}/sub-categories'.format(self.__main_category.id)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(
+            self._response_data, 
+            SubCategorySerializer(self.__sub_categories, many=True).data
+        )
+
+    def test_get_raise_404(self):
+        main_category_id = MainCategory.objects.latest('id').id + 1
+        self._url += '/{0}/sub-categories'.format(main_category_id)
+        self._get()
+
+        self._assert_failure(404, 'Not found.')
+
+
+class GetColorsTestCase(ViewTestCase):
+    _url = '/products/colors'
+
+    def test_get(self):
+        colors = ColorFactory.create_batch(size=3)
+        self._get()
+
+        self.assertListEqual(
+            self._response_data, 
+            ColorSerializer(colors, many=True).data
+        )
+
+
+class GetTagSearchResultTest(ViewTestCase):
+    _url = '/products/tags'
+
+    def test_get(self):
+        fake = Faker()
+        search_word = fake.word()
+        TagFactory.create_batch(size=3)
+        TagFactory(name=search_word)
+        TagFactory(name=(fake.word() + search_word))
+        TagFactory(name=(search_word + fake.word()))
+        TagFactory(name=(fake.word() + search_word + fake.word()))
+
+        self._get({'search_word': search_word})
+        tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')
+
+        self._assert_success()
+        self.assertListEqual(
+            TagSerializer(tags, many=True).data,
+            self._response_data
+        )
+
+    def test_search_without_search_word(self):
+        self._get()
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_search_with_empty_string(self):
+        self._get({'search_word': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+
+class GetRelatedSearchWordsTestCase(ViewTestCase):
     _url = '/products/related-search-words'
 
     @classmethod
     def setUpTestData(cls):
         fake = Faker()
 
-        cls.search_query = fake.word()
-        main_category = MainCategoryFactory(name=cls.search_query)
+        cls.__search_query = fake.word()
+        main_category = MainCategoryFactory(name=cls.__search_query)
 
         for _ in range(3):
             SubCategoryFactory(
-                main_category=main_category, name=fake.word()+cls.search_query+fake.word()
+                main_category=main_category, name=fake.word()+cls.__search_query+fake.word()
             )
 
         for _ in range(5):
-            KeyWordFactory(name=fake.word()+cls.search_query+fake.word())
+            KeyWordFactory(name=fake.word()+cls.__search_query+fake.word())
 
     def test_success(self):
-        self._get({'search_word': self.search_query})
-        main_categories = MainCategory.objects.filter(name__contains=self.search_query)
-        sub_categories = SubCategory.objects.filter(name__contains=self.search_query)
-        keywords = list(Keyword.objects.filter(name__contains=self.search_query).values_list('name', flat=True))
+        self._get({'search_word': self.__search_query})
+        main_categories = MainCategory.objects.filter(name__contains=self.__search_query)
+        sub_categories = SubCategory.objects.filter(name__contains=self.__search_query)
+        keywords = list(Keyword.objects.filter(name__contains=self.__search_query).values_list('name', flat=True))
         expected_response_data = {
             'main_category': MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data,
             'sub_category': SubCategorySerializer(sub_categories, many=True).data,
-            'keyword': sort_keywords_by_levenshtein_distance(keywords, self.search_query),
+            'keyword': sort_keywords_by_levenshtein_distance(keywords, self.__search_query),
         }
 
         self._assert_success()
@@ -100,7 +195,7 @@ class GetRegistryDataTestCase(ViewTestCase):
         AgeFactory()
         ThemeFactory()
 
-        cls.sizes = SizeFactory.create_batch(size=3)
+        cls.__sizes = SizeFactory.create_batch(size=3)
 
     def test_get_common_registry_data(self):
         expected_response_data = {
@@ -120,7 +215,7 @@ class GetRegistryDataTestCase(ViewTestCase):
             require_product_additional_information=False, 
             require_laundry_information=False
         )
-        sub_category.sizes.add(*self.sizes)
+        sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
             'thickness': [],
@@ -139,7 +234,7 @@ class GetRegistryDataTestCase(ViewTestCase):
             require_product_additional_information=True, 
             require_laundry_information=False
         )
-        sub_category.sizes.add(*self.sizes)
+        sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
             'thickness': ThicknessSerializer(Thickness.objects.all(), many=True).data,
@@ -161,7 +256,7 @@ class GetRegistryDataTestCase(ViewTestCase):
             require_product_additional_information=False, 
             require_laundry_information=True
         )
-        sub_category.sizes.add(*self.sizes)
+        sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
             'thickness': [],
@@ -177,7 +272,7 @@ class GetRegistryDataTestCase(ViewTestCase):
 
     def test_get_with_sub_category_require_all_information(self):
         sub_category = SubCategoryFactory()
-        sub_category.sizes.add(*self.sizes)
+        sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
             'thickness': ThicknessSerializer(Thickness.objects.all(), many=True).data,
@@ -199,102 +294,18 @@ class GetRegistryDataTestCase(ViewTestCase):
         self._assert_failure(400, 'Query parameter sub_category must be id format.')
 
 
-class GetAllCategoriesTestCase(ViewTestCase):
-    _url = '/products/categories'
+class GetProductQuestionAnswerClassificationTestCase(ViewTestCase):
+    _url = '/products/question-answers/classifications'
 
     def test_get(self):
-        main_categories = MainCategoryFactory.create_batch(size=3)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(self._response_data, MainCategorySerializer(main_categories, many=True).data)
-
-
-class GetMainCategoriesTestCase(ViewTestCase):
-    _url = '/products/main-categories'
-
-    def test_get(self):
-        main_categories = MainCategoryFactory.create_batch(size=3)
+        classifications = ProductQuestionAnswerClassificationFactory.create_batch(size=3)
         self._get()
 
         self._assert_success()
         self.assertListEqual(
-            self._response_data, 
-            MainCategorySerializer(main_categories, many=True, exclude_fields=('sub_categories',)).data
+            self._response_data,
+            ProductQuestionAnswerClassificationSerializer(classifications, many=True).data
         )
-
-
-
-class GetSubCategoriesByMainCategoryTestCase(ViewTestCase):
-    _url = '/products/main-categories'
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.main_category = MainCategoryFactory()
-        cls.sub_categories = SubCategoryFactory.create_batch(size=3, main_category=cls.main_category)
-
-    def test_get(self):
-        self._url += '/{0}/sub-categories'.format(self.main_category.id)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(
-            self._response_data, 
-            SubCategorySerializer(self.sub_categories, many=True).data
-        )
-
-    def test_get_raise_404(self):
-        main_category_id = MainCategory.objects.latest('id').id + 1
-        self._url += '/{0}/sub-categories'.format(main_category_id)
-        self._get()
-
-        self._assert_failure(404, 'Not found.')
-
-
-class GetColorsTestCase(ViewTestCase):
-    _url = '/products/colors'
-
-    def test_get(self):
-        colors = ColorFactory.create_batch(size=3)
-        self._get()
-
-        self.assertListEqual(
-            self._response_data, 
-            ColorSerializer(colors, many=True).data
-        )
-
-
-class GetTagSearchResultTest(ViewTestCase):
-    _url = '/products/tags'
-    limiting = 8
-
-    def test_get(self):
-        fake = Faker()
-        search_word = fake.word()
-        TagFactory.create_batch(size=3)
-        TagFactory(name=search_word)
-        TagFactory(name=(fake.word() + search_word))
-        TagFactory(name=(search_word + fake.word()))
-        TagFactory(name=(fake.word() + search_word + fake.word()))
-
-        self._get({'search_word': search_word})
-        tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:self.limiting]
-
-        self._assert_success()
-        self.assertListEqual(
-            TagSerializer(tags, many=True).data,
-            self._response_data
-        )
-
-    def test_search_without_search_word(self):
-        self._get()
-
-        self._assert_failure(400, 'Unable to search with empty string.')
-
-    def test_search_with_empty_string(self):
-        self._get({'search_word': ''})
-
-        self._assert_failure(400, 'Unable to search with empty string.')
 
 
 class ProductViewSetTestCase(ViewTestCase):
@@ -302,18 +313,18 @@ class ProductViewSetTestCase(ViewTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.sub_categories = SubCategoryFactory.create_batch(size=3)
-        cls.colors = ColorFactory.create_batch(size=10)
+        cls._sub_categories = SubCategoryFactory.create_batch(size=3)
+        cls._colors = ColorFactory.create_batch(size=3)
 
-        product_num = 10
+        product_num = 3
         for _ in range(product_num):
             wholesaler = cls._user if isinstance(cls._user, Wholesaler) else WholesalerFactory()
             product = ProductFactory(
-                sub_category=random.choice(cls.sub_categories), 
+                sub_category=random.choice(cls._sub_categories), 
                 price=random.randint(10000, 50000),
                 wholesaler=wholesaler
             )
-            ProductColorFactory(product=product, color=random.choice(cls.colors))
+            ProductColorFactory(product=product, color=random.choice(cls._colors))
 
         ProductFactory.create_batch(size=2, on_sale=False)
 
@@ -333,23 +344,9 @@ class ProductViewSetTestCase(ViewTestCase):
         for product_color in product_colors:
             OptionFactory.create_batch(size=2, product_color=product_color)
 
-        ProductImageFactory.create_batch(size=3, product=product)
+        ProductImageFactory.create_batch(size=2, product=product)
 
         return product
-
-
-class GetProductQuestionAnswerClassificationTestCase(ViewTestCase):
-    _url = '/products/question-answers/classifications'
-
-    def test_get(self):
-        classifications = ProductQuestionAnswerClassificationFactory.create_batch(size=3)
-        self._get()
-
-        self._assert_success()
-        self.assertListEqual(
-            self._response_data,
-            ProductQuestionAnswerClassificationSerializer(classifications, many=True).data
-        )
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
@@ -461,12 +458,12 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.assertEqual(self._response_data['count'], filtered_products_count)
 
     def test_filter_main_category(self):
-        main_category_id = random.choice(self.sub_categories).main_category_id
+        main_category_id = random.choice(self._sub_categories).main_category_id
 
         self.__test_filtering({'main_category': main_category_id})
 
     def test_filter_sub_category(self):
-        sub_category_id = random.choice(self.sub_categories).id
+        sub_category_id = random.choice(self._sub_categories).id
 
         self.__test_filtering({'sub_category': sub_category_id})
 
@@ -481,12 +478,12 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_filtering({'max_price': int(price_avg)})
 
     def test_filter_color(self):
-        color_id = random.choice(self.colors).id
+        color_id = random.choice(self._colors).id
 
         self.__test_filtering({'color': color_id})
 
     def test_filter_color_list(self):
-        colors = random.sample(self.colors, 3)
+        colors = random.sample(self._colors, 3)
         color_id = [color.id for color in colors]
 
         self.__test_filtering({'color': color_id})
@@ -555,19 +552,11 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
 class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     fixtures = ['temporary_image']
+
     @classmethod
     def setUpTestData(cls):
         cls._set_wholesaler()
         super(ProductViewSetForWholesalerTestCase, cls).setUpTestData()
-
-        for _ in range(5):
-            product = ProductFactory(
-                sub_category=random.choice(cls.sub_categories), 
-                price=random.randint(10000, 50000)
-            )
-            ProductColorFactory(product=product, color=random.choice(cls.colors))
-
-        ProductFactory.create_batch(size=2, on_sale=False)
 
     def setUp(self):
         self._set_authentication()
@@ -699,15 +688,15 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         self.assertTrue(not deleted_product.question_answers.all().exists())
 
 
+
 class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
-    maxDiff = None
     fixtures = ['membership']
     _url = '/products/{0}/question-answers'
 
     @classmethod
     def setUpTestData(cls):
-        cls.product = ProductFactory()
-        cls._url = cls._url.format(cls.product.id)
+        cls.__product = ProductFactory()
+        cls._url = cls._url.format(cls.__product.id)
 
         cls._test_data = {
             'question': 'question',
@@ -718,10 +707,10 @@ class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
     def setUp(self):
         self._set_shopper()
         self._set_authentication()
-        self.question_answer = ProductQuestionAnswerFactory(shopper=self._user, product=self.product)
+        self.question_answer = ProductQuestionAnswerFactory(shopper=self._user, product=self.__product)
 
     def test_get(self):
-        ProductQuestionAnswerFactory.create_batch(size=3, product=self.product)
+        ProductQuestionAnswerFactory.create_batch(size=3, product=self.__product)
         serializer = ProductQuestionAnswerSerializer(ProductQuestionAnswer.objects.all(), many=True)
         self._get()
 

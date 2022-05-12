@@ -167,7 +167,6 @@ class ProductColor(Model):
 
     class Meta:
         db_table = 'product_color'
-        unique_together = (('product', 'display_color_name'),)
 
     def save(self, *args, **kwargs):
         if not self.display_color_name:
@@ -266,7 +265,6 @@ class ProductMaterial(Model):
 
     class Meta:
         db_table = 'product_material'
-        unique_together = (('product', 'material'),)
 
 
 class Theme(Model):
@@ -300,8 +298,7 @@ class ProductQuestionAnswer(Model):
     classification = ForeignKey('ProductQuestionAnswerClassification', DO_NOTHING)
     created_at = DateTimeField(auto_now_add=True)
     question = CharField(max_length=1000)
-    answer = CharField(max_length=1000, null=True)
-    answer_completed = BooleanField(default=False)
+    answer = CharField(max_length=1000)
     is_secret = BooleanField(default=False)
 
     class Meta:

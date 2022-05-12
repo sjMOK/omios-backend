@@ -21,7 +21,7 @@ class OrderFactory(DjangoModelFactory):
     class Meta:
         model = 'order.Order'
 
-    shopper = SubFactory('user.test.factory.ShopperFactory')
+    shopper = SubFactory('user.test.factories.ShopperFactory')
     shipping_address = SubFactory('order.test.factories.ShippingAddressFactory')
 
 
@@ -30,7 +30,7 @@ class OrderItemFactory(DjangoModelFactory):
         model = 'order.OrderItem'
 
     order = SubFactory(OrderFactory)
-    option = SubFactory('product.test.factory.OptionFactory')
+    option = SubFactory('product.test.factories.OptionFactory')
     status = SubFactory('order.test.factories.StatusFactory')
     count = FuzzyInteger(1, 5)
     sale_price = LazyAttribute(lambda obj: obj.option.product_color.product.sale_price * obj.count)

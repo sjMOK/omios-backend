@@ -1,17 +1,15 @@
-from freezegun import freeze_time
-from datetime import datetime
-
-from django.test import tag
 from django.forms import model_to_dict
 
+from freezegun import freeze_time
+
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
-from user.test.factory import WholesalerFactory, ShopperFactory
+from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
     Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
     ProductQuestionAnswerClassification, ProductQuestionAnswer,
 )
-from .factory import (
+from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
     ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
     ProductQuestionAnswerClassificationFactory,
@@ -408,7 +406,7 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.default_fields = ('created_at', 'answer_completed', 'is_secret')
+        cls.__default_fields = ('created_at', 'is_secret')
         cls._test_data = {
             'product': ProductFactory(),
             'shopper': ShopperFactory(),
@@ -420,7 +418,7 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     def test_create(self):
         self.assertDictEqual(
-            model_to_dict(self._question_answer, exclude=('id',) + self.default_fields),
+            model_to_dict(self._question_answer, exclude=('id',) + self.__default_fields),
             {
                 **self._test_data,
                 'product': self._test_data['product'].id,
@@ -431,5 +429,4 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_value(self):
-        self.assertTrue(not self._question_answer.answer_completed)
         self.assertTrue(not self._question_answer.is_secret)

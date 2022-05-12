@@ -6,8 +6,8 @@ from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
-from product.test.factory import ProductFactory
-from .factory import (
+from product.test.factories import ProductFactory
+from .factories import (
     MembershipFactory, get_factory_password, get_factory_authentication_data, 
     FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory,
 )
@@ -376,9 +376,9 @@ class ProductLikeViewTestCase(ViewTestCase):
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls.product = ProductFactory()
-        cls._url = cls._url.format(cls._user.id, cls.product.id)
-        cls._test_data = {'product_id': cls.product.id}
+        cls.__product = ProductFactory()
+        cls._url = cls._url.format(cls._user.id, cls.__product.id)
+        cls._test_data = {'product_id': cls.__product.id}
 
     def test_post(self):
         self._set_authentication()
@@ -386,19 +386,19 @@ class ProductLikeViewTestCase(ViewTestCase):
 
         self._assert_success()
         self.assertEqual(self._response_data['shopper_id'], self._user.id)
-        self.assertEqual(self._response_data['product_id'], self.product.id)
+        self.assertEqual(self._response_data['product_id'], self.__product.id)
 
     def test_delete(self):
-        self._user.like_products.add(self.product)
+        self._user.like_products.add(self.__product)
         self._set_authentication()
         self._delete()
 
         self._assert_success()
         self.assertEqual(self._response_data['shopper_id'], self._user.id)
-        self.assertEqual(self._response_data['product_id'], self.product.id)
+        self.assertEqual(self._response_data['product_id'], self.__product.id)
 
     def test_post_duplicated_like(self):
-        self._user.like_products.add(self.product)
+        self._user.like_products.add(self.__product)
         self._set_authentication()
         self._post()
 
@@ -418,7 +418,7 @@ class ShopperShippingAddressViewSet(ViewTestCase):
     def setUpTestData(cls):
         cls._set_shopper()
         cls._url = cls._url.format(cls._user.id)
-        cls.default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
+        cls.__default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
         ShopperShippingAddressFactory.create_batch(size=2, shopper=cls._user)
 
     def test_list(self):
@@ -452,7 +452,7 @@ class ShopperShippingAddressViewSet(ViewTestCase):
         )
 
     def test_partial_update(self):
-        shipping_address = self.default_shipping_address
+        shipping_address = self.__default_shipping_address
         self._test_data = {
             'name': shipping_address.name + '_update',
             'receiver_name': shipping_address.receiver_name + '_update',
@@ -471,7 +471,7 @@ class ShopperShippingAddressViewSet(ViewTestCase):
         )
 
     def test_destroy(self):
-        shipping_address = self.default_shipping_address
+        shipping_address = self.__default_shipping_address
         self._set_authentication()
         self._url = self._url + '/{0}'.format(shipping_address.id)
         self._delete()
@@ -483,14 +483,14 @@ class ShopperShippingAddressViewSet(ViewTestCase):
         self._set_authentication()
         self._url += '/default'
         self._get()
-        serializer = ShopperShippingAddressSerializer(self.default_shipping_address)
+        serializer = ShopperShippingAddressSerializer(self.__default_shipping_address)
 
         self._assert_success()
         self.assertDictEqual(self._response_data, serializer.data)
 
     def test_get_default_address_with_no_default_address(self):
-        self.default_shipping_address.is_default = False
-        self.default_shipping_address.save()
+        self.__default_shipping_address.is_default = False
+        self.__default_shipping_address.save()
 
         self._set_authentication()
         self._url += '/default'
