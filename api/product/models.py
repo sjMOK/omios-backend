@@ -167,7 +167,6 @@ class ProductColor(Model):
 
     class Meta:
         db_table = 'product_color'
-        unique_together = (('product', 'display_color_name'),)
 
     def save(self, *args, **kwargs):
         if not self.display_color_name:
