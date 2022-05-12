@@ -1,14 +1,12 @@
-from math import floor
-from django.forms import model_to_dict
-
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer,
     PrimaryKeyRelatedField, StringRelatedField,
     IntegerField
 )
-from rest_framework.exceptions import ValidationError, APIException
+from rest_framework.exceptions import ValidationError
 
 from common.serializers import has_duplicate_element, get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element
+from common.exceptions import NotExcutableValidationError
 from product.models import Option
 from product.serializers import OptionInOrderItemSerializer
 from .models import Order, OrderItem, ShippingAddress, Refund, CancellationInformation, Status, StatusHistory
@@ -19,6 +17,18 @@ class ShippingAddressSerializer(ModelSerializer):
         model = ShippingAddress
         fields = '__all__'
 
+    def validate(self, attrs):
+        if 'order' in self.context:
+            self.__validate_status()
+
+        return attrs
+
+    # todo test code 작성
+    def __validate_status(self):
+        for order_item in self.context['order'].items.all():
+            if order_item.status_id not in [100, 101]:
+                raise ValidationError('The shipping address for this order cannot be changed.')
+
     def create(self, validated_data):
         instance = self.Meta.model.objects.get_or_create(**validated_data)[0]
 
@@ -27,6 +37,22 @@ class ShippingAddressSerializer(ModelSerializer):
             self.context['order'].save(update_fields=['shipping_address'])
 
         return instance
+
+
+class OrderItemSerializer(ModelSerializer):
+    option = OptionInOrderItemSerializer()
+    base_discount_price = IntegerField(read_only=True)
+    earned_point = IntegerField(read_only=True)
+    used_point = IntegerField(read_only=True)
+    status = StringRelatedField()
+
+    class Meta:
+        model = OrderItem
+        exclude = ['order']
+
+    def validate(self, attrs):
+        raise NotExcutableValidationError()
+
 
 class OrderItemListSerializer(ListSerializer):
     def validate(self, attrs):
@@ -50,38 +76,26 @@ class OrderItemListSerializer(ListSerializer):
 
         return queryset
 
-    def update(self, queryset, update_fields):
-        self.child.Meta.model.objects.bulk_update(queryset, update_fields)
+    def update_status(self, queryset, status_id):
+        for instance in queryset:
+            instance.status_id = status_id
 
+        self.child.Meta.model.objects.bulk_update(queryset, ['status_id'])
         self.__create_status_history(queryset)
 
         return queryset
 
 
-class OrderItemSerializer(ModelSerializer):
-    option = OptionInOrderItemSerializer()
-    base_discount_price = IntegerField(read_only=True)
-    earned_point = IntegerField(read_only=True)
-    status = StringRelatedField()
-
-    class Meta:
-        model = OrderItem
-        exclude = ['order']
-
-    def validate(self):
-        raise APIException('This serializer cannot validate.')
-
-
 class OrderItemWriteSerializer(OrderItemSerializer):
     option = PrimaryKeyRelatedField(queryset=Option.objects.select_related('product_color__product').all())
-    base_discounted_price = IntegerField()
+    base_discounted_price = IntegerField(min_value=0)
 
     class Meta(OrderItemSerializer.Meta):
         extra_kwargs = {
-            'count': {'max_value': 999, 'min_value': 1},
+            'count': {'max_value': 999, 'min_value': 1, 'required': True},
             'sale_price': {'min_value': 0},
             'membership_discount_price': {'min_value': 0},
-            'used_price': {'min_value': 0},
+            # 'used_price': {'min_value': 0},
             'payment_price': {'min_value': 0},
         }
         list_serializer_class = OrderItemListSerializer
@@ -94,7 +108,6 @@ class OrderItemWriteSerializer(OrderItemSerializer):
 
         return attrs
 
-
     def validate_option(self, value):
         if self.instance is None:
             return value
@@ -103,6 +116,8 @@ class OrderItemWriteSerializer(OrderItemSerializer):
             raise ValidationError('This order is in a state where options cannot be changed.')
         elif self.instance.option.product_color.product_id != value.product_color.product_id:
             raise ValidationError('It cannot be changed to an option for another product.')
+        elif OrderItem.objects.filter(order=self.instance.order, option=value).exists():
+            raise ValidationError('This item is already included in the order.')
 
         return value
 
@@ -110,11 +125,11 @@ class OrderItemWriteSerializer(OrderItemSerializer):
         option = attrs['option']
         product = option.product_color.product
 
-        if attrs['sale_price'] != product.sale_price:
+        if attrs['sale_price'] != product.sale_price * attrs['count']:
             raise ValidationError(f'sale_price of option {option.id} is different from the actual price.')
-        elif attrs['base_discounted_price'] != product.base_discounted_price:
+        elif attrs['base_discounted_price'] != product.base_discounted_price * attrs['count']:
             raise ValidationError(f'base_discounted_price of option {option.id} is different from the actual price.')
-        elif attrs['membership_discount_price'] != attrs['base_discounted_price'] * self.context['shopper'].membership.discount_rate // 100:
+        elif attrs['membership_discount_price'] != product.base_discounted_price * self.context['shopper'].membership.discount_rate // 100 * attrs['count']:
             raise ValidationError(f'membership_discount_price of option {option.id} is different from the actual price.')
         # todo 쿠폰 validation
         elif attrs['payment_price'] != attrs['base_discounted_price'] - attrs['membership_discount_price']:
@@ -131,24 +146,24 @@ class OrderItemWriteSerializer(OrderItemSerializer):
 
         return instance
 
+
 class OrderSerializer(ModelSerializer):
     number = IntegerField(read_only=True)
     shipping_address = ShippingAddressSerializer()
     items = OrderItemSerializer(many=True)
+
     class Meta:
         model = Order
         exclude = []
 
-    def validate(self):
-        raise APIException('This serializer cannot validate.')
+    def validate(self, attrs):
+        raise NotExcutableValidationError()
 
 
 class OrderWriteSerializer(OrderSerializer):
-    # number = IntegerField(read_only=True)
-    # shipping_address = ShippingAddressSerializer()
     items = OrderItemWriteSerializer(many=True, allow_empty=False)
-    actual_payment_price = IntegerField(min_value=0, write_only=True)
-    used_point = IntegerField(min_value=0, required=False, write_only=True)
+    actual_payment_price = IntegerField(min_value=1000, write_only=True)
+    used_point = IntegerField(min_value=0, write_only=True)
     earned_point = IntegerField(min_value=0, write_only=True)
     
     class Meta(OrderSerializer.Meta):
@@ -156,7 +171,7 @@ class OrderWriteSerializer(OrderSerializer):
 
     def validate(self, attrs):
         if self.instance is not None:
-            return attrs
+            raise NotExcutableValidationError()
 
         self.__validate_price(attrs)
 
@@ -171,12 +186,12 @@ class OrderWriteSerializer(OrderSerializer):
         elif attrs['earned_point'] != attrs['actual_payment_price'] // 100:
             raise ValidationError('earned_point is calculated incorrectly.')
         
-        self.__set_items_including_point_informations2(attrs['items'], attrs['used_point'], attrs['earned_point'], total_payment_price)
+        self.__set_items_including_point_informations(attrs['items'], attrs['used_point'], attrs['earned_point'], total_payment_price)
 
         attrs.pop('actual_payment_price')
         attrs.pop('earned_point')
 
-    def __set_items_including_point_informations2(self, items, used_point, earned_point, total_payment_price):
+    def __set_items_including_point_informations(self, items, used_point, earned_point, total_payment_price):
         self.__distribute_point(items, 'used_point', used_point, total_payment_price)
         self.__distribute_point(items, 'earned_point', earned_point, total_payment_price)
         self.__apply_used_point_to_payment_price(items)
@@ -184,7 +199,7 @@ class OrderWriteSerializer(OrderSerializer):
     def __distribute_point(self, items, key, point, total_payment_price):
         distributed_point = 0
         for item in items:
-            item[key] = floor(item['payment_price'] * point / total_payment_price)
+            item[key] = int(item['payment_price'] * point / total_payment_price)
             distributed_point += item[key]
         
         if distributed_point != point:
@@ -217,6 +232,9 @@ class OrderWriteSerializer(OrderSerializer):
 
         return order
 
+    def update_shipping_address(self, instance, shipping_address_id):
+        pass
+
     
 class OrderConfirmation(Serializer):
     pass
@@ -232,10 +250,11 @@ class OrderItemClaimSerializer(Serializer):
     order_items = PrimaryKeyRelatedField(queryset=OrderItem.objects.all(), many=True)
 
 
-
+# todo test code 작성
+# claim(교환, 반품, 취소) 관련 설계 끝난 이후
 class CancellationInformationSerializer(ModelSerializer):
     order_items = PrimaryKeyRelatedField(queryset=OrderItem.objects.select_related('order', 'option__product_color__product').all(), many=True, allow_empty=False, write_only=True)
-    refund = RefundSerializer(required=False)
+    refund = RefundSerializer(read_only=True)
 
     class Meta:
         model = CancellationInformation
@@ -257,46 +276,72 @@ class CancellationInformationSerializer(ModelSerializer):
 
         return value
 
+    def __recover_point(self, order_items):
+        total_used_point = 0
+        details = []
+        for order_item in order_items:
+            total_used_point += order_item.used_point
+            details.append({
+                'point': order_item.used_point, 
+                'prduct_name': order_item.option.product_color.product.name
+            })
+
+        self.context['shopper'].update_point(total_used_point, '주문 취소로 인한 사용 포인트 복구', details)
+
+    def __set_refund(self, validated_data, payment_price):
+        refund = self.fields['refund'].create({'price': payment_price})
+        
+        return [{**data, 'refund': refund} for data in validated_data]
+
+    # 취소 데이터 생성
     def create(self, validated_data):
         order_items = validated_data['order_items']
-        total_used_point = 0
-        order_items_to_recover_point = []
-        datas_for_creation = []
-        for order_item in order_items:
-            data = {'order_item': order_item}
-            if order_item.status_id == 101:
-                # todo 환불 (한번에)
-                # 쿠폰 재발급
-                order_item.status_id = 103
-                data['refund'] = self.fields['refund'].create({'price': order_item.payment_price})
-            else:
-                order_item.status_id = 102
-            
-            datas_for_creation.append(data)
 
-            total_used_point += order_item.used_point
-            order_items_to_recover_point.append({'point': order_item.used_point, 'product_name': order_item.option.product_color.product.name})
+        if order_items[0].status_id == 101:
+            update_status_id = 103
+        else:
+            update_status_id = 102
+
+        # total_used_point = 0
+        # order_items_to_recover_point = []
+        # datas_for_creation = []
+        # for order_item in order_items:
+        #     data = {'order_item': order_item}
+        #     if order_item.status_id == 101:
+        #         # todo 환불 (한번에)
+        #         # 쿠폰 재발급
+        #         order_item.status_id = 103
+        #         data['refund'] = self.fields['refund'].create({'price': order_item.payment_price})
+        #     else:
+        #         order_item.status_id = 102
+            
+        #     datas_for_creation.append(data)
+
+        #     total_used_point += order_item.used_point
+        #     order_items_to_recover_point.append({'point': order_item.used_point, 'product_name': order_item.option.product_color.product.name})
 
         
         # transaction
+        validated_data = [{'order_item': order_item} for order_item in order_items]
+        if update_status_id == 103:
+            validated_data = self.__set_refund(validated_data)        
 
-        OrderItemWriteSerializer(many=True).update(order_items, ['status_id'])
-        self.context['shopper'].update_point(total_used_point, '주문 취소로 인한 사용 포인트 복구', self.context['order_id'], order_items_to_recover_point)
+        # OrderItemWriteSerializer(many=True).update(order_items, ['status_id'])
+        OrderItemWriteSerializer(many=True).update_status(order_items, update_status_id)
+        self.__recover_point(order_items)
+        # self.context['shopper'].update_point(total_used_point, '주문 취소로 인한 사용 포인트 복구', self.context['order_id'], order_items_to_recover_point)
 
         model = self.Meta.model
-        return model.objects.bulk_create([model(**data) for data in datas_for_creation])     
+        # return model.objects.bulk_create([model(**data) for data in datas_for_creation])     
+        return model.objects.bulk_create([model(**data) for data in validated_data])
 
 
 class StatusHistorySerializer(ModelSerializer):
+    status = StringRelatedField()
+
     class Meta:
         model = StatusHistory
         exclude = ['order_item']
-
-    def to_representation(self, instance):
-        result = super().to_representation(instance)
-        result['status'] = instance.status.name
-
-        return result
 
     def create(self, order_items):
         model = self.Meta.model

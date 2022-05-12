@@ -5,35 +5,25 @@ from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
-from rest_framework.exceptions import APIException
 
 from common.utils import get_response
 from user.models import Shopper
-from product.models import Product, ProductImage, Option
-from .models import (
-    Order, OrderItem, ShippingAddress, Status, StatusHistory,
-)
+from product.models import ProductImage
+from .models import Order, OrderItem, StatusHistory
 from .serializers import (
-    OrderItemSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
+    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
     ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer,
 )
 from .permissions import OrderPermission, OrderItemPermission
 
-from rest_framework.permissions import AllowAny
-from django.db import connection
-from django.forms import model_to_dict
 
 class OrderViewSet(GenericViewSet):
+    pagination_class = None
     permission_classes = [OrderPermission]
     lookup_field = 'id'
     lookup_url_kwarg = 'order_id'
-    __actions_requiring_write_serilaizer = ['create', 'partial_update']
-    __patchable_fields = ['shipping_address']
 
     def get_serializer_class(self):
-        # if self.action in self.__actions_requiring_write_serilaizer:
-        #     return OrderWriteSerializer
-
         if self.action in ['create']:
             return OrderWriteSerializer
         elif self.action == 'update_shipping_address':
@@ -41,18 +31,21 @@ class OrderViewSet(GenericViewSet):
         
         return OrderSerializer
 
-    def get_queryset(self):
-        if self.request.user.is_wholesaler:
-            pass
-        elif self.request.user.is_shopper:
-            condition = Q(shopper_id=self.request.user.id)
-        else:
-            raise APIException('Unrecognized user.')
+    def __get_conditions(self):
+        conditions = Q()
+        if self.action == 'list':
+            conditions = Q(shopper_id=self.request.user.id)
 
-        image = ProductImage.objects.filter(sequence=1)
-        items = OrderItem.objects.select_related('option__product_color__product', 'status').prefetch_related(Prefetch('option__product_color__product__images', queryset=image))
-        
-        return Order.objects.select_related('shipping_address').prefetch_related(Prefetch('items', queryset=items)).filter(condition)
+        return conditions
+
+    def get_queryset(self):
+        queryset = Order.objects
+        if self.action in ['list', 'retrieve']:
+            image = ProductImage.objects.filter(sequence=1)
+            items = OrderItem.objects.select_related('option__product_color__product', 'status').prefetch_related(Prefetch('option__product_color__product__images', queryset=image))
+            queryset = queryset.select_related('shipping_address').prefetch_related(Prefetch('items', queryset=items))
+
+        return queryset.filter(self.__get_conditions())
 
     def list(self, request):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)        
@@ -76,34 +69,22 @@ class OrderViewSet(GenericViewSet):
     @action(['put'], True, 'shipping-address')
     def update_shipping_address(self, request, order_id):
         serializer = self.get_serializer(data=request.data, context={'order': self.get_object()})
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return get_response(data={'id': order_id})
+        return get_response(data={'id': int(order_id)})
 
 
 class OrderItemViewSet(GenericViewSet):
+    pagination_class = None
     permission_classes = [OrderItemPermission]
     serializer_class = OrderItemWriteSerializer
-    # queryset = OrderItem
     lookup_field = 'id'
     lookup_url_kwarg = 'item_id'
     __patchable_fields = set(['option'])
  
     def get_queryset(self):
-        if hasattr(self.request.user, 'shopper'):
-            condition = Q(order__shopper=self.request.user.shopper)
-        else:
-            raise APIException('Unrecognized user.')
-
-        if 'order' in self.request.data:
-            condition &= Q(order_id=self.request.data['order'])
-        if 'items' in self.request.data:
-            condition &= Q(id__in=self.request.data['items'])
-
-        return OrderItem.objects.select_related('order', 'option__product_color').filter(condition)
+        return OrderItem.objects.select_related('order', 'option__product_color')
 
     def partial_update(self, request, item_id):
         if set(request.data).difference(self.__patchable_fields):
@@ -113,7 +94,7 @@ class OrderItemViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return get_response(data={'id': item_id})
+        return get_response(data={'id': int(item_id)})
 
     # todo 발주확인 관련
 
@@ -146,6 +127,7 @@ class ClaimViewSet(GenericViewSet):
 
 
 class StatusHistoryAPIView(GenericAPIView):
+    pagination_class = None
     permission_classes = [OrderItemPermission]
     serializer_class = StatusHistorySerializer
 
@@ -153,7 +135,7 @@ class StatusHistoryAPIView(GenericAPIView):
         order_item = get_object_or_404(OrderItem.objects.select_related('order'), id=self.kwargs['item_id'])
         self.check_object_permissions(self.request, order_item)
         
-        return StatusHistory.objects.filter(order_item=order_item)
+        return StatusHistory.objects.select_related('status').filter(order_item=order_item)
 
     def get(self, request, item_id):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)
