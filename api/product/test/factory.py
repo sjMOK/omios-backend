@@ -149,7 +149,6 @@ class ProductMaterialFactory(DjangoModelFactory):
         model = 'product.ProductMaterial'
 
     product = SubFactory(ProductFactory)
-    material = Sequence(lambda num: 'material{0}'.format(num))
     mixing_rate = 100
 
     @lazy_attribute

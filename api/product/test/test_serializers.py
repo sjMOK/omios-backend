@@ -1,9 +1,12 @@
-import random, copy
+import random
 
 from django.test import tag
 from django.db.models.query import Prefetch
 from django.db.models import Count
 from django.forms import model_to_dict
+
+from faker import Faker
+from rest_framework.exceptions import ValidationError
 
 from common.models import TemporaryImage
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
@@ -22,7 +25,7 @@ from ..serializers import (
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
-from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer
+from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer, ProductImage
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):
@@ -215,6 +218,7 @@ class ProductImageSerializerTestCase(SerializerTestCase):
         }
 
     def test_model_instance_serialization(self):
+
         expected_data = {
             'id': self.__product_image.id,
             'image_url': BASE_IMAGE_URL + self.__product_image.image_url,
@@ -256,41 +260,125 @@ class ProductImageSerializerTestCase(SerializerTestCase):
 class ProductImageListSerializerTestCase(ListSerializerTestCase):
     fixtures = ['temporary_image']
     _child_serializer_class = ProductImageSerializer
-    __batch_size = 3
+    __batch_size = 2
 
     @classmethod
     def setUpTestData(cls):
-        cls.temporary_images = TemporaryImage.objects.all().values_list('image_url', flat=True)
+        cls.__temporary_images = TemporaryImage.objects.all().values_list('image_url', flat=True)
         cls.__data = [
             {
-                'image_url': BASE_IMAGE_URL + cls.temporary_images[i],
-                'sequence': i+1
+                'image_url': BASE_IMAGE_URL + cls.__temporary_images[i],
+                'sequence': i+1,
             } for i in range(cls.__batch_size)
         ]
+        cls.__product = ProductFactory()
+        cls.__images = ProductImageFactory.create_batch(size=cls.__batch_size, product=cls.__product)
 
-    def test_raise_validation_error_data_length_more_than_upper_limit(self):
+    def test_validate_image_number_in_create(self):
+        data = [{} for _ in range(PRODUCT_COLOR_MAX_LENGTH + 1)]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product cannot have more than ten images.',
+            self._get_serializer().validate,
+            data
+        )
+
+    def test_validate_image_number_in_update_number_more_than_max(self):
         self.__data += [
             {
-                'image_url': BASE_IMAGE_URL + self.temporary_images[i],
+                'image_url': BASE_IMAGE_URL + self.__temporary_images[i],
                 'sequence': i+1,
-            } for i in range(len(self.__data), PRODUCT_IMAGE_MAX_LENGTH + 1)
+            } for i in range(len(self.__images), PRODUCT_IMAGE_MAX_LENGTH + len(self.__images) + 1)
         ]
-        expected_message = 'The product cannot have more than ten images.'
+        self.__data += [{'id': image.id} for image in self.__images]
 
-        self._test_serializer_raise_validation_error(expected_message, data=self.__data)
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product cannot have more than ten images.',
+            self._get_serializer(instance=self.__product, partial=True).validate,
+            self.__data
+        )
 
-    def test_raise_validation_error_sequences_not_startswith_one(self):
-        for d in self.__data:
-            d['sequence'] += 1
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
+    def test_validate_image_number_in_update_number_delete_all_images(self):
+        data = [{'id': image.id} for image in self.__images]
 
-        self._test_serializer_raise_validation_error(expected_message, data=self.__data)
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product must have at least one image.',
+            self._get_serializer(instance=self.__product, partial=True).validate,
+            data
+        )
 
-    def test_raise_validation_error_omitted_sequences(self):
+    def test_validate_sequence_sequences_not_startswith_one_in_create(self):
+        for data in self.__data:
+            data['sequence'] += 1
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product, partial=True).validate,
+            self.__data
+        )
+
+    def test_raise_validation_error_duplicated_sequences_in_create(self):
+        self.__data[0]['sequence'] = self.__data[-1]['sequence']
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product).validate,
+            self.__data
+        )
+
+    def test_raise_validation_error_omitted_sequences_in_create(self):
         self.__data[-1]['sequence'] += 1
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
 
-        self._test_serializer_raise_validation_error(expected_message, data=self.__data)
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product).validate,
+            self.__data
+        )
+
+    def test_raise_validation_error_duplicated_sequences_in_update(self):
+        data = [{
+            'id': self.__images[0].id,
+            'sequence': self.__images[-1].sequence + 1,
+        }]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
+
+    def test_raise_validation_error_duplicated_sequences_in_update(self):
+        data = [{
+                'image_url': BASE_IMAGE_URL + self.__temporary_images[0], 
+                'sequence': self.__product.images.last().sequence,
+            }]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
+
+    def test_raise_validation_error_omitted_sequences_in_update(self):
+        data = [{
+                'image_url': BASE_IMAGE_URL + self.__temporary_images[0], 
+                'sequence': self.__product.images.last().sequence + 2,
+            }]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The sequence of the images must be ascending from 1 to n.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
 
 
 class ProductMaterialSerializerTestCase(SerializerTestCase):
@@ -298,10 +386,11 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.__product_material = ProductMaterialFactory()
+        cls.__product = ProductFactory()
+        cls.__product_material = ProductMaterialFactory(product=cls.__product)
         cls.__data = {
             'material': '가죽',
-            'mixing_rate': 100
+            'mixing_rate': 100,
         }
 
     def test_model_instance_serialization(self):
@@ -313,19 +402,9 @@ class ProductMaterialSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(self.__product_material, expected_data)
 
-    def test_raise_validation_error_create_data_does_not_include_all_required_field_in_partial(self):
+    def test_raise_validation_error_create_data_does_not_include_all_required_field_in_update(self):
         key = random.choice(list(self.__data.keys()))
         self.__data.pop(key)
-        expected_message = '{0} field is required.'.format(key)
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product_material, data=self.__data, partial=True
-        )
-        
-    def test_raise_validation_error_update_data_does_not_include_all_required_field_in_partial(self):
-        key = random.choice(list(self.__data.keys()))
-        self.__data.pop(key)
-        self.__data['id'] = self.__product_material.id
         expected_message = '{0} field is required.'.format(key)
 
         self._test_serializer_raise_validation_error(
@@ -339,36 +418,107 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        total_mixing_rates = cls._child_serializer_class.Meta.list_serializer_class.total_mixing_rates
-        mixing_rate = total_mixing_rates / cls.__material_num
-
         cls.__product = ProductFactory()
-        ProductMaterialFactory.create_batch(
-            cls.__material_num, product=cls.__product, mixing_rate=mixing_rate
+        cls.__materials = ProductMaterialFactory.create_batch(
+            cls.__material_num, product=cls.__product, mixing_rate=50
         )
-        cls.__data = [
+        cls.__create_data = [
             {
-                'material': ProductMaterialFactory.build().material,
-                'mixing_rate': mixing_rate
+                'material': cls.__materials[i].material,
+                'mixing_rate': 50,
+            }for i in range(cls.__material_num)
+        ]
+        cls.__update_data = [
+            {
+                'id': cls.__materials[i].id,
+                'material': cls.__materials[i].material,
+                'mixing_rate': 50,
             }for i in range(cls.__material_num)
         ]
 
-    def test_raise_validation_error_total_mixing_rates_does_not_match_criteria(self):
-        data = self.__data
-        data[0]['mixing_rate'] += 10
-        expected_message = 'The total of material mixing rates must be 100.'
+    def test_validate_total_mixing_rates_in_create(self):
+        self.__create_data[0]['mixing_rate'] += 10
 
-        self._test_serializer_raise_validation_error(
-            expected_message, data=data
+        self.assertRaisesMessage(
+            ValidationError,
+            'The total of material mixing rates must be 100.',
+            self._get_serializer().validate,
+            self.__create_data
         )
 
-    def test_raise_validation_error_duplicated_material_name(self):
-        data = self.__data
-        data[-1]['material'] = data[0]['material']
-        expected_message = 'Material is duplicated.'
+    def test_validate_total_mixing_rates_in_update(self):
+        self.__update_data[0] = {'id': self.__update_data[0]['id']}
+        self.__update_data.pop(-1)
+        self.__update_data.append({
+            'material': 'material',
+            'mixing_rate': 60,
+        })
 
-        self._test_serializer_raise_validation_error(
-            expected_message, data=data
+        self.assertRaisesMessage(
+            ValidationError,
+            'The total of material mixing rates must be 100.',
+            self._get_serializer(instance=self.__product).validate,
+            self.__update_data
+        )
+
+    def test_validate_material_is_duplicated(self):
+        self.__create_data[0]['material'] = self.__create_data[-1]['material']
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'Material is duplicated.',
+            self._get_serializer(instance=self.__product).validate,
+            self.__create_data
+        )
+
+    def test_validate_material_name_uniqueness(self):
+        data = [{
+            'id': self.__materials[0].id,
+            'mixing_rate': self.__materials[0].mixing_rate - 10,
+        },
+        {
+            'material': self.__materials[0].material,
+            'mixing_rate': 10,
+        }]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product with the material already exists.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
+
+    def test_delete_and_create_material_name(self):
+        data = [
+            {
+                'material': self.__materials[0].material,
+                'mixing_rate': self.__materials[0].mixing_rate,
+            },
+            {
+                'id': self.__materials[0].id,
+            }
+        ]
+
+        self.assertEqual(
+            data, self._get_serializer(instance=self.__product).validate(data)
+        )
+
+    def test_exchange_material_name(self):
+        material1 = self.__materials[0]
+        material2 = self.__materials[1]
+        data = [{
+            'id': material1.id,
+            'material': material2.material,
+        },
+        {
+            'id': material2.id,
+            'material': material1.material,
+        }
+        ]
+
+        self.assertEqual(
+            data,
+            self._get_serializer(instance=self.__product).validate(data)
         )
 
 
@@ -536,80 +686,144 @@ class ProductColorSerializerTestCase(SerializerTestCase):
 class ProductColorListSerializerTestCase(ListSerializerTestCase):
     fixtures = ['temporary_image']
     _child_serializer_class = ProductColorSerializer
-    __batch_size = 3
+    __batch_size = 2
 
     @classmethod
     def setUpTestData(cls):
+        cls.__color = ColorFactory()
         cls.__temporary_images = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
         cls.__product = ProductFactory()
-
-        for i in range(cls.__batch_size):
-            ProductColorFactory(product=cls.__product, image_url=cls.__temporary_images[i])
-        for product_color in cls.__product.colors.all():
+        cls.__product_colors = [
+            ProductColorFactory(product=cls.__product, image_url=cls.__temporary_images[i], color=cls.__color)
+            for i in range(cls.__batch_size)
+        ]
+        for product_color in cls.__product_colors:
             OptionFactory(product_color=product_color)
 
-        cls.update_data = [
+    def test_validate_color_length_in_create(self):
+        data = [{} for _ in range(11)]
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product cannot have more than ten colors.',
+            self._get_serializer().validate,
+            data
+        )
+
+    def test_validate_color_length_in_update_more_than_max_length(self):
+        create_data = [
             {
-                'id': product_color.id,
-                'display_color_name': product_color.display_color_name,
-                'color': product_color.color.id,
+                'display_color_name': 'display_name{0}'.format(i),
+                'color': self.__color.id,
                 'options': [
                     {
-                        'id': option.id,
-                        'size': option.size,
-                    }for option in product_color.options.all()
+                        'size': 'size{0}'.format(i),
+                    }
                 ],
-                'image_url': BASE_IMAGE_URL + product_color.image_url,
-            }for product_color in cls.__product.colors.all()
+                'image_url': BASE_IMAGE_URL + self.__temporary_images[i]
+            }
+            for i in range(PRODUCT_COLOR_MAX_LENGTH + 1)
+        ]
+        delete_data = list(self.__product.colors.all().values('id'))
+        
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product cannot have more than ten colors.',
+            self._get_serializer(instance=self.__product).validate,
+            create_data + delete_data
+        )
+
+    def test_validate_color_length_in_update_delete_all_colors(self):
+        data = list(self.__product.colors.all().values('id'))
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product must have at least one color.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
+
+    def test_validate_display_color_name_is_duplicated(self):
+        data = [
+            {'display_color_name': 'display'},
+            {'display_color_name': 'display'},
+            {'display_color_name': 'display_1'}
         ]
 
-        cls.create_data = copy.deepcopy(cls.update_data)
-        for data in cls.create_data:
-            data.pop('id')
+        self.assertRaisesMessage(
+            ValidationError,
+            'display_color_name is duplicated.',
+            self._get_serializer().validate,
+            data
+        )
 
-    def test_raise_validation_error_input_data_length_more_than_upper_limit(self):
-        for i in range(PRODUCT_COLOR_MAX_LENGTH - self.__batch_size + 1):
-            ProductColorFactory(product=self.__product, image_url=self.__temporary_images[i+self.__batch_size])
+    def test_validate_display_color_name_uniqueness(self):
+        data = [{
+            'display_color_name': self.__product.colors.first().display_color_name,
+            'color': self.__color.id,
+            'options': [
+                {
+                    'size': 'size',
+                }
+            ],
+            'image_url': BASE_IMAGE_URL + self.__temporary_images[0]
+        }]
 
-        product_colors = self.__product.colors.all()
-        for product_color in product_colors:
-            OptionFactory(product_color=product_color)
+        self.assertRaisesMessage(
+            ValidationError,
+            'The product with the display_color_name already exists.',
+            self._get_serializer(instance=self.__product).validate,
+            data
+        )
 
+    def test_delete_and_create_display_color_name(self):
+        data = [{
+            'display_color_name': self.__product_colors[0].display_color_name,
+            'color': self.__color.id,
+            'options': [
+                {
+                    'size': 'size',
+                }
+            ],
+            'image_url': BASE_IMAGE_URL + self.__temporary_images[0]
+        },
+        {
+            'id': self.__product_colors[0].id,
+        }]
+
+        self.assertEqual(
+            data, self._get_serializer(instance=self.__product).validate(data)
+        )
+
+    def test_exchange_display_color_name(self):
+        color1 = self.__product_colors[0]
+        color2 = self.__product_colors[1]
         data = [
             {
-                'display_color_name': product_color.display_color_name,
-                'color': product_color.color.id,
-                'options': [
-                    {
-                        'id': option.id,
-                        'size': option.size,
-                    }for option in product_color.options.all()
-                ],
-                'image_url': BASE_IMAGE_URL + product_color.image_url,
-            }for product_color in product_colors
+                'id': color1.id,
+                'display_color_name': color2.display_color_name,
+            },
+            {
+                'id': color2.id,
+                'display_color_name': color1.display_color_name,
+            },
         ]
-        expected_message = 'The product cannot have more than ten colors.'
 
-        self._test_serializer_raise_validation_error(
-            expected_message, data=data
+        self.assertEqual(
+            data, self._get_serializer(instance=self.__product).validate(data)
         )
 
-    def test_raise_validation_error_display_color_name_duplicated_in_create(self):
-        self.create_data[-1]['display_color_name'] = self.create_data[0]['display_color_name']
-        expected_message = 'display_color_name is duplicated.'
+    def test_create_display_color_name_on_sale_false(self):
+        self.__product_colors[0].on_sale = False
+        self.__product_colors[0].save()
+        data = [{
+            'id': self.__product_colors[1].id,
+            'display_color_name': self.__product_colors[0].display_color_name,
+        }]
 
-        self._test_serializer_raise_validation_error(
-            expected_message, data=self.create_data
+        self.assertEqual(
+            data, self._get_serializer(instance=self.__product).validate(data)
         )
-
-    def test_raise_validation_error_display_color_name_duplicated_in_update(self):
-        self.update_data[-1]['display_color_name'] = self.update_data[0]['display_color_name']
-        expected_message = 'display_color_name is duplicated.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, data=self.update_data, partial=True
-        )
-
 
 class ProductSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductSerializer
@@ -887,65 +1101,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         expected_message = 'The price must be a multiple of 100.'
 
         self._test_serializer_raise_validation_error(expected_message, data=data)
-
-    def test_raise_validation_error_image_length_more_than_limit(self):
-        data = [
-            {
-                'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
-                'sequence': i+1,
-            }
-            for i in range(self.__product.images.all().count(), PRODUCT_IMAGE_MAX_LENGTH + 1)
-        ]
-        expected_message = 'The product cannot have more than ten images.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product, data={'images': data}, partial=True
-        )
-
-    def test_raise_validation_error_delete_all_images(self):
-        data = [{'id': product_image.id} for product_image in self.__product.images.all()]
-        expected_message = 'The product must have at least one image.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product, data={'images': data}, partial=True
-        )
-
-    def test_raise_validation_error_duplicated_sequences_in_update(self):
-        data = [{
-                'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(), 
-                'sequence': self.__product.images.last().sequence
-            }]
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product, data={'images': data}, partial=True
-        )
-
-    def test_raise_validation_error_omitted_sequences_in_update(self):
-        data = [{
-                'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(), 
-                'sequence': self.__product.images.last().sequence + 2
-            }]
-        expected_message = 'The sequence of the images must be ascending from 1 to n.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product, data={'images': data}, partial=True
-        )
-
-    def test_raise_validation_erorr_does_not_pass_all_exact_material_data(self):
-        data = [
-            {
-                'id': material.id,
-                'material': material.material,
-                'mixing_rate': material.mixing_rate,
-            } for material in list(self.__product.materials.all())[:-1]
-        ]
-        data[0]['mixing_rate'] += data[-1]['mixing_rate']
-        expected_message = 'You must contain all exact data that the product has.'
-
-        self._test_serializer_raise_validation_error(
-            expected_message, instance=self.__product, data={'materials': data}, partial=True
-        )
 
     def test_raise_validation_error_color_length_more_than_limit(self):
         product_colors = [

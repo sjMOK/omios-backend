@@ -1,4 +1,5 @@
 from django.core.validators import URLValidator
+from django.db.models import Sum
 
 from rest_framework.serializers import (
     Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
@@ -10,7 +11,7 @@ from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX, IMAGE_URL_REGEX
 from common.validators import validate_all_required_fields_included, validate_image_url
 from common.serializers import (
-    has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs,
+    has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs, get_update_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     DynamicFieldsSerializer,
 )
@@ -95,26 +96,69 @@ class TagSerializer(Serializer):
 class ProductImageListSerializer(ListSerializer):
     def validate(self, attrs):
         if self.root.instance is None:
-            self.__validate_attrs_length(attrs)
-            self.__validate_sequence_ascending_order(attrs)
+            return self.__validate_create(attrs)
+        else:
+            return self.__validate_update(attrs)
+
+    def __validate_create(self, attrs):
+        self.__validate_image_number_in_create(attrs)
+        self.__validate_sequence_in_create(attrs)
 
         return attrs
 
-    def __validate_attrs_length(self, attrs):
+    def __validate_update(self, attrs):
+        self.__validate_image_number_in_update(attrs)
+        self.__validate_sequence_in_update(attrs)
+
+        return attrs
+
+    def __validate_image_number_in_create(self, attrs):
         if len(attrs) > PRODUCT_IMAGE_MAX_LENGTH:
             raise ValidationError(
                 'The product cannot have more than ten images.'
             )
 
-    def __validate_sequence_ascending_order(self, attrs):
-        sequences = get_list_of_single_value(attrs, 'sequence')
-        sequences.sort()
+    def __validate_image_number_in_update(self, attrs):
+        stored_image_length = self.root.instance.images.all().count()
+        image_length = stored_image_length + len(get_create_attrs(attrs)) - len(get_delete_attrs(attrs))
 
+        if image_length > PRODUCT_IMAGE_MAX_LENGTH:
+            raise ValidationError(
+                'The product cannot have more than ten images.'
+            )
+        elif image_length == 0:
+            raise ValidationError(
+                'The product must have at least one image.'
+            )
+
+    def ___validate_sequence(self, sequences):
         for index, value in enumerate(sequences):
             if value != (index+1):
                 raise ValidationError(
                     'The sequence of the images must be ascending from 1 to n.'
                 )
+
+    def __validate_sequence_in_create(self, attrs):
+        sequences = get_list_of_single_value(attrs, 'sequence')
+        sequences.sort()
+
+        self.___validate_sequence(sequences)
+
+    def __validate_sequence_in_update(self, attrs):
+        sequences = get_list_of_single_value(
+            get_create_or_update_attrs(attrs), 'sequence'
+        )
+        exclude_id_list = get_list_of_single_value(
+            get_update_or_delete_attrs(attrs), 'id'
+        )
+        stored_sequences = ProductImage.objects.filter(
+            product=self.root.instance
+        ).exclude(id__in=exclude_id_list).values_list('sequence', flat=True)
+
+        sequences += stored_sequences
+        sequences.sort()
+
+        self.___validate_sequence(sequences)
 
 
 class ProductImageSerializer(Serializer):
@@ -163,19 +207,62 @@ class ProductImageSerializer(Serializer):
 
 
 class ProductMaterialListSerializer(ListSerializer):
-    total_mixing_rates = 100
+    __total_mixing_rates = 100
 
     def validate(self, attrs):
+        if self.root.instance is None:
+            return self.__validate_create(attrs)
+        else:
+            return self.__validate_update(attrs)
+
+    def __validate_create(self, attrs):
         self.__validate_material_is_duplicated(attrs)
-        self.__validate_total_mixing_rates(attrs)
+        self.__validate_total_mixing_rates_in_create(attrs)
 
         return attrs
 
-    def __validate_total_mixing_rates(self, attrs):
+    def __validate_update(self, attrs):
+        self.__validate_material_is_duplicated(attrs)
+        self.__validate_total_mixing_rates_in_update(attrs)
+        self.__validate_material_name_uniqueness(attrs)
+
+        return attrs
+
+    def __validate_total_mixing_rates_in_create(self, attrs):
         total_mixing_rates = get_list_of_single_value(attrs, 'mixing_rate')
 
-        if sum(total_mixing_rates) != self.total_mixing_rates:
+        if sum(total_mixing_rates) != self.__total_mixing_rates:
             raise ValidationError('The total of material mixing rates must be 100.')
+
+    def __validate_total_mixing_rates_in_update(self, attrs):
+        deleting_id_list = get_list_of_single_value(
+            get_delete_attrs(attrs), 'id'
+        )
+        updating_mixing_rate_id_list = [attr['id'] for attr in get_update_attrs(attrs) if 'mixing_rate' in attr]
+        exclude_id_list = deleting_id_list + updating_mixing_rate_id_list
+
+        sum_of_mixing_rates = self.root.instance.materials.exclude(
+            id__in=exclude_id_list
+        ).aggregate(sum=Sum('mixing_rate', default=0))['sum']
+        sum_of_mixing_rates += sum(get_list_of_single_value(attrs, 'mixing_rate'))
+
+        if sum_of_mixing_rates != self.__total_mixing_rates:
+            raise ValidationError('The total of material mixing rates must be 100.')
+
+    def __validate_material_name_uniqueness(self, attrs):
+        deleting_id_list = get_list_of_single_value(
+            get_delete_attrs(attrs), 'id'
+        )
+        updating_material_attrs = [
+            attr for attr in attrs if 'material' in attr
+        ]
+        updating_material_names = get_list_of_single_value(updating_material_attrs, 'material')
+        updating_material_id_list = get_list_of_single_value(updating_material_attrs, 'id')
+
+        exclude_id_list = deleting_id_list + updating_material_id_list
+
+        if self.root.instance.materials.exclude(id__in=exclude_id_list).filter(material__in=updating_material_names).exists():
+            raise ValidationError('The product with the material already exists.')
 
     def __validate_material_is_duplicated(self, attrs):
         materials = get_list_of_single_value(attrs, 'material')
@@ -199,10 +286,8 @@ class ProductMaterialSerializer(Serializer):
         return attrs
 
     def __validate_update(self, attrs):
-        if not is_delete_data(attrs):
+        if is_create_data(attrs):
             validate_all_required_fields_included(attrs, self.fields)
-
-        return attrs
 
 
 class OptionListSerializer(ListSerializer):
@@ -272,19 +357,56 @@ class ProductColorListSerializer(ListSerializer):
             return self.__validate_update(attrs)
 
     def __validate_create(self, attrs):
-        if len(attrs) > PRODUCT_COLOR_MAX_LENGTH:
-            raise ValidationError(
-                'The product cannot have more than ten colors.'
-            )
-
+        self.__validate_color_length_in_create(attrs)
         self.__validate_display_color_name_is_duplicated(attrs)
 
         return attrs
 
     def __validate_update(self, attrs):
+        self.__validate_color_length_in_update(attrs)
         self.__validate_display_color_name_is_duplicated(attrs)
+        self.__validate_display_color_name_uniqueness(attrs)
 
         return attrs
+
+    def __validate_color_length_in_create(self, attrs):
+        if len(attrs) > PRODUCT_COLOR_MAX_LENGTH:
+            raise ValidationError(
+                'The product cannot have more than ten colors.'
+            )
+
+    def __validate_color_length_in_update(self, attrs):
+        create_color_length = len(get_create_attrs(attrs))
+        delete_color_length = len(get_delete_attrs(attrs))
+
+        stored_color_length = self.root.instance.colors.filter(on_sale=True).count()
+        len_colors = stored_color_length + create_color_length - delete_color_length
+
+        if len_colors > PRODUCT_COLOR_MAX_LENGTH:
+            raise ValidationError(
+                'The product cannot have more than ten colors.'
+            )
+        elif len_colors == 0:
+            raise ValidationError(
+                'The product must have at least one color.'
+            )
+
+    def __validate_display_color_name_uniqueness(self, attrs):
+        deleting_id_list = get_list_of_single_value(
+            get_delete_attrs(attrs), 'id'
+        )
+        updating_display_color_name_attrs = [
+            attr for attr in attrs if 'display_color_name' in attr
+        ]
+        updating_display_color_names = get_list_of_single_value(updating_display_color_name_attrs, 'display_color_name')
+        updating_display_color_name_id_list = get_list_of_single_value(updating_display_color_name_attrs, 'id')
+        
+        exclude_id_list = deleting_id_list + updating_display_color_name_id_list
+
+        if self.root.instance.colors.exclude(id__in=exclude_id_list).filter(display_color_name__in=updating_display_color_names, on_sale=True).exists():
+            raise ValidationError(
+                'The product with the display_color_name already exists.'
+            )
 
     def __validate_display_color_name_is_duplicated(self, attrs):
         display_color_names = get_list_of_single_value(attrs, 'display_color_name')
@@ -466,116 +588,11 @@ class ProductWriteSerializer(ProductSerializer):
 
         return value
 
-    def validate_images(self, attrs):
-        if self.instance is not None:
-            self.__validate_image_length(attrs)
-            self.__validate_sequence(attrs)
-
-        return attrs
-
-    def validate_materials(self, attrs):
-        if self.instance is not None:
-            self.__validate_pass_all_exact_data(
-                get_update_or_delete_attrs(attrs), self.instance.materials
-            )
-
-        return attrs
-
-    def validate_colors(self, attrs):
-        if self.instance is not None:
-            self.__validate_color_length(attrs)
-            self.__validate_display_color_name_uniqueness(attrs)
-
-        return attrs
-
     def validate(self, attrs):
         if self.instance is not None and not self.partial:
             raise APIException('This serializer must have a partial=True parameter when update')
 
         return attrs
-
-    def __validate_image_length(self, attrs):
-        create_image_length = len(get_create_attrs(attrs))
-        delete_image_length = len(get_delete_attrs(attrs))
-
-        stored_image_length = self.instance.images.all().count()
-        len_images = stored_image_length + create_image_length - delete_image_length
-
-        if len_images > PRODUCT_IMAGE_MAX_LENGTH:
-            raise ValidationError(
-                'The product cannot have more than ten images.'
-            )
-        elif len_images == 0:
-            raise ValidationError(
-                'The product must have at least one image.'
-            )
-
-    def __validate_sequence(self, attrs):
-        sequences = get_list_of_single_value(
-            get_create_or_update_attrs(attrs), 'sequence'
-        )
-        id_list = get_list_of_single_value(
-            get_update_or_delete_attrs(attrs), 'id'
-        )
-        stored_sequences = ProductImage.objects.filter(
-            product=self.instance
-        ).exclude(id__in=id_list).values_list('sequence', flat=True)
-
-        sequences += stored_sequences
-        sequences.sort()
-
-        for index, value in enumerate(sequences):
-            if value != (index+1):
-                raise ValidationError(
-                    'The sequence of the images must be ascending from 1 to n.'
-                )
-        
-
-    def __validate_color_length(self, attrs):
-        create_color_length = len(get_create_attrs(attrs))
-        delete_color_length = len(get_delete_attrs(attrs))
-
-        stored_color_length = self.instance.colors.filter(on_sale=True).count()
-        len_colors = stored_color_length + create_color_length - delete_color_length
-
-        if len_colors > PRODUCT_COLOR_MAX_LENGTH:
-            raise ValidationError(
-                'The product cannot have more than ten colors.'
-            )
-        elif len_colors == 0:
-            raise ValidationError(
-                'The product must have at least one color.'
-            )
-
-    def __validate_display_color_name_uniqueness(self, attrs):
-        delete_attrs_id_list = get_list_of_single_value(
-            get_delete_attrs(attrs), 'id'
-        )
-        display_color_name_attrs = [
-            attr for attr in attrs if 'display_color_name' in attr
-        ]
-
-        for attr in display_color_name_attrs:
-            queryset = ProductColor.objects.filter(
-                on_sale=True, product=self.instance,
-                display_color_name=attr.get('display_color_name')
-            ).exclude(id__in=delete_attrs_id_list)
-
-            if is_update_data(attr):
-                queryset = queryset.exclude(id=attr.get('id'))
-
-            if queryset.exists():
-                raise ValidationError(
-                    'The product with the display_color_name already exists.'
-                )
-    
-    def __validate_pass_all_exact_data(self, attrs, related_manager):
-        id_list = get_list_of_single_value(attrs, 'id')
-
-        if related_manager.exclude(id__in=id_list).exists():
-            raise ValidationError(
-                'You must contain all exact data that the product has.'
-            )
 
     def __get_price_multiple(self, price):
         index = 0
@@ -680,7 +697,7 @@ class ProductWriteSerializer(ProductSerializer):
         create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(product_colors_data)
 
         delete_fields_id = [data['id'] for data in delete_data]
-        ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False, display_color_name=None)
+        ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False)
         Option.objects.filter(product_color__product=product, product_color_id__in=delete_fields_id).update(on_sale=False)
 
         for data in update_data:
