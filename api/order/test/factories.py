@@ -6,13 +6,13 @@ from factory.fuzzy import FuzzyText, FuzzyInteger
 from product.test.factory import create_options
 
 
-def create_orders_with_items(order_size=1, item_size=3, **kwargs):
-    orders = OrderFactory.create_batch(order_size, **kwargs)
+def create_orders_with_items(order_size=1, item_size=3, order_kwargs={}, item_kwargs={}):
+    orders = OrderFactory.create_batch(order_size, **order_kwargs)
     
     options = create_options(order_size * item_size)
     for i in range(order_size):
         for j in range(item_size):
-            OrderItemFactory(order=orders[i], option=options[i * item_size + j])
+            OrderItemFactory(order=orders[i], option=options[i * item_size + j], **item_kwargs)
 
     return orders
 

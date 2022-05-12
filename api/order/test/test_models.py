@@ -1,4 +1,3 @@
-from re import L
 from django.forms import model_to_dict
 from django.utils import timezone
 
@@ -13,7 +12,6 @@ from ..models import (
     CancellationInformation, ExchangeInformation, ReturnInformation, Refund,
 )
 
-from pdb import set_trace
 
 @freeze_time(FREEZE_TIME)
 class OrderTestCase(ModelTestCase):
@@ -68,7 +66,6 @@ class OrderItemTestCase(ModelTestCase):
             'status': self._test_data['status'].id,
             'base_discount_price': 0,
             'count': 1,
-            # 'shipping_fee': 0,
             'used_point': 0,
         })
 
