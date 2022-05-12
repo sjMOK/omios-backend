@@ -225,13 +225,13 @@ class ProductImageSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(self.__product_image, expected_data)
 
-    def test_deserialization(self):
+    def _test_validated_data(self):
         expected_validated_data = {
             'image_url': self.__image_url,
             'sequence': self._data['sequence']
         }
 
-        self._test_validated_data(expected_validated_data, data=self.data)
+        self._test_validated_data(expected_validated_data, data=self._data)
 
     def test_raise_validation_error_create_data_does_not_include_all_required_field_in_update(self):
         key = random.choice(list(self._data.keys()))
