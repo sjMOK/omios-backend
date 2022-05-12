@@ -1512,6 +1512,7 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
     def test_model_instance_serialization(self):
         expected_data = {
             'id': self.__question_answer.id,
+            'shopper': self.__question_answer.shopper.id,
             'created_at': str(self.__question_answer.created_at.date()),
             'username': self.__question_answer.shopper.username[:3] + '***',
             'classification': self.__question_answer.classification.name,

@@ -782,9 +782,10 @@ class ProductQuestionAnswerClassificationSerializer(Serializer):
 class ProductQuestionAnswerSerializer(ModelSerializer):
     class Meta:
         model = ProductQuestionAnswer
-        exclude = ['product', 'shopper']
+        exclude = ['product']
         extra_kwargs = {
             'created_at': {'format': '%Y-%m-%d'},
+            'shopper': {'read_only': True},
             'answer': {'read_only': True},
             'classification': {'write_only': True},
         }
