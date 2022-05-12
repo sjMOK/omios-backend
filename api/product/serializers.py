@@ -786,7 +786,6 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
         extra_kwargs = {
             'created_at': {'format': '%Y-%m-%d'},
             'answer': {'read_only': True},
-            'answer_completed': {'read_only': True},
             'classification': {'write_only': True},
         }
 

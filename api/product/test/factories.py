@@ -189,5 +189,4 @@ class ProductQuestionAnswerFactory(DjangoModelFactory):
     classification = SubFactory(ProductQuestionAnswerClassificationFactory)
     question = Faker('sentence')
     answer = Faker('sentence')
-    answer_completed = Faker('pybool')
     is_secret = Faker('pybool')

@@ -406,7 +406,7 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.__default_fields = ('created_at', 'answer_completed', 'is_secret')
+        cls.__default_fields = ('created_at', 'is_secret')
         cls._test_data = {
             'product': ProductFactory(),
             'shopper': ShopperFactory(),
@@ -429,5 +429,4 @@ class ProductQuestionAnswerTestCase(ModelTestCase):
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_value(self):
-        self.assertTrue(not self._question_answer.answer_completed)
         self.assertTrue(not self._question_answer.is_secret)

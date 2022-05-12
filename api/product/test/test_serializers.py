@@ -1517,7 +1517,6 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
             'classification': self.__question_answer.classification.name,
             'question': self.__question_answer.question,
             'answer': self.__question_answer.answer,
-            'answer_completed': self.__question_answer.answer_completed,
             'is_secret': self.__question_answer.is_secret,
         }
 
@@ -1539,7 +1538,6 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
         self.assertEqual(question_answer.shopper, shopper)
         self.assertEqual(question_answer.classification.id, data['classification'])
         self.assertEqual(question_answer.question, data['question'])
-        self.assertTrue(not question_answer.answer_completed)
         self.assertEqual(question_answer.is_secret, data['is_secret'])
 
     def test_update(self):
