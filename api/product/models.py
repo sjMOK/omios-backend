@@ -265,7 +265,6 @@ class ProductMaterial(Model):
 
     class Meta:
         db_table = 'product_material'
-        unique_together = (('product', 'material'),)
 
 
 class Theme(Model):
