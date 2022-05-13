@@ -151,13 +151,13 @@ class GetRelatedSearchWordsTestCase(ViewTestCase):
         cls.__search_query = fake.word()
         main_category = MainCategoryFactory(name=cls.__search_query)
 
-        for _ in range(3):
+        for i in range(3):
             SubCategoryFactory(
-                main_category=main_category, name=fake.word()+cls.__search_query+fake.word()
+                main_category=main_category, name=fake.word() + cls.__search_query + str(i)
             )
 
-        for _ in range(5):
-            KeyWordFactory(name=fake.word()+cls.__search_query+fake.word())
+        for i in range(3):
+            KeyWordFactory(name=fake.word() + cls.__search_query + str(i))
 
     def test_success(self):
         self._get({'search_word': self.__search_query})
