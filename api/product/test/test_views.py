@@ -386,13 +386,11 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         fake = Faker()
         search_word = fake.word()
 
-        product_num = 5
-        for _ in range(product_num):
+        for _ in range(3):
             ProductFactory(name=search_word + fake.word())
 
-        tag_num = 5
-        for _ in range(tag_num):
-            tag = TagFactory(name=fake.word() + search_word)
+        for i in range(3):
+            tag = TagFactory(name=fake.word() + search_word + str(i))
             product = Product.objects.order_by('?').first()
             product.tags.add(tag)
 
