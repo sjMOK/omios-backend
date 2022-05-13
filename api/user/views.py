@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenViewBase
 
 from common.utils import get_response, get_response_body, check_id_format
 from common.views import upload_image_view
+from common.permissions import IsAuthenticatedShopper
 from product.models import Product
 from .models import ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory
 from .serializers import (
@@ -177,6 +178,7 @@ class ProductLikeView(APIView):
 
 
 class ShopperShippingAddressViewSet(GenericViewSet):
+    permission_classes = [IsAuthenticatedShopper]
     serializer_class = ShopperShippingAddressSerializer
     lookup_url_kwarg = 'shipping_address_id'
     lookup_value_regex = r'[0-9]+'
@@ -190,25 +192,25 @@ class ShopperShippingAddressViewSet(GenericViewSet):
         return get_response(data=serializer.data)
 
     def create(self, request, user_id):
-        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+        serializer = self.get_serializer(data=request.data)
 
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
-        shipping_address = serializer.save()
+        shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'id': shipping_address.id})
 
     def partial_update(self, request, user_id, shipping_address_id):
         shipping_address = self.get_object()
         serializer = self.get_serializer(
-            instance=shipping_address, data=request.data, partial=True, context={'shopper': request.user.shopper}
+            instance=shipping_address, data=request.data, partial=True
         )
         
         if not serializer.is_valid():
             return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
 
-        shipping_address = serializer.save()
+        shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(data={'id': shipping_address.id})
 
