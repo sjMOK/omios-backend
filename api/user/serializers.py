@@ -147,41 +147,20 @@ class UserPasswordSerializer(Serializer):
         return instance
 
 
-class ShopperShippingAddressSerializer(Serializer):
-    id = IntegerField(read_only=True)
+class ShopperShippingAddressSerializer(ModelSerializer):
     name = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=20, required=False)
     receiver_name = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=20)
     receiver_mobile_number = RegexField(MOBILE_NUMBER_REGEX)
     receiver_phone_number = RegexField(PHONE_NUMBER_REGEX, required=False)
     zip_code = RegexField(ZIP_CODE_REGEX)
-    base_address = CharField(max_length=200)
     detail_address = RegexField(BASIC_SPECIAL_CHARACTER_REGEX, max_length=100)
-    is_default = BooleanField()
 
-    def create(self, validated_data):
-        shopper = self.context['shopper']
-
-        if validated_data['is_default'] and shopper.addresses.filter(is_default=True).exists():
-            shopper.addresses.filter(is_default=True).update(is_default=False)
-
-        if not validated_data['is_default'] and not shopper.addresses.all().exists():
-            validated_data['is_default'] = True
-
-        return ShopperShippingAddress.objects.create(shopper=self.context['shopper'], **validated_data)
-
-    def update(self, instance, validated_data):
-        shopper = self.context['shopper']
-
-        is_default = validated_data.get('is_default', False)
-        if is_default and shopper.addresses.filter(is_default=True).exists():
-            shopper.addresses.filter(is_default=True).update(is_default=False)
-
-        for key, value in validated_data.items():
-            setattr(instance, key, value)
-
-        instance.save(update_fields=validated_data.keys())
-
-        return instance
+    class Meta:
+        model = ShopperShippingAddress
+        exclude = ['shopper']
+        extra_kwargs = {
+            'shopper': {'read_only': True},
+        }
 
 
 class PointHistorySerializer(ModelSerializer):
