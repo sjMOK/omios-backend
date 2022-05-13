@@ -211,11 +211,13 @@ class ShopperShippingAddress(Model):
         db_table = 'shopper_shipping_address'
 
     def save(self, *args, **kwargs):
-        if self.is_default and self.shopper.addresses.filter(is_default=True).exists():
-            self.shopper.addresses.filter(is_default=True).update(is_default=False)
-
-        if not self.is_default and not self.shopper.addresses.all().exists():
+        if not self.shopper.addresses.all().exists():
             self.is_default = True
+        elif self.is_default:
+            queryset = self.shopper.addresses.exclude(id=self.id).filter(is_default=True)
+            if queryset.exists():
+                queryset.update(is_default=False)
+            
 
         super().save(*args, **kwargs)
 
