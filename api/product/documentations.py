@@ -137,7 +137,7 @@ class ProductListResponse(Serializer):
     count = IntegerField()
     next = URLField(allow_null=True)
     previous = URLField(allow_null=True)
-    results = ResultsResponse()
+    results = ResultsResponse(many=True)
     max_price = IntegerField()
 
 
@@ -146,8 +146,14 @@ class ProductDetailResponse(ProductReadSerializer):
     shopper_like = BooleanField()
 
 
-class ProductQuestionAnswerResponse(ProductQuestionAnswerSerializer):
-    classification = CharField()
+class ProductQuestionAnswerResponse(Serializer):
+    class ResultResponse(ProductQuestionAnswerSerializer):
+        classification = CharField()
+
+    count = IntegerField()
+    next = URLField(allow_null=True)
+    previous = URLField(allow_null=True)
+    results = ResultResponse(many=True)
 
 
 class DecoratedProductViewSet(ProductViewSet):

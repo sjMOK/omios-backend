@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.mixins import ListModelMixin
 
 from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
 from common.views import upload_image_view
@@ -375,20 +376,21 @@ class ProductViewSet(GenericViewSet):
         return get_response(data={'id': product.id})
 
 
-class ProductQuestionAnswerViewSet(GenericViewSet):
-    pagination_class = None
+class ProductQuestionAnswerViewSet(ListModelMixin, GenericViewSet):
     permission_classes = [ProductQuestionAnswerPermission]
     lookup_field = 'id'
     lookup_url_kwarg = 'question_answer_id'
     lookup_value_regex = r'[0-9]+'
-    queryset = ProductQuestionAnswer.objects.all()
     serializer_class = ProductQuestionAnswerSerializer
 
     def get_queryset(self):
-        return ProductQuestionAnswer.objects.select_related('shopper', 'classification')
+        product = get_object_or_404(Product, id=self.kwargs['product_id'])
+        queryset = ProductQuestionAnswer.objects.filter(product=product)
 
-    def __get_queryset(self, product_id):
-        return self.get_queryset().filter(product_id=product_id)
+        if self.action == 'list':
+            queryset = self.__filter_queryset(queryset).select_related('shopper', 'classification')
+
+        return queryset
 
     def __filter_queryset(self, queryset):
         if 'open_qa' in self.request.query_params:
@@ -397,13 +399,10 @@ class ProductQuestionAnswerViewSet(GenericViewSet):
         return queryset
 
     def list(self, request, product_id):
-        queryset = self.__filter_queryset(
-            self.__get_queryset(product_id)
-        ).select_related('shopper', 'classification')
-        serializer = self.get_serializer(queryset, many=True)
+        response = super().list(request, product_id)
+        return get_response(data=response.data)
 
-        return get_response(data=serializer.data)
-    
+
     @transaction.atomic
     def create(self, request, product_id):
         product = get_object_or_404(Product, id=product_id)
