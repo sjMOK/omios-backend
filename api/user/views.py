@@ -59,9 +59,7 @@ class UserViewSet(GenericViewSet):
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-        
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
         return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
@@ -72,9 +70,7 @@ class UserViewSet(GenericViewSet):
         
         user = self.get_object()
         serializer = self.get_serializer(instance=user, data=request.data, partial=True)
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         serializer.save()
 
         return get_response(data={'id': request.user.id})
@@ -119,9 +115,7 @@ def get_buildings(request):
 @api_view(['PATCH'])
 def change_password(request):    
     serializer = UserPasswordSerializer(instance=request.user, data=request.data)
-    if not serializer.is_valid():
-        return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+    serializer.is_valid(raise_exception=True)
     serializer.save()
     
     return get_response(data={'id': request.user.id})
@@ -193,10 +187,7 @@ class ShopperShippingAddressViewSet(GenericViewSet):
 
     def create(self, request, user_id):
         serializer = self.get_serializer(data=request.data)
-
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'id': shipping_address.id})
@@ -206,10 +197,7 @@ class ShopperShippingAddressViewSet(GenericViewSet):
         serializer = self.get_serializer(
             instance=shipping_address, data=request.data, partial=True
         )
-        
-        if not serializer.is_valid():
-            return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
-
+        serializer.is_valid(raise_exception=True)
         shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(data={'id': shipping_address.id})

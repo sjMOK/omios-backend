@@ -35,7 +35,6 @@ def upload_image_view(request, type, *args):
     images = request.FILES.getlist('image')
 
     serializer = ImageSerializer(data=[{'image': image} for image in images], many=True)
-    if not serializer.is_valid():
-        return get_response(status=HTTP_400_BAD_REQUEST, message=serializer.errors)
+    serializer.is_valid(raise_exception=True)
 
     return get_response(status=HTTP_201_CREATED, data={'image': upload_images(type, images, *args)})
