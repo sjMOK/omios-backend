@@ -274,13 +274,13 @@ class ProductViewSet(GenericViewSet):
         return like_products_id_list
 
     def __get_response_for_list(self, queryset, **extra_data):
-        page = self.paginate_queryset(queryset)
         allow_fields = self.__get_allow_fields()
 
         context = {'detail': self.detail, 'field_order': allow_fields}
         if hasattr(self.request.user, 'shopper'):
             context['shoppers_like_products_id_list'] = self.__get_shoppers_like_products_id_list()
 
+        page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(
             page, allow_fields=allow_fields, many=True, context=context
         )
