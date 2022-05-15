@@ -411,7 +411,7 @@ class ProductLikeViewTestCase(ViewTestCase):
         self._assert_failure(400, 'You are deleting non exist likes')
 
 
-class ShopperShippingAddressViewSet(ViewTestCase):
+class ShopperShippingAddressViewSetTestCase(ViewTestCase):
     _url = '/users/shoppers/{0}/addresses'
 
     @classmethod

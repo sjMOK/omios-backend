@@ -686,7 +686,6 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
         self.assertTrue(not deleted_product.question_answers.all().exists())
 
 
-
 class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
     fixtures = ['membership']
     _url = '/products/{0}/question-answers'
@@ -713,7 +712,7 @@ class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
         self._get()
 
         self._assert_success()
-        self.assertListEqual(self._response_data, serializer.data)
+        self.assertListEqual(self._response_data['results'], serializer.data)
 
     def test_create(self):
         self._post()
