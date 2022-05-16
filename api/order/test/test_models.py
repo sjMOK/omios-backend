@@ -9,7 +9,7 @@ from product.test.factories import OptionFactory
 from .factories import OrderFactory, OrderItemFactory, RefundFacotry, StatusFactory, ShippingAddressFactory
 from ..models import (
     Order, OrderItem, Status, StatusHistory, ShippingAddress,
-    CancellationInformation, ExchangeInformation, ReturnInformation, Refund,
+    CancellationInformation, ExchangeInformation, ReturnInformation, Refund, Delivery
 )
 
 
@@ -28,17 +28,20 @@ class OrderTestCase(ModelTestCase):
     def test_create(self):
         order = model_to_dict(self._order, exclude=['id'])
 
+        self.assertTrue(order['number'].startswith(order['created_at'].strftime('%Y%m%d%H%M%S%f')))
         self.assertDictEqual(order, {
             'shopper': self._test_data['shopper'].id,
             'shipping_address': self._test_data['shipping_address'].id,
-            'number': order['created_at'].strftime('%Y%m%d%H%M%S') + '0001',
+            'number': order['number'],
             'created_at': timezone.now(),
         })
 
     def test_set_default_number(self):
+        self._test_data['number'] = self._order.number
         new_order = self._get_model_after_creation()
         
-        self.assertEqual(new_order.number, new_order.created_at.strftime('%Y%m%d%H%M%S') + '0002')
+        self.assertTrue(self._order.number != new_order.number)
+        self.assertTrue(new_order.number.startswith(new_order.created_at.strftime('%Y%m%d%H%M%S%f')))
 
 
 class OrderItemTestCase(ModelTestCase):
@@ -67,6 +70,7 @@ class OrderItemTestCase(ModelTestCase):
             'base_discount_price': 0,
             'count': 1,
             'used_point': 0,
+            'delivery': None,
         })
 
 
@@ -164,4 +168,24 @@ class RefundTestCase(ModelTestCase):
         self.assertDictEqual(refund, {
             **self._test_data,
             'completed_at': None,
+        })
+
+
+class DeliveryTestCase(ModelTestCase):
+    _model_class = Delivery
+
+    def setUp(self):
+        self._test_data = {
+            'company': 'delivery_company',
+            'invoice_number': '1234-1234-1234',
+            'flag': 'flag_test',
+        }
+
+    def test_create(self):
+        delivery = model_to_dict(self._get_model_after_creation(), exclude=['id'])
+
+        self.assertDictEqual(delivery, {
+            **self._test_data,
+            'shipping_fee': 0,
+            'flag': self._test_data['flag'],
         })
