@@ -72,6 +72,7 @@ class MembershipSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(membership, {
             'id': membership.id,
             'name': membership.name,
+            'discount_rate': float(membership.discount_rate),
         })
 
 

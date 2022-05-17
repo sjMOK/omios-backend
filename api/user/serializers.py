@@ -14,7 +14,10 @@ from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
-from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, PointHistory
+from .models import (
+    OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, 
+    PointHistory, Building,
+)
 from .validators import PasswordSimilarityValidator
 
 
@@ -58,9 +61,10 @@ class RefreshingTokenSerializer(TokenRefreshSerializer):
         return token
 
 
-class MembershipSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class MembershipSerializer(ModelSerializer):
+    class Meta:
+        model = Membership
+        exclude = ['qualification']
 
 
 class UserSerializer(ModelSerializer):
@@ -114,11 +118,12 @@ class WholesalerSerializer(UserSerializer):
         fields = '__all__'
 
 
-class BuildingSerializer(Serializer):
-    name = CharField(read_only=True)
-    zip_code = CharField(read_only=True)
-    base_address = CharField(read_only=True)
-    floors = StringRelatedField(many=True, read_only=True)
+class BuildingSerializer(ModelSerializer):
+    floors = StringRelatedField(many=True)
+
+    class Meta:
+        model = Building
+        exclude = ['id']
 
 
 class UserPasswordSerializer(Serializer):
