@@ -15,6 +15,13 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, Bl
 from common.storage import MediaStorage
 
 
+def is_shopper(user):
+    return isinstance(user, User) and user.is_shopper
+
+def is_wholesaler(user):
+    return isinstance(user, User) and user.is_wholesaler
+
+
 class Membership(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)

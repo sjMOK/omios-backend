@@ -1,5 +1,7 @@
 from django.utils import timezone
 from django.forms import model_to_dict
+from django.test import TestCase
+from django.contrib.auth.models import AnonymousUser
 
 from rest_framework.exceptions import APIException
 
@@ -10,11 +12,38 @@ from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
 from product.test.factories import ProductFactory
 from order.test.factories import OrderFactory
-from .factories import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory
+from .factories import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory, WholesalerFactory
 from ..models import (
+    is_shopper, is_wholesaler,
     Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
     ProductLike, PointHistory,
 )
+
+
+class CheckUserTypeTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.shopper = ShopperFactory()
+        cls.wholesaler = WholesalerFactory()
+        cls.anonymous_user = AnonymousUser()
+
+    def test_shopper_is_shopper(self):
+        self.assertTrue(is_shopper(self.shopper))
+
+    def test_shopper_is_not_wholesaler(self):
+        self.assertTrue(not is_wholesaler(self.shopper))
+
+    def test_wholesaler_is_not_shopper(self):
+        self.assertTrue(not is_shopper(self.wholesaler))
+    
+    def test_wholeslaer_is_wholesaler(self):
+        self.assertTrue(is_wholesaler(self.wholesaler))
+
+    def test_anonymous_user_is_not_shopper(self):
+        self.assertTrue(not is_shopper(self.anonymous_user))
+
+    def test_anonymous_user_is_not_wholesaler(self):
+        self.assertTrue(not is_shopper(self.anonymous_user))
 
 
 class MembershipTestCase(ModelTestCase):
