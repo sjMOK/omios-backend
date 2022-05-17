@@ -14,7 +14,7 @@ from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
-from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, PointHistory
+from .models import OutstandingToken, BlacklistedToken, ShopperShippingAddress, User, Shopper, Wholesaler, PointHistory, is_shopper, is_wholesaler
 from .validators import PasswordSimilarityValidator
 
 
@@ -30,9 +30,9 @@ class IssuingTokenSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         
-        if hasattr(user, 'shopper'):
+        if is_shopper(user):
             token['user_type'] = 'shopper'
-        elif hasattr(user, 'wholesaler'):
+        elif is_wholesaler(user):
             token['user_type'] = 'wholesaler'
 
         OutstandingToken.objects.filter(jti=token['jti']).update(

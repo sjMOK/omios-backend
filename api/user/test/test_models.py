@@ -77,8 +77,8 @@ class UserTestCase(ModelTestCase):
         cls._user = cls._get_default_model_after_creation()
 
     def test_user_type(self):
-        self.assertTrue(not self._user.is_shopper)
-        self.assertTrue(not self._user.is_wholesaler)
+        self.assertTrue(not is_shopper(self._user))
+        self.assertTrue(not is_wholesaler(self._user))
 
     def test_create(self):
         self.assertTrue(self._user.check_password(self._test_data['password']))
