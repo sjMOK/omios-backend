@@ -415,12 +415,15 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
 
         self._user.shopper.like_products.add(self._get_product())
         queryset = self.__get_queryset().filter(like_shoppers=self._user.shopper)
-        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
-        
+
+        allow_fields = self.__get_list_allow_fields()
         shoppers_like_products_id_list = list(self._user.shopper.like_products.all().values_list('id', flat=True))
-        self.__test_list_response(
-            queryset, max_price, query_params={'like_products': 'True'}, context={'shoppers_like_products_id_list': shoppers_like_products_id_list}
-        )
+        context = {'detail': False, 'shoppers_like_products_id_list': shoppers_like_products_id_list}
+        serializer = ProductReadSerializer(queryset, many=True, allow_fields=allow_fields, context=context)
+        self._get({'like': ''})
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], serializer.data)
 
     def __test_filtering(self, query_params):
         filter_set = {}

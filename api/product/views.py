@@ -12,7 +12,8 @@ from rest_framework.mixins import ListModelMixin
 
 from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
 from common.views import upload_image_view
-from user.models import ProductLike
+from common.permissions import IsAuthenticatedWholesaler
+from user.models import is_shopper, is_wholesaler, ProductLike
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
     Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer, ProductQuestionAnswerClassification,
@@ -91,6 +92,7 @@ def get_tag_search_result(request):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticatedWholesaler])
 def upload_product_image(request):
     return upload_image_view(request, 'product', request.user.id)
 
@@ -194,6 +196,15 @@ class ProductViewSet(GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
+    __filter_mapping = {
+            'min_price': 'sale_price__gte',
+            'max_price': 'sale_price__lte',
+            'color': 'colors__color_id',
+        }
+    __sort_mapping = {
+            'price_asc': 'sale_price',
+            'price_desc': '-sale_price',
+        }
     __default_sorting = '-created_at'
     __default_fields = ('id', 'created_at', 'name', 'price', 'sale_price', 'base_discount_rate', 'base_discounted_price')
     __read_action = ('retrieve', 'list')
@@ -225,45 +236,45 @@ class ProductViewSet(GenericViewSet):
         return obj
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'wholesaler'):
-            condition = Q(wholesaler=self.request.user)
-        else:
-            condition = Q(on_sale=True)
+        queryset = Product.objects.all()
+
+        if self.request.user.is_anonymous or is_shopper(self.request.user):
+            queryset = queryset.filter(on_sale=True)
+        elif is_wholesaler(self.request.user) and self.action == 'list':
+            queryset = queryset.filter(wholesaler=self.request.user)
 
         if self.action in self.__read_action:
             prefetch_images = Prefetch('images', to_attr='related_images')
-            return Product.objects.prefetch_related(prefetch_images).filter(condition)
-        return Product.objects.filter(condition)
+            queryset = queryset.prefetch_related(prefetch_images)
+
+            if self.action == 'retrieve':
+                queryset = queryset.select_related(
+                    'sub_category__main_category', 'style', 'age', 'thickness', 'see_through',
+                    'flexibility', 'theme'
+                ).annotate(total_like=Count('like_shoppers'))
+            
+        return queryset
 
     def filter_queryset(self, queryset):
+        queryset = self.__initial_filtering(queryset, **self.request.query_params.dict())
         query_params = querydict_to_dict(self.request.query_params)
 
         filter_set = {}
-        filter_mapping = {
-            'min_price': 'sale_price__gte',
-            'max_price': 'sale_price__lte',
-            'color': 'colors__color_id',
-        }
-
         for key, value in query_params.items():
-            if key in filter_mapping:
+            if key in self.__filter_mapping:
                 if isinstance(value, list):
-                    filter_set[filter_mapping[key] + '__in'] = value    
+                    filter_set[self.__filter_mapping[key] + '__in'] = value    
                 else:
-                    filter_set[filter_mapping[key]] = value
+                    filter_set[self.__filter_mapping[key]] = value
 
         return queryset.filter(**filter_set)
 
-    def sort_queryset(self, queryset):
-        sort_mapping = {
-            'price_asc': 'sale_price',
-            'price_desc': '-sale_price',
-        }
+    def __sort_queryset(self, queryset):
         sort_set = [self.__default_sorting]
         sort_key = self.request.query_params.get('sort', None)
 
-        if sort_key is not None and sort_key in sort_mapping:
-            sort_set.insert(0, sort_mapping[sort_key])
+        if sort_key is not None and sort_key in self.__sort_mapping:
+            sort_set.insert(0, self.__sort_mapping[sort_key])
 
         return queryset.order_by(*sort_set)
 
@@ -277,7 +288,7 @@ class ProductViewSet(GenericViewSet):
         allow_fields = self.__get_allow_fields()
 
         context = {'detail': self.detail, 'field_order': allow_fields}
-        if hasattr(self.request.user, 'shopper'):
+        if is_shopper(self.request.user):
             context['shoppers_like_products_id_list'] = self.__get_shoppers_like_products_id_list()
 
         page = self.paginate_queryset(queryset)
@@ -309,11 +320,10 @@ class ProductViewSet(GenericViewSet):
         return queryset
 
     def list(self, request):
-        queryset = self.get_queryset()
-
-        if request.query_params.get('like_products') == 'True':
-            if request.auth is not None and hasattr(request.user, 'shopper'):
-                queryset = queryset.filter(like_shoppers=request.user.shopper)
+        if 'like' in request.query_params:
+            if is_shopper(request.user):
+                queryset = self.get_queryset().filter(like_shoppers=request.user.shopper).order_by('-productlike__created_at')
+                return self.__get_response_for_list(queryset)
 
         if 'search_word' in request.query_params and not request.query_params['search_word']:
             return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
@@ -321,12 +331,14 @@ class ProductViewSet(GenericViewSet):
         if 'main_category' in request.query_params and 'sub_category' in request.query_params:
             return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
 
-        queryset = self.__initial_filtering(queryset, **request.query_params.dict())
+        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
         max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
 
-        queryset = self.sort_queryset(
-            self.filter_queryset(queryset)
-        ).alias(Count('id')).only(*self.__default_fields)
+        queryset = self.__sort_queryset(
+            self.filter_queryset(
+                self.get_queryset()
+            ).alias(Count('id'))
+        )
 
         return self.__get_response_for_list(queryset, max_price=max_price)
 
@@ -339,17 +351,13 @@ class ProductViewSet(GenericViewSet):
         return get_response(status=HTTP_201_CREATED, data={'id': product.id})
 
     def retrieve(self, request, id=None):
-        queryset = self.get_queryset().select_related(
-            'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
-        ).annotate(total_like=Count('like_shoppers'))
-        product = self.get_object(queryset)
-
+        product = self.get_object(self.get_queryset())
         allow_fields = self.__get_allow_fields()
         context = {'detail': self.detail, 'field_order': self.__get_allow_fields()}
 
-        if hasattr(request.user, 'shopper'):
-            like = ProductLike.objects.filter(shopper=request.user.shopper, product=product).exists()
-            context['shopper_like'] = like
+        if is_shopper(request.user):
+            shopper_like = ProductLike.objects.filter(shopper=request.user.shopper, product=product).exists()
+            context['shopper_like'] = shopper_like
 
         serializer = self.get_serializer(
             product, allow_fields=allow_fields, context=context

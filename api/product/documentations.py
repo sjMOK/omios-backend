@@ -37,6 +37,7 @@ class SearchQuerySerializer(Serializer):
 
 
 class ProductListQuerySerializer(Serializer):
+    like = CharField()
     search_word = CharField(min_length=1, required=False, help_text='검색어')
     main_category = IntegerField(required=False, help_text='메인 카테고리 필터링 - id 값')
     sub_category = IntegerField(required=False, help_text='서브 카테고리 필터링 - id 값')
@@ -162,6 +163,7 @@ class DecoratedProductViewSet(ProductViewSet):
     \npage를 직접 query parameter로 전달해 원하는 페이지의 리스트를 가져올 수 있음
     \n여러 필터를 동시에 적용 가능
     * 메인 카테고리와 서브 카테고리는 동시에 필터링 할 수 없으며 여러개의 키 값을 전달할 수 없음*
+    'like' parameter는 value 없이 key만. token의 shopper가 좋아요 누른 상품들만 필터링
     \n기본적으로 등록 시간 내림차순(최근 순)으로 정렬되어 있음
     '''
     partial_update_description = '''
@@ -188,7 +190,8 @@ class DecoratedProductViewSet(ProductViewSet):
     "materials"와 "images"는 수정 시 수정을 가하지 않는 데이터도 모두 body에 담아야 함.(PUT 형식)
     '''
 
-    @swagger_auto_schema(query_serializer=ProductListQuerySerializer, **get_response(ProductListResponse()), operation_description=list_description + shopper_token_discription)
+    @swagger_auto_schema(manual_parameters=[Parameter('like', IN_QUERY, type=TYPE_STRING, description='좋아요')], query_serializer=ProductListQuerySerializer,
+                        **get_response(ProductListResponse()), operation_description=list_description + shopper_token_discription)
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 
