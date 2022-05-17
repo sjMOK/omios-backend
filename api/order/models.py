@@ -41,18 +41,14 @@ class OrderItem(Model):
     option = ForeignKey('product.Option', DO_NOTHING)
     status = ForeignKey('Status', DO_NOTHING)
     count = IntegerField(default=1)
-    # coupon = ForeignKey('shopper.ShopperCoupon', DO_NOTHING, null=True)
     sale_price = IntegerField()
     base_discount_price = IntegerField(default=0)
     membership_discount_price = IntegerField()
-    # coupon_discount_price = IntegerField()
     used_point = IntegerField(default=0)
     payment_price = IntegerField()
     earned_point = IntegerField()
     delivery = ForeignKey('Delivery', DO_NOTHING, null=True)
-    # shipping_fee = IntegerField(default=0)
-    # shipping_fee는 배송 쪽 테이블에 있는 게 맞는 것 같음
-    # 배송 테이블 foreign key 추가 필요
+    # coupon
 
     class Meta:
         db_table = 'order_item'
@@ -152,3 +148,7 @@ class Delivery(Model):
     shipping_fee = IntegerField(default=0)
     flag = CharField(max_length=30)
     created_at = DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'delivery'
+        ordering = ['id']
