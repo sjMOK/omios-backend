@@ -126,6 +126,7 @@ class OrderItemSerializerTestCase(SerializerTestCase):
             'membership_discount_price': order_item.membership_discount_price,
             'used_point': order_item.used_point,
             'payment_price': order_item.payment_price,
+            'delivery': None,
         })
 
     def test_validation_error(self):
@@ -183,6 +184,7 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
             'status': data['status'].id,
             'used_point': 0,
             'earned_point': 0,
+            'delivery': None,
         } for data in serializer.validated_data])
         self.__assert_status_history_count(order_items)
 
@@ -364,8 +366,9 @@ class OrderWriteSerializerTestCase(SerializerTestCase):
         original_point = self.__shopper.point
         order = self._get_serializer_after_validation().save(status_id=self.__status.id)
 
+        self.assertTrue(order.number.startswith(order.created_at.strftime('%Y%m%d%H%M%S%f')))
         self.assertDictEqual(model_to_dict(order, exclude=['id']), {
-            'number': order.created_at.strftime('%Y%m%d%H%M%S') + '0001',
+            'number': order.number,
             'shopper': self.__shopper.id,
             'shipping_address': ShippingAddress.objects.get(**self._test_data['shipping_address']).id,
             'created_at': timezone.now(),

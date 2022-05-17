@@ -1,3 +1,6 @@
+import random
+import string
+
 from django.db.models import (
     Model, BigAutoField, AutoField, ForeignKey, OneToOneField,
     IntegerField, BigIntegerField, CharField, BooleanField, DateTimeField,
@@ -8,7 +11,7 @@ from django.utils import timezone
 
 class Order(Model):
     id = BigAutoField(primary_key=True)
-    number = BigIntegerField(unique=True) 
+    number = CharField(max_length=25, unique=True) 
     shopper = ForeignKey('user.Shopper', DO_NOTHING)
     shipping_address = ForeignKey('ShippingAddress', DO_NOTHING)
     created_at = DateTimeField(default=timezone.now)
@@ -18,12 +21,12 @@ class Order(Model):
         ordering = ['id']
 
     def __set_default_number(self):
-        prefix = self.created_at.strftime('%Y%m%d%H%M%S')
-        
-        for postfix in range(1, 10000):
-            self.number = prefix + "%04d" % (postfix)
-            if not self.__class__.objects.filter(number=self.number).exists():
-                break;
+        prefix = self.created_at.strftime('%Y%m%d%H%M%S%f')
+        while True:
+            postfix = ''.join(random.choices(string.digits, k=5))
+            if not self.__class__.objects.filter(number=prefix+postfix).exists():
+                self.number = prefix + postfix
+                break
 
     def save(self, *args, **kwargs):
         if kwargs.get('force_insert', False):
@@ -46,6 +49,7 @@ class OrderItem(Model):
     used_point = IntegerField(default=0)
     payment_price = IntegerField()
     earned_point = IntegerField()
+    delivery = ForeignKey('Delivery', DO_NOTHING, null=True)
     # shipping_fee = IntegerField(default=0)
     # shipping_fee는 배송 쪽 테이블에 있는 게 맞는 것 같음
     # 배송 테이블 foreign key 추가 필요
@@ -139,3 +143,12 @@ class StatusTransition(Model):
     
     class Meta:
         db_table = 'status_transition'
+
+
+class Delivery(Model):
+    id = BigAutoField(primary_key=True)
+    company = CharField(max_length=20)
+    invoice_number = CharField(max_length=30)
+    shipping_fee = IntegerField(default=0)
+    flag = CharField(max_length=30)
+    created_at = DateTimeField(auto_now_add=True)
