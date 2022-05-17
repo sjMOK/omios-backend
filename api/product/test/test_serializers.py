@@ -1503,7 +1503,6 @@ class ProductQuestionAnswerClassificationSerializerTestCase(SerializerTestCase):
 
 class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
     _serializer_class = ProductQuestionAnswerSerializer
-    fixtures = ['membership']
 
     @classmethod
     def setUpTestData(cls):

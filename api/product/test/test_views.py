@@ -350,7 +350,6 @@ class ProductViewSetTestCase(ViewTestCase):
 
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
-    fixtures = ['membership']
     __default_sorting = '-created_at'
 
     @classmethod
@@ -690,7 +689,6 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
 
 
 class ProductQuestionAnswerViewSetTestCase(ViewTestCase):
-    fixtures = ['membership']
     _url = '/products/{0}/question-answers'
 
     @classmethod
