@@ -13,11 +13,11 @@ from common.validators import validate_all_required_fields_included, validate_im
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs, get_update_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
-    DynamicFieldsSerializer,
+    DynamicFieldsSerializer, DynamicFieldsModelSerializer,
 )
 from .models import (
-    LaundryInformation, SubCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme, ProductQuestionAnswer,
+    Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme, ProductQuestionAnswer, Material,
 )
 
 
@@ -25,72 +25,124 @@ PRODUCT_IMAGE_MAX_LENGTH = 10
 PRODUCT_COLOR_MAX_LENGTH = 10
 
 
-class SubCategorySerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class SubCategorySerializer(ModelSerializer):
+    class Meta:
+        model = SubCategory
+        exclude = ['main_category', 'sizes', 'require_product_additional_information', 'require_laundry_information']
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class MainCategorySerializer(DynamicFieldsSerializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
-    image_url = ImageField(read_only=True)
+class MainCategorySerializer(DynamicFieldsModelSerializer):
     sub_categories = SubCategorySerializer(read_only=True, many=True)
+    class Meta:
+        model = MainCategory
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+            'image_url': {'read_only': True},
+        }
 
 
-class ColorSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
-    image_url = ImageField(read_only=True)
+class ColorSerializer(ModelSerializer):
+    class Meta:
+        model = Color
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+            'image_url': {'read_only': True}
+        }
 
 
-class SizeSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class SizeSerializer(ModelSerializer):
+    class Meta:
+        model = Size
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
+        
+
+class LaundryInformationSerializer(ModelSerializer):
+    class Meta:
+        model = LaundryInformation
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class LaundryInformationSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class ThicknessSerializer(ModelSerializer):
+    class Meta:
+        model = Thickness
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class ThicknessSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class SeeThroughSerializer(ModelSerializer):
+    class Meta:
+        model = SeeThrough
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class SeeThroughSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class FlexibilitySerializer(ModelSerializer):
+    class Meta:
+        model = Flexibility
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class FlexibilitySerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class AgeSerializer(ModelSerializer):
+    class Meta:
+        model = Age
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class AgeSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class ThemeSerializer(ModelSerializer):
+    class Meta:
+        model = Theme
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class ThemeSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)  
+class StyleSerializer(ModelSerializer):
+    class Meta:
+        model = Style
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class StyleSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class MaterialSerializer(ModelSerializer):
+    class Meta:
+        model = Material
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
-class MaterialSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
-
-
-class TagSerializer(Serializer):
-    id = IntegerField(read_only=True)
-    name = CharField(read_only=True)
+class TagSerializer(ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = '__all__'
+        extra_kwargs = {
+            'name': {'read_only': True},
+        }
 
 
 class ProductImageListSerializer(ListSerializer):
@@ -161,12 +213,14 @@ class ProductImageListSerializer(ListSerializer):
         self.___validate_sequence(sequences)
 
 
-class ProductImageSerializer(Serializer):
+class ProductImageSerializer(ModelSerializer):
     id = IntegerField(required=False)
     image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
     sequence = IntegerField(min_value=1)
 
     class Meta:
+        model = ProductImage
+        exclude = ['product']
         list_serializer_class = ProductImageListSerializer
 
     def validate_image_url(self, value):
@@ -271,12 +325,14 @@ class ProductMaterialListSerializer(ListSerializer):
             raise ValidationError('Material is duplicated.')
 
 
-class ProductMaterialSerializer(Serializer):
+class ProductMaterialSerializer(ModelSerializer):
     id = IntegerField(required=False)
     material = RegexField(ENG_OR_KOR_REGEX, max_length=20)
     mixing_rate = IntegerField(min_value=1, max_value=100)
 
     class Meta:
+        model = ProductMaterial
+        exclude = ['product']
         list_serializer_class = ProductMaterialListSerializer
 
     def validate(self, attrs):
@@ -303,12 +359,16 @@ class OptionListSerializer(ListSerializer):
             raise ValidationError('Size is duplicated.')
 
 
-class OptionSerializer(Serializer):
+class OptionSerializer(ModelSerializer):
     id = IntegerField(required=False)
     size = RegexField(SIZE_REGEX, max_length=20)
-    on_sale = BooleanField(read_only=True)
 
     class Meta:
+        model = Option
+        exclude = ['product_color']
+        extra_kwargs = {
+            'on_sale': {'read_only': True},
+        }
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
@@ -414,15 +474,17 @@ class ProductColorListSerializer(ListSerializer):
             raise ValidationError('display_color_name is duplicated.')
 
 
-class ProductColorSerializer(Serializer):
+class ProductColorSerializer(ModelSerializer):
     id = IntegerField(required=False)
-    display_color_name = CharField(max_length=20)
-    color = PrimaryKeyRelatedField(queryset=Color.objects.all())
     options = OptionSerializer(allow_empty=False, many=True)
     image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
-    on_sale = BooleanField(read_only=True)
 
     class Meta:
+        model = ProductColor
+        exclude = ['product']
+        extra_kwargs = {
+            'on_sale': {'read_only': True},
+        }
         list_serializer_class = ProductColorListSerializer
 
     def validate(self, attrs):
@@ -489,6 +551,13 @@ class ProductColorSerializer(Serializer):
         ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
 
         return ret
+
+
+
+class ProductModelSerializer(DynamicFieldsModelSerializer):
+    class Meta:
+        model = Product
+        fields = '__all__'
 
 
 class ProductSerializer(DynamicFieldsSerializer):
