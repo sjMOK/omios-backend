@@ -8,6 +8,8 @@ from django.db.models import (
 )
 from django.utils import timezone
 
+from common.utils import DEFAULT_DATETIME_FORMAT
+
 
 class Order(Model):
     id = BigAutoField(primary_key=True)
@@ -21,7 +23,7 @@ class Order(Model):
         ordering = ['id']
 
     def __set_default_number(self):
-        prefix = self.created_at.strftime('%Y%m%d%H%M%S%f')
+        prefix = self.created_at.strftime(DEFAULT_DATETIME_FORMAT)
         while True:
             postfix = ''.join(random.choices(string.digits, k=5))
             if not self.__class__.objects.filter(number=prefix+postfix).exists():

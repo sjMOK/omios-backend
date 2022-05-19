@@ -7,6 +7,7 @@ from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, la
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
+from common.utils import IMAGE_DATETIME_FORMAT
 from user.test.factories import WholesalerFactory, ShopperFactory
 
 
@@ -136,7 +137,7 @@ class ProductColorFactory(DjangoModelFactory):
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
     display_color_name = Sequence(lambda num: 'display_name_{0}'.format(num))
-    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
 
 
 class OptionFactory(DjangoModelFactory):
@@ -179,7 +180,7 @@ class ProductImageFactory(DjangoModelFactory):
         model = 'product.ProductImage'
 
     product = SubFactory(ProductFactory)
-    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
     sequence = Sequence(lambda num: num)
 
 

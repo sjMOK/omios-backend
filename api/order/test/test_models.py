@@ -4,9 +4,10 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME
+from common.utils import DEFAULT_DATETIME_FORMAT
 from user.test.factories import ShopperFactory
 from product.test.factories import OptionFactory
-from .factories import OrderFactory, OrderItemFactory, RefundFacotry, StatusFactory, ShippingAddressFactory
+from .factories import OrderFactory, OrderItemFactory, RefundFactory, StatusFactory, ShippingAddressFactory
 from ..models import (
     Order, OrderItem, Status, StatusHistory, ShippingAddress,
     CancellationInformation, ExchangeInformation, ReturnInformation, Refund, Delivery
@@ -28,7 +29,7 @@ class OrderTestCase(ModelTestCase):
     def test_create(self):
         order = model_to_dict(self._order, exclude=['id'])
 
-        self.assertTrue(order['number'].startswith(order['created_at'].strftime('%Y%m%d%H%M%S%f')))
+        self.assertTrue(order['number'].startswith(order['created_at'].strftime(DEFAULT_DATETIME_FORMAT)))
         self.assertDictEqual(order, {
             'shopper': self._test_data['shopper'].id,
             'shipping_address': self._test_data['shipping_address'].id,
@@ -41,7 +42,7 @@ class OrderTestCase(ModelTestCase):
         new_order = self._get_model_after_creation()
         
         self.assertTrue(self._order.number != new_order.number)
-        self.assertTrue(new_order.number.startswith(new_order.created_at.strftime('%Y%m%d%H%M%S%f')))
+        self.assertTrue(new_order.number.startswith(new_order.created_at.strftime(DEFAULT_DATETIME_FORMAT)))
 
 
 class OrderItemTestCase(ModelTestCase):
@@ -134,7 +135,7 @@ class CancellationInformationTestCase(ModelTestCase):
     def setUp(self):
         self._test_data = {
             'order_item': OrderItemFactory(),
-            'refund': RefundFacotry(),
+            'refund': RefundFactory(),
         }
 
     def test_create(self):

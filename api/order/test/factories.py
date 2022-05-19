@@ -69,7 +69,7 @@ class ShippingAddressFactory(DjangoModelFactory):
     shipping_message = '부재 시 집 앞에 놔주세요.'
 
 
-class RefundFacotry(DjangoModelFactory):
+class RefundFactory(DjangoModelFactory):
     class Meta:
         model = 'order.Refund'
     

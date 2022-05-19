@@ -15,7 +15,6 @@ from user.test.factories import UserFactory, ShopperFactory, WholesalerFactory
 
 
 FREEZE_TIME = '2021-11-20T01:02:03.456789'
-FREEZE_TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
 FREEZE_TIME_AUTO_TICK_SECONDS = 10
 
 
