@@ -11,10 +11,13 @@ from common.utils import IMAGE_DATETIME_FORMAT
 from user.test.factories import WholesalerFactory, ShopperFactory
 
 
-def create_options(size=2):
+def create_options(size=2, only_product_color=False):
     option = OptionFactory()
 
-    return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
+    if only_product_color:
+        return [option] + [OptionFactory(product_color=option.product_color) for _ in range(size-1)]
+    else:
+        return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
 
 
 class MainCategoryFactory(DjangoModelFactory):
