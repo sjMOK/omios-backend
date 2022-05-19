@@ -102,7 +102,8 @@ class ProductFactory(DjangoModelFactory):
             product = params.pop('product')
             copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'theme']
             for field in copy_fields:
-                params[field] = getattr(product, field, None)
+                if field not in params:
+                    params[field] = getattr(product, field, None)
 
         return super()._generate(strategy, params)
 
@@ -126,7 +127,7 @@ class SizeFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Size'
 
-    name = Sequence(lambda num: 'size_{0}'.format(num))
+    name = Sequence(lambda num: 'size{0}'.format(num))
 
 
 class ProductColorFactory(DjangoModelFactory):
