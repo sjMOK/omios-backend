@@ -11,10 +11,12 @@ from user.models import Shopper
 from product.models import ProductImage
 from .models import Order, OrderItem, StatusHistory
 from .serializers import (
-    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
-    ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer,
+    ExchangeInformationSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
+    ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer
 )
 from .permissions import OrderPermission, OrderItemPermission
+
+from rest_framework.permissions import AllowAny
 
 
 class OrderViewSet(GenericViewSet):
@@ -139,3 +141,15 @@ class StatusHistoryAPIView(GenericAPIView):
 
     def get(self, request, item_id):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)
+
+
+class DeliveryAPIView(GenericAPIView):
+    serializer_class = DeliverySerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, many=True, allow_empty=False)
+        serializer.is_valid(raise_exception=True)
+        deliveries = serializer.save()
+
+        return get_response(data={'id': [delivery.id for delivery in deliveries]})

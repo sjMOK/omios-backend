@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from random import randint
 from copy import deepcopy
 
@@ -11,20 +12,19 @@ from freezegun import freeze_time
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase, FREEZE_TIME
 from common.querysets import get_order_item_queryset, get_order_queryset
 from common.serializers import get_sum_of_single_value, add_data_in_each_element
-from common.utils import datetime_to_iso
+from common.utils import DEFAULT_DATETIME_FORMAT, DATETIME_WITHOUT_MILISECONDS_FORMAT, datetime_to_iso
 from user.models import Shopper
 from user.test.factories import ShopperFactory
-from product.models import ProductImage
 from product.serializers import OptionInOrderItemSerializer
 from product.test.factories import ProductFactory, OptionFactory, create_options
 from .factories import (
     create_orders_with_items, ShippingAddressFactory, OrderFactory, OrderItemFactory, 
-    StatusFactory, StatusHistoryFactory,
+    StatusFactory, StatusHistoryFactory, DeliveryFactory,
 )
 from ..models import OrderItem, ShippingAddress, StatusHistory
 from ..serializers import (
     ShippingAddressSerializer, OrderItemSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
-    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer
+    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer,
 )
 
 
@@ -66,6 +66,17 @@ def get_order_test_data(shipping_address, options, shopper):
     test_data['earned_point'] = test_data['actual_payment_price'] // 100
 
     return test_data
+
+
+def get_delivery_test_data(order):
+    delivery = DeliveryFactory.build()
+    
+    return {
+        'order': order.id,
+        'order_items': [order_item.id for order_item in order.items.all()],
+        'company': delivery.company,
+        'invoice_number': delivery.invoice_number,
+    }
 
 
 class ShippingAddressSerializerTestCase(SerializerTestCase):
@@ -188,7 +199,7 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
         } for data in serializer.validated_data])
         self.__assert_status_history_count(order_items)
 
-    def test_update(self):
+    def test_update_status(self):
         status = StatusFactory()
         order_items = self._get_serializer().update_status(self.__create_order_items_by_factory(), status.id)
 
@@ -366,7 +377,7 @@ class OrderWriteSerializerTestCase(SerializerTestCase):
         original_point = self.__shopper.point
         order = self._get_serializer_after_validation().save(status_id=self.__status.id)
 
-        self.assertTrue(order.number.startswith(order.created_at.strftime('%Y%m%d%H%M%S%f')))
+        self.assertTrue(order.number.startswith(order.created_at.strftime(DEFAULT_DATETIME_FORMAT)))
         self.assertDictEqual(model_to_dict(order, exclude=['id']), {
             'number': order.number,
             'shopper': self.__shopper.id,
@@ -394,12 +405,11 @@ class StatusHistorySerializerTestCase(SerializerTestCase):
 
     def test_create(self):
         status_histories = [model_to_dict(status_history, exclude=['id']) for status_history in self._get_serializer().create(self.__order_items)]
-        expected_result = [{
+
+        self.assertListEqual(status_histories, [{
             'order_item': order_item.id,
             'status': order_item.status_id,
-        } for order_item in self.__order_items]
-
-        self.assertListEqual(status_histories, expected_result)
+        } for order_item in self.__order_items])
 
     def test_model_instance_serialization(self):
         status_history = StatusHistoryFactory(order_item=self.__order_items[0])
@@ -409,3 +419,73 @@ class StatusHistorySerializerTestCase(SerializerTestCase):
             'status': status_history.status.name,
             'created_at': datetime_to_iso(status_history.created_at),
         })
+
+
+class DeliveryListSerializerTestCase(ListSerializerTestCase):
+    _child_serializer_class = DeliverySerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__status = StatusFactory(id=200)
+        StatusFactory(id=201)
+        cls.__orders = create_orders_with_items(order_size=2, only_product_color=True, order_kwargs={'shopper': ShopperFactory()}, item_kwargs={'status': cls.__status})
+        cls._test_data = [get_delivery_test_data(order) for order in cls.__orders]
+
+    def test_validate_orders(self):
+        self._test_data.append(self._test_data[0])
+
+        self._test_serializer_raise_validation_error(f'order is duplicated.')
+
+    def test_validate_invoice_numbers_for_request(self):
+        self._test_data[0]['company'] = self._test_data[1]['company']
+        self._test_data[0]['invoice_number'] = self._test_data[1]['invoice_number']
+
+        self._test_serializer_raise_validation_error(f'invoice_number is duplicated.')
+
+    def test_validate_invoice_numbers_for_database(self):
+        DeliveryFactory(company=self._test_data[0]['company'], invoice_number=self._test_data[0]['invoice_number'])
+
+        self._test_serializer_raise_validation_error(f'invoice number has already been registered.')
+
+    @patch('order.serializers.OrderItemListSerializer._OrderItemListSerializer__create_status_history')
+    @freeze_time(FREEZE_TIME)
+    def test_create(self, mock):
+        deliveries = self._get_serializer_after_validation().save()
+        conditions = Q()
+        for i in range(len(deliveries)):
+            conditions |= Q(delivery_id=deliveries[i].id, id__in=self._test_data[i]['order_items'])
+        order_items = list(OrderItem.objects.filter(conditions).all())
+
+        self.assertEqual(len(set([delivery.flag for delivery in deliveries])), 1)
+        self.assertTrue(deliveries[0].flag.startswith(timezone.now().strftime(DATETIME_WITHOUT_MILISECONDS_FORMAT)))
+        self.assertListEqual([model_to_dict(delivery, exclude=['id']) for delivery in deliveries], [{
+            'company': delivery['company'],
+            'invoice_number': delivery['invoice_number'],
+            'shipping_fee': 0,
+            'flag': deliveries[0].flag,
+        } for delivery in self._test_data])
+        self.assertEqual(len(order_items), sum([len(delivery['order_items']) for delivery in self._test_data]))
+        for order_item in order_items:
+            self.assertEqual(order_item.status_id, 201)
+        mock.assert_called_once()
+
+
+class DeliverySerializerTestCase(SerializerTestCase):
+    _serializer_class = DeliverySerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__status = StatusFactory(id=200)
+        cls.__order = create_orders_with_items(only_product_color=True, item_kwargs={'status': cls.__status})[0]
+        cls.__delivery = DeliveryFactory()
+        cls._test_data = get_delivery_test_data(cls.__order)
+
+    def _get_serializer(self, *args, **kwargs):
+        return super()._get_serializer(context={'status_id': self.__status.id}, *args, **kwargs)
+
+    def test_validate_order_items(self):
+        order_item = self.__order.items.all()[0]
+        order_item.delivery = self.__delivery
+        order_item.save(update_fields=['delivery'])
+
+        self._test_serializer_raise_validation_error(f'order_item {order_item.id} already has delivery information.')

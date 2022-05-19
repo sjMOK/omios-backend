@@ -3,6 +3,7 @@ from rest_framework.validators import ValidationError
 from common.serializers import has_duplicate_element
 
 
+# todo validate_order_items context status 제거
 def validate_order_items(order_items, order_id=None, status_ids=None):
     validation_set = list(set([(order_item.order_id, order_item.status_id) for order_item in order_items]))
     if has_duplicate_element(order_items):
