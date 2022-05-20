@@ -212,6 +212,10 @@ class ProductImageListSerializer(ListSerializer):
 
         self.___validate_sequence(sequences)
 
+    def create(self, validated_data, product):
+        images = [self.child.Meta.model(product=product, **data) for data in validated_data]
+        return self.child.Meta.model.objects.bulk_create(images)
+
 
 class ProductImageSerializer(ModelSerializer):
     id = IntegerField(required=False)
@@ -324,6 +328,10 @@ class ProductMaterialListSerializer(ListSerializer):
         if has_duplicate_element(materials):
             raise ValidationError('Material is duplicated.')
 
+    def create(self, validated_data, product):
+        materials = [self.child.Meta.model(product=product, **data) for data in validated_data]
+        return self.child.Meta.model.objects.bulk_create(materials)
+
 
 class ProductMaterialSerializer(ModelSerializer):
     id = IntegerField(required=False)
@@ -357,6 +365,10 @@ class OptionListSerializer(ListSerializer):
 
         if has_duplicate_element(sizes):
             raise ValidationError('Size is duplicated.')
+
+    def create(self, validated_data, product_color):
+        options = [self.child.Meta.model(product_color=product_color, **data) for data in validated_data]
+        return self.child.Meta.model.objects.bulk_create(options)
 
 
 class OptionSerializer(ModelSerializer):
@@ -472,6 +484,16 @@ class ProductColorListSerializer(ListSerializer):
         display_color_names = get_list_of_single_value(attrs, 'display_color_name')
         if has_duplicate_element(display_color_names):
             raise ValidationError('display_color_name is duplicated.')
+
+    def create(self, validated_data, product):
+        created_product_colors = []
+        for data in validated_data:
+            options = data.pop('options')
+            product_color = self.child.Meta.model.objects.create(product=product, **data)
+            self.child.fields['options'].create(options, product_color)
+            created_product_colors.append(product_color)
+
+        return created_product_colors
 
 
 class ProductColorSerializer(ModelSerializer):
@@ -697,37 +719,25 @@ class ProductWriteSerializer(ProductSerializer):
             validated_data['base_discounted_price'] = base_discounted_price
 
     def create(self, validated_data):
-        sale_price = self.__get_sale_price(validated_data['price'])
-        base_discounted_price = self.__get_base_discounted_price(sale_price, validated_data['base_discount_rate'])
-        laundry_informations = validated_data.pop('laundry_informations', [])
         tags = validated_data.pop('tags', [])
+        laundry_informations = validated_data.pop('laundry_informations', [])
+        images = validated_data.pop('related_images')
         materials = validated_data.pop('materials')
         colors = validated_data.pop('colors')
-        images = validated_data.pop('related_images')
+
+        sale_price = self.__get_sale_price(validated_data['price'])
+        base_discounted_price = self.__get_base_discounted_price(sale_price, validated_data['base_discount_rate'])
 
         product = Product.objects.create(
             sale_price=sale_price, base_discounted_price=base_discounted_price, 
             wholesaler=self.context['wholesaler'], **validated_data
         )
-        product.laundry_informations.add(*laundry_informations)
+
         product.tags.add(*tags)
-
-        ProductMaterial.objects.bulk_create(
-            [ProductMaterial(product=product, **material_data) for material_data in materials]
-        )
-
-        for color_data in colors:
-            options = color_data.pop('options')
-
-            product_color = ProductColor.objects.create(product=product, **color_data)
-
-            Option.objects.bulk_create(
-                [Option(product_color=product_color, **option_data) for option_data in options]
-            )
-
-        ProductImage.objects.bulk_create(
-            [ProductImage(product=product, **image_data) for image_data in images]
-        )
+        product.laundry_informations.add(*laundry_informations)
+        self.fields['images'].create(images, product)
+        self.fields['materials'].create(materials, product)
+        self.fields['colors'].create(colors, product)
 
         return product
 
