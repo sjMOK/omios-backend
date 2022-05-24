@@ -162,13 +162,15 @@ class OrderItemWriteSerializer(OrderItemSerializer):
 
 
 class OrderSerializer(ModelSerializer):
-    number = IntegerField(read_only=True)
     shipping_address = ShippingAddressSerializer()
     items = OrderItemSerializer(many=True)
 
     class Meta:
         model = Order
         exclude = []
+        extra_kwargs = {
+            'number': {'read_only': True}
+        }
 
     def validate(self, attrs):
         raise NotExcutableValidationError()

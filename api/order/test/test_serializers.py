@@ -276,7 +276,7 @@ class OrderSerializerTestCase(SerializerTestCase):
 
         self._test_model_instance_serialization(order, {
             'id': order.id,
-            'number': int(order.number),
+            'number': order.number,
             'shopper': order.shopper_id,
             'shipping_address': ShippingAddressSerializer(order.shipping_address).data,
             'items': OrderItemSerializer(order.items.all(), many=True).data,
