@@ -11,7 +11,7 @@ from user.models import Shopper
 from product.models import ProductImage
 from .models import Order, OrderItem, StatusHistory
 from .serializers import (
-    ExchangeInformationSerializer, OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
+    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
     ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer
 )
 from .permissions import OrderPermission, OrderItemPermission
