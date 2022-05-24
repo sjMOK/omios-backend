@@ -53,6 +53,22 @@ def add_data_in_each_element(list, key, value):
     
     return list
 
+def get_separated_data_by_create_update_delete(data_array):
+        create_data = []
+        delete_data = []
+        update_data = []
+
+        for data in data_array:
+            if is_create_data(data):
+                create_data.append(data)
+            elif is_delete_data(data):
+                delete_data.append(data)
+            elif is_update_data:
+                update_data.append(data)
+
+        return (create_data, update_data, delete_data)
+
+
 class SerializerMixin:
     ALL_FIELDS = '__all__'
     def __init__(self, *args, **kwargs):

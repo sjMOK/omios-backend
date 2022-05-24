@@ -1,4 +1,4 @@
-import random
+import random, copy
 
 from django.db.models.query import Prefetch
 from django.db.models import Count
@@ -273,14 +273,53 @@ class ProductImageListSerializerTestCase(ListSerializerTestCase):
         cls.__images = ProductImageFactory.create_batch(size=cls.__batch_size, product=cls.__product)
 
     def test_create(self):
-        serializer = self._get_serializer(data=self.__data)
-        serializer.is_valid()
-        images = serializer.create(serializer.validated_data, self.__product)
+        serializer = self._get_serializer()
+        serializer.create(self.__data, self.__product)
         
+        exclude_id_list = [image.id for image in self.__images]
+        created_images = self.__product.images.exclude(id__in=exclude_id_list)
+
         self.assertListEqual(
-            [{'image_url': image.image_url, 'sequence': image.sequence} for image in images],
-            [{'image_url': data['image_url'].split(BASE_IMAGE_URL)[-1], 'sequence': data['sequence']} for data in self.__data]
+            [{'image_url': image.image_url, 'sequence': image.sequence} for image in created_images],
+            [{'image_url': data['image_url'], 'sequence': data['sequence']} for data in self.__data]
         )
+
+    def test_update_create_data(self):
+        serializer = self._get_serializer()
+        serializer.update(self.__data, self.__product)
+
+        exclude_id_list = [image.id for image in self.__images]
+        created_images = self.__product.images.exclude(id__in=exclude_id_list)
+
+        self.assertListEqual(
+            [{'image_url': image.image_url, 'sequence': image.sequence} for image in created_images],
+            [{'image_url': data['image_url'], 'sequence': data['sequence']} for data in self.__data]
+        )
+
+    def test_update_update_data(self):
+        updating_image = self.__images[0]
+        data = [{
+            'id': updating_image.id,
+            'sequence': updating_image.sequence + 1,
+        }]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        updated_image = self.__product.images.get(id=updating_image.id)
+
+        self.assertListEqual(
+            data, [model_to_dict(updated_image, fields=['id', 'sequence'])]
+        )
+
+    def test_update_delete_data(self):
+        delete_id = self.__images[-1].id
+        data = [{'id': delete_id}]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        self.assertTrue(not self.__product.images.filter(id=delete_id).exists())
 
     def test_validate_image_number_in_create(self):
         data = [{} for _ in range(PRODUCT_COLOR_MAX_LENGTH + 1)]
@@ -445,14 +484,55 @@ class ProductMaterialListSerializerTestCase(ListSerializerTestCase):
         ]
 
     def test_create(self):
-        serializer = self._get_serializer(data=self.__create_data)
-        serializer.is_valid()
-        materials = serializer.create(serializer.validated_data, self.__product)
+        serializer = self._get_serializer()
+        serializer.create(self.__create_data, self.__product)
+
+        exclude_id_list = [material.id for material in self.__materials]
+        created_materials = self.__product.materials.exclude(id__in=exclude_id_list)
 
         self.assertListEqual(
-            [{'material': material.material, 'mixing_rate': material.mixing_rate} for material in materials],
+            [{'material': material.material, 'mixing_rate': material.mixing_rate} for material in created_materials],
             [{'material': data['material'], 'mixing_rate': data['mixing_rate']} for data in self.__create_data]
         )
+
+    def test_update_create_data(self):
+        serializer = self._get_serializer()
+        serializer.update(self.__create_data, self.__product)
+
+        exclude_id_list = [material.id for material in self.__materials]
+        created_materials = self.__product.materials.exclude(id__in=exclude_id_list)
+
+        self.assertListEqual(
+            [{'material': material.material, 'mixing_rate': material.mixing_rate} for material in created_materials],
+            [{'material': data['material'], 'mixing_rate': data['mixing_rate']} for data in self.__create_data]
+        )
+
+    def test_update_update_data(self):
+        updating_material = self.__materials[0]
+        data = [{
+            'id': updating_material.id,
+            'material': updating_material.material + 'update',
+            'mixing_rate': updating_material.mixing_rate + 10,
+        }]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        updated_material = self.__product.materials.get(id=updating_material.id)
+
+        self.assertListEqual(
+            data,
+            [model_to_dict(updated_material, fields=['id', 'material', 'mixing_rate'])]
+        )
+
+    def test_update_delete_data(self):
+        delete_id = self.__materials[-1].id
+        data = [{'id': delete_id}]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        self.assertTrue(not self.__product.materials.filter(id=delete_id).exists())
 
     def test_validate_total_mixing_rates_in_create(self):
         self.__create_data[0]['mixing_rate'] += 10
@@ -575,21 +655,61 @@ class OptionListSerializerTestCase(ListSerializerTestCase):
     @classmethod
     def setUpTestData(cls):
         cls.__product_color = ProductColorFactory()
-        OptionFactory.create_batch(size=cls.__option_num, product_color=cls.__product_color)
+        cls.__options = OptionFactory.create_batch(size=cls.__option_num, product_color=cls.__product_color)
         cls.__data = [
             {'size': SizeFactory().name}
             for _ in range(cls.__option_num)
         ]
 
     def test_create(self):
-        serializer = self._get_serializer(data=self.__data)
-        serializer.is_valid()
-        options = serializer.create(serializer.validated_data, self.__product_color)
+        serializer = self._get_serializer()
+        serializer.create(self.__data, self.__product_color)
+
+        exclude_id_list = [option.id for option in self.__options]
+        created_options = self.__product_color.options.exclude(id__in=exclude_id_list)
 
         self.assertListEqual(
-            [{'size': option.size} for option in options],
+            [{'size': option.size} for option in created_options],
             [{'size': data['size']} for data in self.__data]
         )
+
+    def test_update_create_data(self):
+        serializer = self._get_serializer()
+        serializer.update(self.__data, self.__product_color)
+
+        exclude_id_list = [option.id for option in self.__options]
+        created_options = self.__product_color.options.exclude(id__in=exclude_id_list)
+
+        self.assertListEqual(
+            [{'size': option.size} for option in created_options],
+            [{'size': data['size']} for data in self.__data]
+        )
+
+    def test_update_update_data(self):
+        updating_option = self.__options[0]
+        data = {
+            'id': updating_option.id,
+            'size': updating_option.size + 'update',
+        }
+
+        serializer = self._get_serializer()
+        serializer.update([data], self.__product_color)
+
+        updated_option = self.__product_color.options.get(id=updating_option.id)
+
+        self.assertDictEqual(
+            data,
+            model_to_dict(updated_option, fields=['id', 'size'])
+        )
+
+    def test_update_delete_data(self):
+        delete_id = self.__options[-1].id
+        data = [{'id': delete_id}]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product_color)
+
+        self.assertTrue(not self.__product_color.options.filter(id=delete_id, on_sale=True).exists())
 
     def test_raise_validation_error_duplicated_size_data_in_create(self):
         data = self.__data
@@ -728,31 +848,81 @@ class ProductColorListSerializerTestCase(ListSerializerTestCase):
         for product_color in cls.__product_colors:
             OptionFactory(product_color=product_color)
 
-    def test_create(self):
-        data = [{
-            'display_color_name': self.__color.name,
-            'color': self.__color.id,
-            'options': [
-                {
-                    'size': 'size',
-                }
-            ],
-            'image_url': BASE_IMAGE_URL + self.__temporary_images[0]
+        cls.__data = [{
+            'display_color_name': cls.__color.name,
+            'color': cls.__color,
+            'options': [{
+                'size': 'size',
+            }],
+            'image_url': BASE_IMAGE_URL + cls.__temporary_images[0]
         }]
 
-        serializer = self._get_serializer(data=data)
-        serializer.is_valid()
-        colors = serializer.create(serializer.validated_data, self.__product)
+    def test_create(self):
+        serializer = self._get_serializer()
+        serializer.create(copy.deepcopy(self.__data), self.__product)
+
+        exclude_id_list = [product_color.id for product_color in self.__product_colors]
+        created_product_colors = self.__product.colors.exclude(id__in=exclude_id_list)
 
         self.assertListEqual(
             [{
                 'display_color_name': color.display_color_name,
-                'color': color.color.id,
+                'color': color.color,
                 'options': [{'size': option.size} for option in color.options.all()],
-                'image_url': BASE_IMAGE_URL + color.image_url,
-            }for color in colors],
+                'image_url': color.image_url,
+            }for color in created_product_colors],
+            self.__data
+        )
+
+    def test_update_create_data(self):
+        serializer = self._get_serializer()
+        serializer.update(copy.deepcopy(self.__data), self.__product)
+
+        exclude_id_list = [product_color.id for product_color in self.__product_colors]
+        created_product_colors = self.__product.colors.exclude(id__in=exclude_id_list)
+
+        self.assertListEqual(
+            [{
+                'display_color_name': color.display_color_name,
+                'color': color.color,
+                'options': [{'size': option.size} for option in color.options.all()],
+                'image_url': color.image_url,
+            }for color in created_product_colors],
+            self.__data
+        )
+
+    def test_update_update_data(self):
+        updating_product_color = self.__product_colors[0]
+        data = [{
+            'id': updating_product_color.id,
+            'display_color_name': updating_product_color.display_color_name + 'update',
+            'color': ColorFactory(),
+            'image_url': updating_product_color.image_url + 'update',
+        }]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        updated_product_color = self.__product.colors.get(id=updating_product_color.id)
+
+        self.assertListEqual(
+            [{
+                'id': updated_product_color.id,
+                'display_color_name': updated_product_color.display_color_name,
+                'color': updated_product_color.color,
+                'image_url': updated_product_color.image_url,
+            }],
             data
         )
+
+    def test_update_delete_data(self):
+        delete_id = self.__product_colors[-1].id
+        data = [{'id': delete_id}]
+
+        serializer = self._get_serializer()
+        serializer.update(data, self.__product)
+
+        self.assertTrue(not self.__product.colors.filter(id=delete_id, on_sale=True).exists())
 
     def test_validate_color_length_in_create(self):
         data = [{} for _ in range(11)]

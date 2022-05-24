@@ -13,6 +13,7 @@ from common.validators import validate_all_required_fields_included, validate_im
 from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs, get_update_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
+    get_separated_data_by_create_update_delete,
     DynamicFieldsSerializer, DynamicFieldsModelSerializer,
 )
 from .models import (
@@ -146,6 +147,21 @@ class TagSerializer(ModelSerializer):
 
 
 class ProductImageListSerializer(ListSerializer):
+    def create(self, validated_data, product):
+        images = [self.child.Meta.model(product=product, **data) for data in validated_data]
+        self.child.Meta.model.objects.bulk_create(images)
+
+    def update(self, validated_data, product):
+        create_data, update_data, delete_data = get_separated_data_by_create_update_delete(validated_data)
+
+        delete_id_list = [data['id'] for data in delete_data]
+        product.images.filter(id__in=delete_id_list).delete()
+
+        for data in update_data:
+            product.images.filter(id=data['id']).update(**data)
+
+        self.create(create_data, product)
+
     def validate(self, attrs):
         if self.root.instance is None:
             return self.__validate_create(attrs)
@@ -212,10 +228,6 @@ class ProductImageListSerializer(ListSerializer):
 
         self.___validate_sequence(sequences)
 
-    def create(self, validated_data, product):
-        images = [self.child.Meta.model(product=product, **data) for data in validated_data]
-        return self.child.Meta.model.objects.bulk_create(images)
-
 
 class ProductImageSerializer(ModelSerializer):
     id = IntegerField(required=False)
@@ -267,6 +279,21 @@ class ProductImageSerializer(ModelSerializer):
 class ProductMaterialListSerializer(ListSerializer):
     __total_mixing_rates = 100
 
+    def create(self, validated_data, product):
+        materials = [self.child.Meta.model(product=product, **data) for data in validated_data]
+        self.child.Meta.model.objects.bulk_create(materials)
+
+    def update(self, validated_data, product):
+        create_data, update_data, delete_data = get_separated_data_by_create_update_delete(validated_data)
+
+        delete_id_list = [data['id'] for data in delete_data]
+        product.materials.filter(id__in=delete_id_list).delete()
+
+        for data in update_data:
+            product.materials.filter(id=data['id']).update(**data)
+
+        self.create(create_data, product)
+    
     def validate(self, attrs):
         if self.root.instance is None:
             return self.__validate_create(attrs)
@@ -328,10 +355,6 @@ class ProductMaterialListSerializer(ListSerializer):
         if has_duplicate_element(materials):
             raise ValidationError('Material is duplicated.')
 
-    def create(self, validated_data, product):
-        materials = [self.child.Meta.model(product=product, **data) for data in validated_data]
-        return self.child.Meta.model.objects.bulk_create(materials)
-
 
 class ProductMaterialSerializer(ModelSerializer):
     id = IntegerField(required=False)
@@ -368,7 +391,18 @@ class OptionListSerializer(ListSerializer):
 
     def create(self, validated_data, product_color):
         options = [self.child.Meta.model(product_color=product_color, **data) for data in validated_data]
-        return self.child.Meta.model.objects.bulk_create(options)
+        self.child.Meta.model.objects.bulk_create(options)
+
+    def update(self, validated_data, product_color):
+        create_data, update_data, delete_data = get_separated_data_by_create_update_delete(validated_data)
+
+        delete_id_list = [data['id'] for data in delete_data]
+        product_color.options.filter(id__in=delete_id_list).update(on_sale=False)
+
+        for data in update_data:
+            product_color.options.filter(id=data['id']).update(**data)
+
+        self.create(create_data, product_color)
 
 
 class OptionSerializer(ModelSerializer):
@@ -384,7 +418,7 @@ class OptionSerializer(ModelSerializer):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
-        if self.instance is not None:
+        if self.root.instance is not None:
             self.__validate_update(attrs)
 
         return attrs
@@ -486,15 +520,31 @@ class ProductColorListSerializer(ListSerializer):
             raise ValidationError('display_color_name is duplicated.')
 
     def create(self, validated_data, product):
-        created_product_colors = []
         for data in validated_data:
             options = data.pop('options')
             product_color = self.child.Meta.model.objects.create(product=product, **data)
             self.child.fields['options'].create(options, product_color)
-            created_product_colors.append(product_color)
 
-        return created_product_colors
+    def update(self, validated_data, product):
+        create_data, update_data, delete_data = get_separated_data_by_create_update_delete(validated_data)
 
+        delete_id_list = [data['id'] for data in delete_data]
+        product.colors.filter(id__in=delete_id_list).delete()
+
+        for data in update_data:
+            options = data.pop('options', None)
+            product.colors.filter(id=data['id']).update(**data)
+
+            if options is not None:
+                product_color = ProductColor.objects.get(id=data['id'])
+                self.child.fields['options'].update(options, product_color)
+
+        for data in create_data:
+            options = data.pop('options', None)
+            product_color = self.child.Meta.model.objects.create(product=product, **data)
+
+            if options is not None:
+                self.child.fields['options'].create(options, product_color)
 
 class ProductColorSerializer(ModelSerializer):
     id = IntegerField(required=False)
@@ -744,9 +794,9 @@ class ProductWriteSerializer(ProductSerializer):
     def update(self, instance, validated_data):
         laundry_informations_data = validated_data.pop('laundry_informations', None)
         tags_data = validated_data.pop('tags', None)
-        materials_data = validated_data.pop('materials', None)
-        product_colors_data = validated_data.pop('colors', None)
-        product_images_data = validated_data.pop('related_images', None)
+        materials = validated_data.pop('materials', None)
+        colors = validated_data.pop('colors', None)
+        images = validated_data.pop('related_images', None)
 
         self.__update_price_data(instance, validated_data)            
 
@@ -759,71 +809,18 @@ class ProductWriteSerializer(ProductSerializer):
         if laundry_informations_data is not None:
             self.__update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
 
-        if product_images_data is not None:
-            self.__update_many_to_one_fields(instance, ProductImage, product_images_data)
+        if images is not None:
+            self.fields['images'].update(images, instance)
 
-        if materials_data is not None:
-            self.__update_many_to_one_fields(instance, ProductMaterial, materials_data)
+        if materials is not None:
+            self.fields['materials'].update(materials, instance)
 
-        if product_colors_data is not None:
-            self.__update_product_colors(instance, product_colors_data)
+        if colors is not None:
+            self.fields['colors'].update(colors, instance)
 
         instance.save(update_fields=validated_data.keys())
 
         return instance
-
-    def __update_product_colors(self, product, product_colors_data):
-        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(product_colors_data)
-
-        delete_fields_id = [data['id'] for data in delete_data]
-        ProductColor.objects.filter(product=product, id__in=delete_fields_id).update(on_sale=False)
-        Option.objects.filter(product_color__product=product, product_color_id__in=delete_fields_id).update(on_sale=False)
-
-        for data in update_data:
-            options_data = data.pop('options', None)
-            
-            product_color_id = data.pop('id')
-            ProductColor.objects.filter(id=product_color_id).update(**data)
-
-            if options_data is not None:
-                product_color = ProductColor.objects.get(id=product_color_id)
-                self.__update_options(product_color, options_data)
-
-        for data in create_data:
-            options_data = data.pop('options', None)
-
-            product_color = ProductColor.objects.create(product=product, **data)
-            Option.objects.bulk_create(
-                [Option(product_color=product_color, **option_data) for option_data in options_data]
-            )
-
-    def __update_options(self, product_color, options_data):
-        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(options_data)
-        
-        delete_fields_id = [data['id'] for data in delete_data]
-        Option.objects.filter(product_color=product_color, id__in=delete_fields_id).update(on_sale=False)
-
-        for data in update_data:
-            field_id = data.pop('id')
-            Option.objects.filter(product_color=product_color, id=field_id).update(**data)
-
-        Option.objects.bulk_create(
-            [Option(product_color=product_color, **data) for data in create_data]
-        )
-
-    def __update_many_to_one_fields(self, product, rel_model_class, data):
-        create_data, update_data, delete_data = self.__get_separated_data_by_create_update_delete(data)
-
-        delete_fields_id = [data['id'] for data in delete_data]
-        rel_model_class.objects.filter(product=product, id__in=delete_fields_id).delete()
-
-        for data in update_data:
-            field_id = data.pop('id')
-            rel_model_class.objects.filter(product=product, id=field_id).update(**data)
-
-        rel_model_class.objects.bulk_create(
-            [rel_model_class(product=product, **data) for data in create_data]
-        )
 
     def __update_id_only_m2m_fields(self, m2m_field, validated_fields):
         model = m2m_field.model
@@ -836,21 +833,6 @@ class ProductWriteSerializer(ProductSerializer):
 
         store_fields = set(input_fields) - set(stored_fields)
         m2m_field.add(*store_fields)
-
-    def __get_separated_data_by_create_update_delete(self, data_array):
-        create_data = []
-        delete_data = []
-        update_data = []
-
-        for data in data_array:
-            if is_create_data(data):
-                create_data.append(data)
-            elif is_delete_data(data):
-                delete_data.append(data)
-            elif is_update_data:
-                update_data.append(data)
-
-        return (create_data, update_data, delete_data)
 
 
 class ProductQuestionAnswerClassificationSerializer(Serializer):
