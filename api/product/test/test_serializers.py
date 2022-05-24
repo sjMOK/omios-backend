@@ -1709,7 +1709,7 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
         expected_data = {
             'id': self.__question_answer.id,
             'shopper': self.__question_answer.shopper.id,
-            'created_at': str(self.__question_answer.created_at.date()),
+            'created_at': datetime_to_iso(self.__question_answer.created_at),
             'username': self.__question_answer.shopper.username[:3] + '***',
             'classification': self.__question_answer.classification.name,
             'question': self.__question_answer.question,
