@@ -1,6 +1,6 @@
 from django.db import connection, transaction
 from django.db.models.query import Prefetch
-from django.db.models import Q, Count, Max
+from django.db.models import Q, Case, When, Count, Max
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
@@ -82,7 +82,7 @@ def get_tag_search_result(request):
     lmiting = 8
     search_word = request.query_params.get('search_word', None)
 
-    if search_word == '' or search_word is None:
+    if not search_word:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
     tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')[:lmiting]
@@ -102,7 +102,7 @@ def upload_product_image(request):
 def get_related_search_words(request):
     search_word = request.query_params.get('search_word', None)
 
-    if search_word == '' or search_word is None:
+    if not search_word:
         return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
 
     condition = Q(name__contains=search_word)
@@ -319,20 +319,46 @@ class ProductViewSet(GenericViewSet):
 
         return queryset
 
+    def __get_max_price(self):
+        queryset = self.__initial_filtering(self.get_queryset(), **self.request.query_params.dict())
+        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
+
+        return max_price
+
+    def __validate_query_params(self):
+        integer_validation_keys = ['main_category', 'sub_category', 'color', 'id', 'min_price', 'max_price']
+
+        for key in integer_validation_keys:
+            if key in self.request.query_params and not check_integer_format(self.request.query_params.getlist(key)):
+                return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter {} must be integer format.'.format(key))
+
+        if 'id' in self.request.query_params and len(self.request.query_params.getlist('id')) > 30:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='The number of id must not be more than 30.')
+
+        if 'search_word' in self.request.query_params and not self.request.query_params['search_word']:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
+
+        if 'main_category' in self.request.query_params and 'sub_category' in self.request.query_params:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
+
+        return
+
     def list(self, request):
+        validation_exception = self.__validate_query_params()
+        if validation_exception is not None:
+            return validation_exception
+
         if 'like' in request.query_params:
             if is_shopper(request.user):
                 queryset = self.get_queryset().filter(like_shoppers=request.user.shopper).order_by('-productlike__created_at')
                 return self.__get_response_for_list(queryset)
 
-        if 'search_word' in request.query_params and not request.query_params['search_word']:
-            return get_response(status=HTTP_400_BAD_REQUEST, message='Unable to search with empty string.')
+        if 'id' in request.query_params:
+            id_list = request.query_params.getlist('id')
+            order_condition = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(id_list)])
+            queryset= self.get_queryset().filter(id__in=id_list).order_by(order_condition)
 
-        if 'main_category' in request.query_params and 'sub_category' in request.query_params:
-            return get_response(status=HTTP_400_BAD_REQUEST, message='You cannot filter main_category and sub_category at once.')
-
-        queryset = self.__initial_filtering(self.get_queryset(), **request.query_params.dict())
-        max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
+            return self.__get_response_for_list(queryset)
 
         queryset = self.__sort_queryset(
             self.filter_queryset(
@@ -340,7 +366,7 @@ class ProductViewSet(GenericViewSet):
             ).alias(Count('id'))
         )
 
-        return self.__get_response_for_list(queryset, max_price=max_price)
+        return self.__get_response_for_list(queryset, max_price=self.__get_max_price())
 
     @transaction.atomic
     def create(self, request):

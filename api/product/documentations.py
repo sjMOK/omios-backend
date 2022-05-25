@@ -38,12 +38,13 @@ class SearchQuerySerializer(Serializer):
 
 class ProductListQuerySerializer(Serializer):
     like = CharField()
+    id = IntegerField(required=False, help_text='상품 id 필터링 - 여러 개 가능, 30개 이하')
     search_word = CharField(min_length=1, required=False, help_text='검색어')
     main_category = IntegerField(required=False, help_text='메인 카테고리 필터링 - id 값')
     sub_category = IntegerField(required=False, help_text='서브 카테고리 필터링 - id 값')
     min_price = IntegerField(required=False, help_text='최소 가격 필터링')
     max_price = IntegerField(required=False, help_text='최대 가격 필터링')
-    color = ListField(child=IntegerField(), required=False, help_text='색상 필터링 - id 값, 다중 값 가능(배열)')
+    color = IntegerField(required=False, help_text='색상 필터링 - id 값, 여러 개 가능')
     sort = ChoiceField(
         choices=['price_asc', 'price_desc'],
         required=False,
@@ -160,11 +161,12 @@ class ProductQuestionAnswerResponse(Serializer):
 class DecoratedProductViewSet(ProductViewSet):
     shopper_token_discription = '\nShopper app의 경우 토큰이 필수 값 아님(anonymous user 가능)'
     list_description = '''상품 정보 리스트 조회
-    \npage를 직접 query parameter로 전달해 원하는 페이지의 리스트를 가져올 수 있음
+    \npage를 직접 query parameter로 전달해 원하는 페이지의 데이터를 가져올 수 있음
     \n여러 필터를 동시에 적용 가능
-    * 메인 카테고리와 서브 카테고리는 동시에 필터링 할 수 없으며 여러개의 키 값을 전달할 수 없음*
-    'like' parameter는 value 없이 key만. token의 shopper가 좋아요 누른 상품들만 필터링
-    \n기본적으로 등록 시간 내림차순(최근 순)으로 정렬되어 있음
+    * 메인 카테고리와 서브 카테고리는 동시에 필터링 할 수 없으며 여러개의 키 값을 전달할 수 없음 *
+    \n'like' parameter는 value 없이 key만. token의 shopper가 좋아요 누른 상품들을 필터링
+    최근 본 상품 구현을 위하여 상품 id로 필터링 지원하며 필터링할 id의 개수는 30을 넘을 수 없음
+    \n기본적으로 최근 상품 등록 시간 순으로 정렬되어 있음
     '''
     partial_update_description = '''
     상품 Id로 상품 수정

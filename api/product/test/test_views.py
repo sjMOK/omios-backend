@@ -1,7 +1,7 @@
 import random
 
 from django.db.models.query import Prefetch
-from django.db.models import Avg, Max, Min, Count, Q
+from django.db.models import Avg, Max, Min, Count, Q, Case, When
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
@@ -392,6 +392,27 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.__test_list_response(queryset, query_params={'search_word': search_word})
         self.assertEqual(self._response_data['max_price'], max_price)
 
+    def test_failure_invalid_integer_format(self):
+        self._get({'main_category': '1a'})
+
+        self._assert_failure(400, 'Query parameter main_category must be integer format.')
+
+    def test_failure_id_length_more_than_limit(self):
+        id_num_limit = 30
+        self._get({'id': list(range(id_num_limit + 1))})
+        
+        self._assert_failure(400, 'The number of id must not be more than 30.')
+
+    def test_failure_search_with_empty_string(self):
+        self._get({'search_word': ''})
+
+        self._assert_failure(400, 'Unable to search with empty string.')
+
+    def test_failure_filter_with_main_category_and_sub_category_at_once(self):
+        self._get({'main_category': 1, 'sub_category': 1})
+
+        self._assert_failure(400, 'You cannot filter main_category and sub_category at once.')  
+
     def test_list(self):
         queryset = self.__get_queryset()
         max_price = queryset.aggregate(max_price=Max('sale_price'))['max_price']
@@ -410,6 +431,13 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         context = {'detail': False, 'shoppers_like_products_id_list': shoppers_like_products_id_list}
 
         self.__test_list_response(queryset, {'like': ''}, context)
+
+    def test_recently_viewed_products(self):
+        id_list = list(Product.objects.all()[:2].values_list('id', flat=True))
+        order_condition = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(id_list)])
+        queryset= self.__get_queryset().filter(id__in=id_list).order_by(order_condition)
+
+        self.__test_list_response(queryset, {'id': id_list})
 
     def __test_filtering(self, query_params):
         filter_set = {}
@@ -491,16 +519,6 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         }
 
         self.__test_filtering(query_params)
-
-    def test_search_with_empty_string(self):
-        self._get({'search_word': ''})
-
-        self._assert_failure(400, 'Unable to search with empty string.')
-
-    def test_failure_filter_with_main_category_and_sub_category_at_once(self):
-        self._get({'main_category': 1, 'sub_category': 1})
-
-        self._assert_failure(400, 'You cannot filter main_category and sub_category at once.')
 
     def __test_sorting(self, sort_key):
         sort_mapping = {
