@@ -38,7 +38,7 @@ class SearchQuerySerializer(Serializer):
 
 class ProductListQuerySerializer(Serializer):
     like = CharField()
-    id = IntegerField(required=False, help_text='상품 id 필터링 - 여러 개 가능, 30개 이하')
+    id = IntegerField(required=False, help_text='상품 id 필터링 - 여러 개 가능, 30개 이하\n상품 리스트는 넘긴 id 순서대로 정렬됨')
     search_word = CharField(min_length=1, required=False, help_text='검색어')
     main_category = IntegerField(required=False, help_text='메인 카테고리 필터링 - id 값')
     sub_category = IntegerField(required=False, help_text='서브 카테고리 필터링 - id 값')
