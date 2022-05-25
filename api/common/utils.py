@@ -95,8 +95,13 @@ def levenshtein(a_text, b_text):
     return array[a_len-1][b_len-1]
 
 
-def check_id_format(value):
+def check_integer_format(value):
+    if isinstance(value, str):
+        value = [value]
+
     p = re.compile(r'^[0-9]+$')
-    m = p.match(value)
-    
-    return bool(m)
+    for v in value:
+        if not p.match(v):
+            return False
+
+    return True

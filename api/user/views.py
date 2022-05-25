@@ -9,7 +9,7 @@ from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
 
-from common.utils import get_response, get_response_body, check_id_format
+from common.utils import get_response, get_response_body
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedShopper
 from product.models import Product

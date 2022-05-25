@@ -10,7 +10,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework.mixins import ListModelMixin
 
-from common.utils import get_response, querydict_to_dict, levenshtein, check_id_format
+from common.utils import get_response, querydict_to_dict, levenshtein, check_integer_format
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedWholesaler
 from user.models import is_shopper, is_wholesaler, ProductLike
@@ -179,7 +179,7 @@ def get_registry_data(request):
     if sub_category_id is None:
         return get_response(data=get_common_registry_data())
 
-    if not check_id_format(sub_category_id):
+    if not check_integer_format(sub_category_id):
         return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter sub_category must be id format.')
 
     return get_response(data=get_dynamic_registry_data(sub_category_id))

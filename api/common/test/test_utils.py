@@ -10,7 +10,7 @@ from rest_framework.exceptions import APIException
 from .test_cases import FunctionTestCase
 from ..utils import (
     get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein,
-    check_id_format,
+    check_integer_format,
 )
 
 
@@ -144,7 +144,7 @@ class LeveshteinTestCase(FunctionTestCase):
 
 
 class CheckIdFormatTestCase(FunctionTestCase):
-    _function = check_id_format
+    _function = check_integer_format
 
     def test_success(self):
         value = '123'
