@@ -57,8 +57,8 @@ class SubCategoryTestCase(ModelTestCase):
             self._test_data['require_laundry_information']
         )
 
+
 class ProductTestCase(ModelTestCase):
-    fixtures = ['membership']
     _model_class = Product
 
     @classmethod
@@ -401,7 +401,6 @@ class ProductQuestionAnswerClassificationTestCase(ModelTestCase):
 
 
 class ProductQuestionAnswerTestCase(ModelTestCase):
-    fixtures = ['membership']
     _model_class = ProductQuestionAnswer
 
     @classmethod
