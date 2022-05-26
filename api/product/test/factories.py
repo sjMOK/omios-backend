@@ -106,7 +106,8 @@ class ProductFactory(DjangoModelFactory):
             product = params.pop('product')
             copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'theme']
             for field in copy_fields:
-                params[field] = getattr(product, field, None)
+                if field not in params:
+                    params[field] = getattr(product, field, None)
 
         return super()._generate(strategy, params)
 
@@ -130,7 +131,7 @@ class SizeFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Size'
 
-    name = Sequence(lambda num: 'size_{0}'.format(num))
+    name = Sequence(lambda num: 'size{0}'.format(num))
 
 
 class ProductColorFactory(DjangoModelFactory):
@@ -139,8 +140,8 @@ class ProductColorFactory(DjangoModelFactory):
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
-    display_color_name = Sequence(lambda num: 'display_name_{0}'.format(num))
     image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
+    display_color_name = Sequence(lambda num: 'dp_name_{0}'.format(num))
 
 
 class OptionFactory(DjangoModelFactory):

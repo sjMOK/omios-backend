@@ -1,10 +1,24 @@
 from django.db.models import (
     Model, ForeignKey, ManyToManyField, DO_NOTHING, AutoField, CharField, ImageField,  BooleanField, 
-    BigAutoField, IntegerField, DateTimeField,
+    BigAutoField, IntegerField, DateTimeField, Manager
 )
-from django.utils import timezone
+from django.db.models.query import QuerySet
 
 from common import storage
+
+
+class ProductColorQueyset(QuerySet):
+    def delete(self):
+        for instance in self:
+            instance.options.all().update(on_sale=False)
+
+        self.update(on_sale=False)
+
+
+class ProductColorManager(Manager):
+    def get_queryset(self):
+        return ProductColorQueyset(self.model, using=self._db)
+
 
 
 class MainCategory(Model):
@@ -164,6 +178,8 @@ class ProductColor(Model):
     display_color_name = CharField(max_length=20)
     image_url = CharField(max_length=200)
     on_sale = BooleanField(default=True)
+
+    objects = ProductColorManager()
 
     class Meta:
         db_table = 'product_color'
