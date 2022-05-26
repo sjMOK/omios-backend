@@ -6,10 +6,10 @@ from factory.fuzzy import FuzzyText, FuzzyInteger
 from product.test.factories import create_options
 
 
-def create_orders_with_items(order_size=1, item_size=3, order_kwargs={}, item_kwargs={}):
+def create_orders_with_items(order_size=1, item_size=3, only_product_color=False, order_kwargs={}, item_kwargs={}):
     orders = OrderFactory.create_batch(order_size, **order_kwargs)
     
-    options = create_options(order_size * item_size)
+    options = create_options(order_size * item_size, only_product_color)
     for i in range(order_size):
         for j in range(item_size):
             OrderItemFactory(order=orders[i], option=options[i * item_size + j], **item_kwargs)
@@ -69,8 +69,17 @@ class ShippingAddressFactory(DjangoModelFactory):
     shipping_message = '부재 시 집 앞에 놔주세요.'
 
 
-class RefundFacotry(DjangoModelFactory):
+class RefundFactory(DjangoModelFactory):
     class Meta:
         model = 'order.Refund'
     
     price = FuzzyInteger(1000, 5000000)
+
+
+class DeliveryFactory(DjangoModelFactory):
+    class Meta:
+        model = 'order.Delivery'
+    
+    company = Faker('company', locale='ko-KR')
+    invoice_number = Sequence(lambda num: '%015d' % num)
+    flag = FuzzyText()

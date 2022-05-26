@@ -17,7 +17,7 @@ class OrderViewSetTestCase(ViewTestCase):
     def setUpTestData(cls):
         cls._set_shopper()
         cls.__shipping_address = ShippingAddressFactory()
-        cls.__orders = create_orders_with_items(2, 3, 
+        cls.__orders = create_orders_with_items(2, 3, False,
             {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': StatusFactory(id=101)})
 
     def setUp(self):

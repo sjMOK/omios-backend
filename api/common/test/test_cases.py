@@ -15,7 +15,6 @@ from user.test.factories import UserFactory, ShopperFactory, WholesalerFactory
 
 
 FREEZE_TIME = '2021-11-20T01:02:03.456789'
-FREEZE_TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
 FREEZE_TIME_AUTO_TICK_SECONDS = 10
 
 
@@ -203,7 +202,7 @@ class ViewTestCase(APITestCase):
         self.__delete_images()
 
         self._assert_success()
-        self.assertEqual(mock.call_count, size)
+        mock.assert_called_once()
         self.assertEqual(len(self._response_data['image']), size)
         self.assertTrue(self._response_data['image'][0].startswith(BASE_IMAGE_URL))
         self.assertIn(middle_path, self._response_data['image'][0])

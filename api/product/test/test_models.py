@@ -2,7 +2,7 @@ from django.forms import model_to_dict
 
 from freezegun import freeze_time
 
-from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_FORMAT, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
