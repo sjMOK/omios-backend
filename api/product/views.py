@@ -196,6 +196,7 @@ class ProductViewSet(GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
+    __integer_format_validation_keys = ['main_category', 'sub_category', 'color', 'id', 'min_price', 'max_price']
     __filter_mapping = {
             'min_price': 'sale_price__gte',
             'max_price': 'sale_price__lte',
@@ -326,9 +327,7 @@ class ProductViewSet(GenericViewSet):
         return max_price
 
     def __validate_query_params(self):
-        integer_validation_keys = ['main_category', 'sub_category', 'color', 'id', 'min_price', 'max_price']
-
-        for key in integer_validation_keys:
+        for key in self.__integer_format_validation_keys:
             if key in self.request.query_params and not check_integer_format(self.request.query_params.getlist(key)):
                 return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter {} must be integer format.'.format(key))
 
