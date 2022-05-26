@@ -7,7 +7,7 @@ from django.db.models import Q
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer,
     PrimaryKeyRelatedField, StringRelatedField,
-    IntegerField
+    IntegerField, ListField
 )
 from rest_framework.exceptions import ValidationError
 
@@ -427,3 +427,31 @@ class DeliverySerializer(ModelSerializer):
         for order_item in order_items:
             if order_item.delivery_id is not None:
                 raise ValidationError(f'order_item {order_item.id} already has delivery information.')
+
+
+class OrderConfirmSerializer(Serializer):
+    order_items = ListField(child=IntegerField(), max_length=100)
+
+    def validate_order_items(self, value):
+        if has_duplicate_element(value):
+            raise ValidationError('order_item is duplicated.')
+
+        requested_order_items = OrderItem.objects.select_for_update().filter(id__in=value)
+        requested_order_items_id = requested_order_items.values_list('id', flat=True)
+
+        self.__nonexistence = sorted(set(value).difference(requested_order_items_id))
+        self.__not_requestable_status = list(requested_order_items_id.exclude(status_id=101))
+
+        return requested_order_items.filter(status_id=101)
+
+    def create(self, validated_data):
+        order_items = validated_data['order_items']
+
+        success = list(order_items.values_list('id', flat=True))
+        OrderItemWriteSerializer(many=True).update_status(order_items, 200)
+
+        return {
+            'success': success,
+            'nonexistence': self.__nonexistence,
+            'not_requestable_status': self.__not_requestable_status,
+        }

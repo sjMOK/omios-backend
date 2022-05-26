@@ -24,7 +24,7 @@ from .factories import (
 from ..models import OrderItem, ShippingAddress, StatusHistory
 from ..serializers import (
     ShippingAddressSerializer, OrderItemSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
-    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer,
+    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer, OrderConfirmSerializer,
 )
 
 
@@ -76,6 +76,22 @@ def get_delivery_test_data(order):
         'order_items': [order_item.id for order_item in order.items.all()],
         'company': delivery.company,
         'invoice_number': delivery.invoice_number,
+    }
+
+
+def get_order_confirm_result(order_items):
+    other_status = StatusFactory(id=200)
+
+    non_existent_order_item = [-2, -1]
+    
+    not_requestable_order_item = order_items[0]
+    not_requestable_order_item.status = other_status
+    not_requestable_order_item.save()
+
+    return {
+        'success': list(order_items.exclude(status=other_status).values_list('id', flat=True)),
+        'nonexistence': non_existent_order_item,
+        'not_requestable_status': [not_requestable_order_item.id],
     }
 
 
@@ -489,3 +505,41 @@ class DeliverySerializerTestCase(SerializerTestCase):
         order_item.save(update_fields=['delivery'])
 
         self._test_serializer_raise_validation_error(f'order_item {order_item.id} already has delivery information.')
+
+
+class OrderConfirmSerializerTestCase(SerializerTestCase):
+    _serializer_class = OrderConfirmSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__original_status = StatusFactory(id=101)
+        create_orders_with_items(
+            order_size=2, 
+            only_product_color=True, 
+            order_kwargs={'shopper': ShopperFactory()}, 
+            item_kwargs={'status': cls.__original_status}
+        )
+    
+        cls.__expected_result = get_order_confirm_result(OrderItem.objects.all())
+        cls._test_data = {'order_items': sum([data for data in list(cls.__expected_result.values())], [])}
+
+    def test_duplicated_order_items(self):
+        self._test_data['order_items'].append(self._test_data['order_items'][0])
+
+        self._test_serializer_raise_validation_error('order_item is duplicated.')
+
+    def test_validate_order_items(self):
+        serializer = self._get_serializer()
+        order_items = serializer.validate_order_items(self._test_data['order_items'])
+
+        self.assertQuerysetEqual(OrderItem.objects.filter(id__in=self.__expected_result['success']), order_items)
+        self.assertListEqual(serializer._OrderConfirmSerializer__nonexistence, self.__expected_result['nonexistence'])
+        self.assertListEqual(serializer._OrderConfirmSerializer__not_requestable_status, self.__expected_result['not_requestable_status'])
+        
+    @patch('order.serializers.OrderItemListSerializer._OrderItemListSerializer__create_status_history')
+    def test_create(self, mock):
+        serializer = self._get_serializer_after_validation()
+        result = serializer.save()
+
+        mock.assert_called_once()
+        self.assertDictEqual(result, self.__expected_result)

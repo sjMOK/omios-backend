@@ -3,10 +3,11 @@ from common.querysets import get_order_queryset
 from product.models import Option
 from product.test.factories import OptionFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
-from .test_serializers import get_shipping_address_test_data, get_order_test_data
-from ..models import Order, OrderItem
+from .test_serializers import get_shipping_address_test_data, get_order_test_data, get_order_confirm_result
+from ..models import OrderItem
 from ..serializers import (
-    ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, StatusHistorySerializer
+    ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
+    StatusHistorySerializer, OrderConfirmSerializer,
 )
 
 
@@ -59,6 +60,15 @@ class OrderViewSetTestCase(ViewTestCase):
 
         self._assert_success_and_serializer_class(ShippingAddressSerializer)
         self.assertEqual(self._response_data['id'], self.__order.id)
+
+    def test_confirm(self):
+        self._url += '/confirm'
+        expected_result = get_order_confirm_result(OrderItem.objects.all())
+        self._test_data = {'order_items': sum([data for data in list(expected_result.values())], [])}
+        self._post()
+
+        self._assert_success_and_serializer_class(OrderConfirmSerializer, False)
+        self.assertDictEqual(self._response_data, expected_result)
 
 
 class OrderItemViewSetTestCase(ViewTestCase):

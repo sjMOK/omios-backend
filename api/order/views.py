@@ -30,6 +30,8 @@ class OrderViewSet(GenericViewSet):
             return OrderWriteSerializer
         elif self.action == 'update_shipping_address':
             return ShippingAddressSerializer
+        elif self.action == 'confirm':
+            return OrderConfirmSerializer
         
         return OrderSerializer
 
@@ -52,6 +54,7 @@ class OrderViewSet(GenericViewSet):
     def list(self, request):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)        
 
+    @atomic
     def create(self, request):
         shopper = Shopper.objects.select_related('membership').get(user=request.user)
         serializer = self.get_serializer(data=request.data, context={'shopper': shopper})
@@ -75,6 +78,14 @@ class OrderViewSet(GenericViewSet):
         serializer.save()
 
         return get_response(data={'id': int(order_id)})
+
+    @atomic
+    @action(['post'], False, 'confirm', permission_classes=[AllowAny])
+    def confirm(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return get_response(status=HTTP_201_CREATED, data=serializer.save())
 
 
 class OrderItemViewSet(GenericViewSet):

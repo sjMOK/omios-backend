@@ -20,7 +20,7 @@ class Order(Model):
 
     class Meta:
         db_table = 'order'
-        ordering = ['id']
+        ordering = ['-id']
 
     def __set_default_number(self):
         prefix = self.created_at.strftime(DEFAULT_DATETIME_FORMAT)

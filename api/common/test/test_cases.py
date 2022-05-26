@@ -227,9 +227,12 @@ class ViewTestCase(APITestCase):
         self.assertIsInstance(self._response_data['is_unique'], bool)
         self.assertEqual(self._response_data['is_unique'], is_unique)
 
-    def _assert_success_and_serializer_class(self, serializer_class):
-        self._assert_success_with_id_response()
-        self.assertEqual(serializer_class, self._serializer_class)
+    def _assert_success_and_serializer_class(self, expected_serializer_class, using_id_response=True):
+        if using_id_response:
+            self._assert_success_with_id_response()
+        else:
+            self._assert_success()
+        self.assertEqual(expected_serializer_class, self._serializer_class)
 
     def _assert_failure(self, expected_failure_status_code, expected_message):
         self.__assert_default_response(expected_failure_status_code, expected_message)
