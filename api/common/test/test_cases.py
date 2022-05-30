@@ -180,20 +180,26 @@ class ViewTestCase(APITestCase):
         self._serializer_class = view.get_serializer_class() if isinstance(view, GenericAPIView) else None
         self.__expected_success_status_code = expected_success_status_code
 
+    def __get_request_data(self, data):
+        if isinstance(self._test_data, dict):
+            return dict(self._test_data, **data)
+        else:
+            return self._test_data
+
     def _get(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.get(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+        self.__set_response(self.client.get(self._url, self.__get_request_data(data), *args, **kwargs), 200)
 
     def _post(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.post(self._url, dict(self._test_data, **data), *args, **kwargs), 201)
+        self.__set_response(self.client.post(self._url, self.__get_request_data(data), *args, **kwargs), 201)
 
     def _put(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.put(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+        self.__set_response(self.client.put(self._url, self.__get_request_data(data), *args, **kwargs), 200)
 
     def _patch(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.patch(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+        self.__set_response(self.client.patch(self._url, self.__get_request_data(data), *args, **kwargs), 200)
     
     def _delete(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.delete(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+        self.__set_response(self.client.delete(self._url, self.__get_request_data(data), *args, **kwargs), 200)
 
     @patch('common.storage.MediaStorage.save')
     def _test_image_upload(self, mock, size=1, middle_path=''):
