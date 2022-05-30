@@ -7,7 +7,7 @@ from common.documentations import get_response, get_ids_response
 from product.serializers import OptionInOrderItemSerializer
 from .serializers import (
     OrderSerializer, OrderWriteSerializer, OrderItemSerializer, StatusHistorySerializer,
-    CancellationInformationSerializer,
+    CancellationInformationSerializer, DeliverySerializer,
 )
 from .views import OrderViewSet, OrderItemViewSet, ClaimViewSet, StatusHistoryAPIView
 
@@ -46,10 +46,16 @@ class OrderItemList(Serializer):
     order_items = ListField(child=IntegerField())
 
 
-class OrderConfirm(Serializer):
+class OrderConfirmResponse(Serializer):
     success = ListField(child=IntegerField())
     nonexistence = ListField(child=IntegerField())
     not_requestable_status = ListField(child=IntegerField())
+
+
+class DeliveryResponse(Serializer):
+    success = ListField(child=IntegerField())
+    invalid_orders = ListField(child=IntegerField())
+    existed_invoice = ListField(child=IntegerField())
 
 
 class DecoratedOrderViewSet(OrderViewSet):
@@ -70,11 +76,15 @@ class DecoratedOrderViewSet(OrderViewSet):
     def update_shipping_address(self, *args, **kwargs):
         return super().update_shipping_address(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=OrderItemList, **get_response(OrderConfirm()), security=[], operation_description='이지어드민 기능\n발주 확인')
+    @swagger_auto_schema(request_body=OrderItemList, **get_response(OrderConfirmResponse()), security=[], operation_description='이지어드민 기능\n발주 확인')
     @action(['post'], False, 'confirm', permission_classes=[AllowAny])
     def confirm(self, *args, **kwargs):
         return super().confirm(*args, **kwargs)
 
+    @swagger_auto_schema(request_body=DeliverySerializer(many=True), **get_response(DeliveryResponse()), security=[], operation_description='이지어드민 기능\n송장 입력')
+    @action(['post'], False, 'delivery', permission_classes=[AllowAny])
+    def delivery(self, *args, **kwargs):
+        return super().delivery(*args, **kwargs)
 
 class DecoratedOrderItemViewSet(OrderItemViewSet):
     @swagger_auto_schema(request_body=OptionInOrderItemUpdate, **get_response(), operation_description='주문 항목 옵션 변경\n입금 대기, 결제 완료 상태인 주문만 옵션 변경 가능')

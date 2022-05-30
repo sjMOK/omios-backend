@@ -366,71 +366,8 @@ class StatusHistorySerializer(ModelSerializer):
         return model.objects.bulk_create([model(order_item=order_item, status_id=order_item.status_id) for order_item in order_items])
 
 
-class DeliveryListSerializer(ListSerializer):
-    def validate(self, attrs):
-        self.__validate_orders(get_list_of_single_value(attrs, 'order'))
-        self.__validate_invoice_numbers(attrs)
-
-        return attrs
-        
-    def __validate_orders(self, value):
-        if has_duplicate_element(value):
-            raise ValidationError('order is duplicated.')
-
-    def __validate_invoice_numbers(self, attrs):
-        if has_duplicate_element(get_list_of_multi_values(attrs, 'company', 'invoice_number')):
-            raise ValidationError('invoice_number is duplicated.')
-
-        conditions = Q()
-        for delivery in attrs:
-            conditions |= Q(company=delivery['company'], invoice_number=delivery['invoice_number'])
-        if self.child.Meta.model.objects.filter(conditions).exists():
-            raise ValidationError('invoice number has already been registered.')
-
-    def create(self, validated_data):
-        flag = timezone.now().strftime(DATETIME_WITHOUT_MILISECONDS_FORMAT) + ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(5, 10)))
-        model = self.child.Meta.model
-        model.objects.bulk_create([model(company=data['company'], invoice_number=data['invoice_number'], flag=flag) for data in validated_data])
-        deliveries = model.objects.filter(flag=flag)
-
-        order_items = []
-        for delivery in deliveries:
-            data = next((data for data in validated_data if data['company'] == delivery.company and data['invoice_number'] == delivery.invoice_number), False)
-            for order_item in data['order_items']:
-                order_item.delivery = delivery
-                order_items.append(order_item)
-
-        OrderItem.objects.bulk_update(order_items, ['delivery'])
-        OrderItemWriteSerializer(many=True).update_status(order_items, 201)
-
-        return deliveries
-
-
-class DeliverySerializer(ModelSerializer):
-    order = PrimaryKeyRelatedField(queryset=Order.objects.all(), write_only=True)
-    order_items = PrimaryKeyRelatedField(queryset=OrderItem.objects.all(), many=True, allow_empty=False, write_only=True)
-
-    class Meta:
-        model =  Delivery
-        exclude = ['flag']
-        list_serializer_class = DeliveryListSerializer
-
-    def validate(self, attrs):
-        self.__validate_order_items(attrs['order'], attrs['order_items'])
-
-        # todo 택배사명, 송장번호 양식 검사
-        return attrs
-
-    def __validate_order_items(self, order, order_items):
-        validate_order_items(order_items, order.id, [200])
-
-        for order_item in order_items:
-            if order_item.delivery_id is not None:
-                raise ValidationError(f'order_item {order_item.id} already has delivery information.')
-
-
 class OrderConfirmSerializer(Serializer):
-    order_items = ListField(child=IntegerField(), max_length=100)
+    order_items = ListField(child=IntegerField(), max_length=100, allow_empty=False)
 
     def validate_order_items(self, value):
         if has_duplicate_element(value):
@@ -455,3 +392,104 @@ class OrderConfirmSerializer(Serializer):
             'nonexistence': self.__nonexistence,
             'not_requestable_status': self.__not_requestable_status,
         }
+
+
+# 요청 데이터 안에서의 중복은 아무것도 처리하지 않고 에러 반환
+# 이미 DB에 존재하는 등의 에러는 결과에 포함시키고 나머지 정상 아이템에 대해서만 처리
+class DeliveryListSerializer(ListSerializer):
+    def validate(self, attrs):
+        self.__validate_orders_and_items(attrs)
+        self.__validate_company_and_invoice_number(attrs)
+
+        return attrs
+
+    def __set_failure_result(self, attrs, key):
+        result = []
+        for i in range(len(attrs) - 1, -1, -1):
+            if attrs[i].get(key, True) is None:
+                result.insert(0, attrs.pop(i)['order'])
+        
+        if key == 'order_items':
+            self.__invalid_orders = result
+        elif key == 'is_valid_invoice':
+            self.__existed_invoice = result
+
+    def __validate_orders_and_items(self, attrs):
+        if has_duplicate_element(get_list_of_single_value(attrs, 'order')):
+            raise ValidationError('order is duplicated.')
+
+        self.__set_failure_result(attrs, 'order_items')
+
+    def __validate_company_and_invoice_number(self, attrs):
+        if has_duplicate_element(get_list_of_multi_values(attrs, 'company', 'invoice_number')):
+            raise ValidationError('invoice_number is duplicated.')
+
+        self.__set_failure_result(attrs, 'is_valid_invoice')
+
+    def create(self, validated_data):
+        flag = timezone.now().strftime(DATETIME_WITHOUT_MILISECONDS_FORMAT) + ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(5, 10)))
+        model = self.child.Meta.model
+        model.objects.bulk_create([model(company=data['company'], invoice_number=data['invoice_number'], flag=flag) for data in validated_data])
+        deliveries = model.objects.filter(flag=flag)
+
+        order_items = []
+        for delivery in deliveries:
+            data = next((data for data in validated_data if data['company'] == delivery.company and data['invoice_number'] == delivery.invoice_number), False)
+            for order_item in data['order_items']:
+                order_item.delivery = delivery
+                order_items.append(order_item)
+
+        OrderItem.objects.bulk_update(order_items, ['delivery'])
+        OrderItemWriteSerializer(many=True).update_status(order_items, 201)
+
+        return {
+            'success': [data['order'] for data in validated_data],
+            'invalid_orders': self.__invalid_orders,
+            'existed_invoice': self.__existed_invoice,
+        }
+
+
+class DeliverySerializer(ModelSerializer):
+    order = IntegerField()
+    order_items = ListField(child=IntegerField(), allow_empty=False)
+
+    class Meta:
+        model = Delivery
+        exclude = ['flag']
+        list_serializer_class = DeliveryListSerializer
+
+    def validate(self, attrs):
+        self.__validate_order_and_items(attrs)
+        self.__validate_company_and_invoice_number(attrs)
+
+        return attrs
+
+    def __validate_order_and_items(self, attrs):
+        order = attrs['order']
+        order_items = attrs['order_items']
+        if has_duplicate_element(order_items):
+            raise ValidationError(f'order_item of order {order} is duplicated.')
+
+        requested_order_items = OrderItem.objects.select_for_update() \
+            .filter(id__in=order_items, order_id=order, status_id=200, delivery_id=None)
+        
+        if len(requested_order_items) != len(order_items):
+            attrs['order_items'] = None
+        else:
+            attrs['order_items'] = requested_order_items
+
+    def __validate_company_and_invoice_number(self, attrs):
+        requested_delivery = Delivery.objects.select_for_update() \
+            .filter(company=attrs['company'], invoice_number=attrs['invoice_number'], created_at__gte=timezone.now() - relativedelta(months=3))
+        
+        if requested_delivery.exists():
+            attrs['is_valid_invoice'] = None
+
+
+
+# 적림금 사용 0원일 때 history 저장 x
+# 기간 별 주문 조회, 상태별 추가 정보(클레임 정보), 주문 조회 시 페이지네이션
+# 각 상태별 주문 개수
+
+
+# DevlierySerializer 성능 개선, orderviewset으로 이동

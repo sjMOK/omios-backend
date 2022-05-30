@@ -3,11 +3,14 @@ from common.querysets import get_order_queryset
 from product.models import Option
 from product.test.factories import OptionFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
-from .test_serializers import get_shipping_address_test_data, get_order_test_data, get_order_confirm_result
+from .test_serializers import (
+    get_shipping_address_test_data, get_order_test_data, get_order_confirm_result,
+    get_delivery_test_data, get_delivery_result,
+)
 from ..models import OrderItem
 from ..serializers import (
     ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
-    StatusHistorySerializer, OrderConfirmSerializer,
+    StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer,
 )
 
 
@@ -20,6 +23,8 @@ class OrderViewSetTestCase(ViewTestCase):
         cls.__shipping_address = ShippingAddressFactory()
         cls.__orders = create_orders_with_items(2, 3, False,
             {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': StatusFactory(id=101)})
+        StatusFactory(id=200)
+        StatusFactory(id=201)
 
     def setUp(self):
         self._set_authentication()
@@ -63,13 +68,33 @@ class OrderViewSetTestCase(ViewTestCase):
 
     def test_confirm(self):
         self._url += '/confirm'
-        expected_result = get_order_confirm_result(OrderItem.objects.all())
+        expected_result = get_order_confirm_result(OrderItem.objects.all(), 200)
         self._test_data = {'order_items': sum([data for data in list(expected_result.values())], [])}
         self._post()
 
         self._assert_success_and_serializer_class(OrderConfirmSerializer, False)
         self.assertDictEqual(self._response_data, expected_result)
 
+    def test_delivery_request_data_size_validation(self):
+        self._url += '/delivery'
+        self._test_data = [''] * 51
+        self._post(format='json')
+
+        self._assert_failure(400, 'You can only request up to 50 at a time.')
+
+    def test_delivery(self):
+        self._url += '/delivery'
+        order_items = OrderItem.objects.all()
+        for order_item in order_items:
+            order_item.status_id = 200
+        OrderItem.objects.bulk_update(order_items, ['status_id'])
+        self._test_data = [get_delivery_test_data(order) for order in self.__orders]
+        expected_result = get_delivery_result(self._test_data)
+        self._post(format='json')
+
+        self._assert_success_and_serializer_class(DeliverySerializer, False)
+        self.assertDictEqual(self._response_data, expected_result)
+        
 
 class OrderItemViewSetTestCase(ViewTestCase):
     _url = '/orders/items'

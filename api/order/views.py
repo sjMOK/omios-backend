@@ -1,22 +1,25 @@
 from django.db.models import Q
 from django.db.models.query import Prefetch
+from django.db.transaction import atomic
 
 from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.permissions import AllowAny
 
 from common.utils import get_response
 from user.models import Shopper
 from product.models import ProductImage
 from .models import Order, OrderItem, StatusHistory
 from .serializers import (
-    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, 
-    ShippingAddressSerializer, CancellationInformationSerializer, StatusHistorySerializer, DeliverySerializer
+    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer, 
+    CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
 )
 from .permissions import OrderPermission, OrderItemPermission
 
-from rest_framework.permissions import AllowAny
+
+from django.db import connection
 
 
 class OrderViewSet(GenericViewSet):
@@ -32,6 +35,8 @@ class OrderViewSet(GenericViewSet):
             return ShippingAddressSerializer
         elif self.action == 'confirm':
             return OrderConfirmSerializer
+        elif self.action == 'delivery':
+            return DeliverySerializer
         
         return OrderSerializer
 
@@ -87,6 +92,17 @@ class OrderViewSet(GenericViewSet):
 
         return get_response(status=HTTP_201_CREATED, data=serializer.save())
 
+    @atomic
+    @action(['post'], False, 'delivery', permission_classes=[AllowAny])
+    def delivery(self, request):
+        if len(request.data) > 50:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='You can only request up to 50 at a time.')
+
+        serializer = self.get_serializer(data=request.data, many=True, allow_empty=False)
+        serializer.is_valid(raise_exception=True)
+        
+        return get_response(status=HTTP_201_CREATED, data=serializer.save())
+
 
 class OrderItemViewSet(GenericViewSet):
     pagination_class = None
@@ -108,8 +124,6 @@ class OrderItemViewSet(GenericViewSet):
         serializer.save()
 
         return get_response(data={'id': int(item_id)})
-
-    # todo 발주확인 관련
 
 
 class ClaimViewSet(GenericViewSet):
@@ -152,15 +166,3 @@ class StatusHistoryAPIView(GenericAPIView):
 
     def get(self, request, item_id):
         return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)
-
-
-class DeliveryAPIView(GenericAPIView):
-    serializer_class = DeliverySerializer
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data, many=True, allow_empty=False)
-        serializer.is_valid(raise_exception=True)
-        deliveries = serializer.save()
-
-        return get_response(data={'id': [delivery.id for delivery in deliveries]})
