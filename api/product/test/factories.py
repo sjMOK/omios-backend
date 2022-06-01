@@ -7,13 +7,17 @@ from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, la
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
+from common.utils import IMAGE_DATETIME_FORMAT
 from user.test.factories import WholesalerFactory, ShopperFactory
 
 
-def create_options(size=2):
+def create_options(size=2, only_product_color=False):
     option = OptionFactory()
 
-    return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
+    if only_product_color:
+        return [option] + [OptionFactory(product_color=option.product_color) for _ in range(size-1)]
+    else:
+        return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
 
 
 class MainCategoryFactory(DjangoModelFactory):
@@ -136,8 +140,8 @@ class ProductColorFactory(DjangoModelFactory):
 
     product = SubFactory(ProductFactory)
     color = SubFactory(ColorFactory)
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
     display_color_name = Sequence(lambda num: 'dp_name_{0}'.format(num))
-    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
 
     @classmethod
     def _generate(cls, strategy, params):
@@ -191,7 +195,7 @@ class ProductImageFactory(DjangoModelFactory):
         model = 'product.ProductImage'
 
     product = SubFactory(ProductFactory)
-    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime("%Y%m%d_%H%M%S%f")))
+    image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
     sequence = Sequence(lambda num: num)
 
 

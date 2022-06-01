@@ -15,7 +15,6 @@ from user.test.factories import UserFactory, ShopperFactory, WholesalerFactory
 
 
 FREEZE_TIME = '2021-11-20T01:02:03.456789'
-FREEZE_TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
 FREEZE_TIME_AUTO_TICK_SECONDS = 10
 
 
@@ -181,20 +180,26 @@ class ViewTestCase(APITestCase):
         self._serializer_class = view.get_serializer_class() if isinstance(view, GenericAPIView) else None
         self.__expected_success_status_code = expected_success_status_code
 
-    def _get(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.get(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+    def __get_request_data(self, data):
+        if isinstance(self._test_data, dict):
+            return dict(self._test_data, **data)
+        else:
+            return self._test_data
 
-    def _post(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.post(self._url, dict(self._test_data, **data), *args, **kwargs), 201)
+    def _get(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.get(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
-    def _put(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.put(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+    def _post(self, data={}, status_code=201, *args, **kwargs):
+        self.__set_response(self.client.post(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
-    def _patch(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.patch(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+    def _put(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.put(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
+
+    def _patch(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.patch(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
     
-    def _delete(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.delete(self._url, dict(self._test_data, **data), *args, **kwargs), 200)
+    def _delete(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.delete(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
     @patch('common.storage.MediaStorage.save')
     def _test_image_upload(self, mock, size=1, middle_path=''):
@@ -203,7 +208,7 @@ class ViewTestCase(APITestCase):
         self.__delete_images()
 
         self._assert_success()
-        self.assertEqual(mock.call_count, size)
+        mock.assert_called_once()
         self.assertEqual(len(self._response_data['image']), size)
         self.assertTrue(self._response_data['image'][0].startswith(BASE_IMAGE_URL))
         self.assertIn(middle_path, self._response_data['image'][0])
@@ -228,9 +233,12 @@ class ViewTestCase(APITestCase):
         self.assertIsInstance(self._response_data['is_unique'], bool)
         self.assertEqual(self._response_data['is_unique'], is_unique)
 
-    def _assert_success_and_serializer_class(self, serializer_class):
-        self._assert_success_with_id_response()
-        self.assertEqual(serializer_class, self._serializer_class)
+    def _assert_success_and_serializer_class(self, expected_serializer_class, using_id_response=True):
+        if using_id_response:
+            self._assert_success_with_id_response()
+        else:
+            self._assert_success()
+        self.assertEqual(expected_serializer_class, self._serializer_class)
 
     def _assert_failure(self, expected_failure_status_code, expected_message):
         self.__assert_default_response(expected_failure_status_code, expected_message)

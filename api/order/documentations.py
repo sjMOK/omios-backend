@@ -1,14 +1,16 @@
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.serializers import Serializer, IntegerField, ListField, ImageField
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 
 from common.documentations import get_response, get_ids_response
 from product.serializers import OptionInOrderItemSerializer
 from .serializers import (
     OrderSerializer, OrderWriteSerializer, OrderItemSerializer, StatusHistorySerializer,
-    CancellationInformationSerializer,
+    CancellationInformationSerializer, DeliverySerializer,
 )
 from .views import OrderViewSet, OrderItemViewSet, ClaimViewSet, StatusHistoryAPIView
+
 
 class OptionInOrderItemResponse(OptionInOrderItemSerializer):
     product_image_url = ImageField()
@@ -16,11 +18,13 @@ class OptionInOrderItemResponse(OptionInOrderItemSerializer):
     class Meta:
         ref_name = 'OptionInOrderItem'
 
+
 class OrderItemResponse(OrderItemSerializer):
     option = OptionInOrderItemResponse()
 
     class Meta(OrderItemSerializer.Meta):
         ref_name = 'OrderItem'
+
 
 class OrderResponse(OrderSerializer):
     items = OrderItemResponse(many=True)
@@ -28,15 +32,30 @@ class OrderResponse(OrderSerializer):
     class Meta(OrderSerializer.Meta):
         ref_name = 'Order'
 
+
 class OrderCreateRequest(OrderWriteSerializer):
     class Meta(OrderWriteSerializer.Meta):
         exclude = ['shopper', 'created_at']
 
+
 class OptionInOrderItemUpdate(Serializer):
     option = IntegerField()
 
-class CancellationInformationCreate(Serializer):
+
+class OrderItemList(Serializer):
     order_items = ListField(child=IntegerField())
+
+
+class OrderConfirmResponse(Serializer):
+    success = ListField(child=IntegerField())
+    nonexistence = ListField(child=IntegerField())
+    not_requestable_status = ListField(child=IntegerField())
+
+
+class DeliveryResponse(Serializer):
+    success = ListField(child=IntegerField())
+    invalid_orders = ListField(child=IntegerField())
+    existed_invoice = ListField(child=IntegerField())
 
 
 class DecoratedOrderViewSet(OrderViewSet):
@@ -57,6 +76,15 @@ class DecoratedOrderViewSet(OrderViewSet):
     def update_shipping_address(self, *args, **kwargs):
         return super().update_shipping_address(*args, **kwargs)
 
+    @swagger_auto_schema(request_body=OrderItemList, **get_response(OrderConfirmResponse()), security=[], operation_description='이지어드민 기능\n발주 확인')
+    @action(['post'], False, 'confirm', permission_classes=[AllowAny])
+    def confirm(self, *args, **kwargs):
+        return super().confirm(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=DeliverySerializer(many=True), **get_response(DeliveryResponse()), security=[], operation_description='이지어드민 기능\n송장 입력')
+    @action(['post'], False, 'delivery', permission_classes=[AllowAny])
+    def delivery(self, *args, **kwargs):
+        return super().delivery(*args, **kwargs)
 
 class DecoratedOrderItemViewSet(OrderItemViewSet):
     @swagger_auto_schema(request_body=OptionInOrderItemUpdate, **get_response(), operation_description='주문 항목 옵션 변경\n입금 대기, 결제 완료 상태인 주문만 옵션 변경 가능')
@@ -70,7 +98,7 @@ class DecoratedClaimViewset(ClaimViewSet):
         하나의 주문에 있는 항목들에 대해서만 취소 가능
         입금 대기, 결제 완료 상태인 주문만 취소 가능
     '''
-    @swagger_auto_schema(request_body=CancellationInformationCreate, **get_ids_response(201), operation_description=cancel_discription)
+    @swagger_auto_schema(request_body=OrderItemList, **get_ids_response(201), operation_description=cancel_discription)
     @action(['post'], False)
     def cancel(self, *args, **kwargs):
         super().cancel(*args, **kwargs)

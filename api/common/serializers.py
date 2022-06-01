@@ -39,10 +39,11 @@ def get_create_or_update_attrs(attrs):
 def get_update_or_delete_attrs(attrs):
     return [attr for attr in attrs if not is_create_data(attr)]
 
-def get_list_of_single_value(attrs, key):
-    ret_list = [attr[key] for attr in attrs if key in attr]
+def get_list_of_multi_values(attrs, *keys):
+    return [tuple([attr[key] for key in keys if key in attr]) for attr in attrs]
 
-    return ret_list
+def get_list_of_single_value(attrs, key):
+    return [attr[key] for attr in attrs if key in attr]
 
 def get_sum_of_single_value(attrs, key):
     return sum(get_list_of_single_value(attrs, key))
