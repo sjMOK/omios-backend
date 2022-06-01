@@ -1,22 +1,23 @@
 from django.utils import timezone
 
 from rest_framework.serializers import (
-    Serializer, ModelSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField, StringRelatedField,
-    BooleanField,
+    Serializer, ModelSerializer, ListSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField,
+    StringRelatedField,
 )
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer, TokenBlacklistSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
-from common.utils import gmt_to_kst
+from order.serializers import ORDER_MAXIMUM_NUMBER
+from common.utils import gmt_to_kst, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
 from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
 from .models import (
     is_shopper, is_wholesaler, OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper,
-    Wholesaler, PointHistory, Building,
+    Wholesaler, PointHistory, Building, Cart,
 )
 from .validators import PasswordSimilarityValidator
 
@@ -116,6 +117,89 @@ class WholesalerSerializer(UserSerializer):
     class Meta:
         model = Wholesaler
         fields = '__all__'
+
+
+class CartListSerializer(ListSerializer):
+    __product_fields = ['product_id', 'product_name', 'image']
+
+    def to_representation(self, data):
+        initial_results = super().to_representation(data)
+
+        index_mapping = {}
+        for index, result in enumerate(initial_results):
+            product_id = result['product_id']
+            if product_id in index_mapping:
+                index_mapping[product_id].append(index)
+            else:
+                index_mapping[product_id] = [index]
+
+        results = []
+        for indexes in index_mapping.values():
+            result = {}
+
+            for field in self.__product_fields:
+                result[field] = initial_results[indexes[0]][field]
+
+            result['carts'] = []
+
+            for index in indexes:
+                for field in self.__product_fields:
+                    initial_results[index].pop(field)
+
+                result['carts'].append(initial_results[index])
+
+            results.append(result)
+
+        return results
+
+
+class CartSerializer(ModelSerializer):
+    product_name = CharField(read_only=True, source='option.product_color.product.name')
+    base_discounted_price = IntegerField(read_only=True, source='option.product_color.product.base_discounted_price')
+    display_color_name = CharField(read_only=True, source='option.product_color.display_color_name')
+    size = CharField(read_only=True, source='option.size')
+    product_id = IntegerField(read_only=True, source='option.product_color.product.id')
+
+    class Meta:
+        model = Cart
+        exclude = ['shopper', 'created_at']
+        extra_kwargs = {
+            'count': {'min_value': 1, 'max_value': 100}, 
+        }
+        list_serializer_class = CartListSerializer
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        ret['base_discounted_price'] *= ret['count'] 
+        if instance.option.product_color.product.images.all().exists():
+            ret['image'] = BASE_IMAGE_URL + instance.option.product_color.product.images.all()[0].image_url
+        else:
+            ret['image'] = DEFAULT_IMAGE_URL
+
+        return ret
+
+    def validate(self, attrs):
+        if self.instance is None:
+            shopper = self.context['shopper']
+            option = attrs['option']
+            if shopper.carts.exclude(option=option).count() >= ORDER_MAXIMUM_NUMBER:
+                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
+
+        return attrs
+
+    def create(self, validated_data):
+        shopper = self.context['shopper']
+        option = validated_data['option']
+
+        if shopper.carts.filter(option=option).exists():
+            cart = shopper.carts.get(option=option)
+            cart.count += validated_data['count']    
+            cart.save()
+        else:
+            cart = self.Meta.model.objects.create(shopper=shopper, **validated_data)
+
+        return cart
 
 
 class BuildingSerializer(ModelSerializer):

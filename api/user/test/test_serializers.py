@@ -1,17 +1,19 @@
 from datetime import datetime
 
-from common.test.test_cases import FunctionTestCase, SerializerTestCase
-from common.utils import gmt_to_kst, datetime_to_iso
+from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
+from common.utils import gmt_to_kst, datetime_to_iso, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
+from order.serializers import ORDER_MAXIMUM_NUMBER
+from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
 from .factories import (
     get_factory_password, get_factory_authentication_data, 
-    MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, BuildingWithFloorFactory,
+    MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, CartFactory, BuildingWithFloorFactory,
     ShopperShippingAddressFactory, PointHistoryFactory,
 )
-from ..models import OutstandingToken, Floor, ShopperShippingAddress
+from ..models import OutstandingToken, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
-    UserSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer, UserPasswordSerializer,
+    UserSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer, BuildingSerializer, UserPasswordSerializer,
     ShopperShippingAddressSerializer, PointHistorySerializer,
 )
 
@@ -169,6 +171,127 @@ class WholesalerSerializerTestCase(SerializerTestCase):
             'detail_address': wholesaler.detail_address,
             'is_approved': wholesaler.is_approved,
         })
+
+
+class CartSerializerTestCase(SerializerTestCase):
+    _serializer_class = CartSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__product = ProductFactory()
+        cls.__product_color = ProductColorFactory(product=cls.__product)
+        ProductImageFactory.create_batch(size=3, product=cls.__product)
+        cls.__shopper = ShopperFactory()
+        cls.__cart = CartFactory(option__product_color=cls.__product_color, shopper=cls.__shopper)
+
+    def test_model_instance_serialization(self):
+        self._test_model_instance_serialization(self.__cart, {
+            'id': self.__cart.id,
+            'display_color_name': self.__cart.option.product_color.display_color_name,
+            'size': self.__cart.option.size,
+            'count': self.__cart.count,
+            'option': self.__cart.option.id,
+            'product_id': self.__cart.option.product_color.product.id,
+            'product_name': self.__cart.option.product_color.product.name,
+            'image': BASE_IMAGE_URL + self.__cart.option.product_color.product.images.all()[0].image_url,
+            'base_discounted_price': self.__cart.option.product_color.product.base_discounted_price * self.__cart.count,
+        })
+
+    def test_model_instance_serialization_default_image_url(self):
+        product = ProductFactory(product=self.__product)
+        cart = CartFactory(option__product_color__product=product)
+
+        self._test_model_instance_serialization(cart, {
+            'id': cart.id,
+            'display_color_name': cart.option.product_color.display_color_name,
+            'size': cart.option.size,
+            'count': cart.count,
+            'option': cart.option.id,
+            'product_id': cart.option.product_color.product.id,
+            'product_name': cart.option.product_color.product.name,
+            'image': DEFAULT_IMAGE_URL,
+            'base_discounted_price': cart.option.product_color.product.base_discounted_price * cart.count,
+        })
+
+    def test_validate_count_of_carts(self):   
+        product_color = ProductColorFactory(product=self.__product)
+        for _ in range(ORDER_MAXIMUM_NUMBER):
+            CartFactory(shopper=self.__shopper, option=OptionFactory(product_color=product_color))
+        data = {
+            'option': OptionFactory(product_color=product_color).id,
+            'count': 1,
+        }
+
+        self._test_serializer_raise_validation_error(
+            'exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER),
+            data=data, context={'shopper': self.__shopper}
+        )
+
+    def test_create(self):
+        data = {
+            'option': OptionFactory(product_color=self.__product_color).id,
+            'count': 1,
+        }
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        cart = serializer.save()
+
+        self.assertEqual(cart.option.id, data['option']),
+        self.assertEqual(cart.shopper, self.__shopper)
+        self.assertEqual(cart.count, data['count'])
+
+    def test_create_option_already_exists(self):
+        data = {
+            'option': self.__cart.option.id,
+            'count': 1
+        }
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        cart = serializer.save()
+
+        self.assertEqual(cart, self.__cart)
+        self.assertEqual(cart.count, self.__cart.count + data['count'])
+
+
+class CartListSerializerTestCase(ListSerializerTestCase):
+    maxDiff = None
+    _child_serializer_class = CartSerializer
+
+    def setUp(self):
+        self.__shopper = ShopperFactory()
+
+        self.__product_1 = ProductFactory()
+        product_color_1 = ProductColorFactory(product=self.__product_1)
+        ProductImageFactory(product=self.__product_1)
+
+        self.__product_2 = ProductFactory(product=self.__product_1)
+        product_color_2 = ProductColorFactory(product=self.__product_2)
+        ProductImageFactory(product=self.__product_2)
+
+        CartFactory.create_batch(2, option__product_color=product_color_1, shopper=self.__shopper)
+        CartFactory.create_batch(2, option__product_color=product_color_2, shopper=self.__shopper)
+
+    def test_to_representation(self):
+        serializer = self._get_serializer(self.__shopper.carts.all())
+        products = [self.__product_2, self.__product_1]
+        
+        expected_data = [
+            {
+                'product_id': product.id,
+                'product_name': product.name,
+                'image': BASE_IMAGE_URL + product.images.all()[0].image_url,
+                'carts': [
+                    {
+                        'id': cart.id,
+                        'base_discounted_price': cart.option.product_color.product.base_discounted_price * cart.count,
+                        'display_color_name': cart.option.product_color.display_color_name,
+                        'size': cart.option.size,
+                        'count': cart.count,
+                        'option': cart.option.id,
+                    } for cart in self.__shopper.carts.filter(option__product_color__product=product)
+                ],
+            } for product in products
+        ]
+
+        self.assertListEqual(expected_data, serializer.data)
 
 
 class BuildingSerializerTestCase(SerializerTestCase):

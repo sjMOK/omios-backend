@@ -12,6 +12,9 @@ from product.serializers import OptionInOrderItemSerializer
 from .models import Order, OrderItem, ShippingAddress, Refund, CancellationInformation, Status, StatusHistory
 
 
+ORDER_MAXIMUM_NUMBER = 100
+
+
 class ShippingAddressSerializer(ModelSerializer):
     class Meta:
         model = ShippingAddress
