@@ -485,7 +485,7 @@ class CartViewSetTestCase(ViewTestCase):
             'id': [cart.id for cart in self.__carts],
         }
         self._url += '/remove'
-        self._post(format='json')
+        self._post(status_code=200, format='json')
 
         self._assert_success()
         self.assertTrue(not self._user.carts.filter(id__in=self._response_data['id']))
