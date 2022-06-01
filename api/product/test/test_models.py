@@ -113,11 +113,11 @@ class ProductTestCase(ModelTestCase):
         ProductQuestionAnswerFactory(product=self._product)
         self._product.delete()
 
+        self.assertTrue(not self._product.question_answers.all().exists())
+        self.assertTrue(not self._product.productlike_set.all().exists())
         self.assertTrue(not self._product.on_sale)
         self.assertTrue(not self._product.colors.filter(on_sale=True).exists())
         self.assertTrue(not Option.objects.filter(product_color__product=self._product, on_sale=True).exists())
-        self.assertTrue(not ProductQuestionAnswer.objects.all().exists())
-        
 
 
 class AgeTestCase(ModelTestCase):
