@@ -75,9 +75,9 @@ class UserViewSet(GenericViewSet):
         user = self.get_object()
         serializer = self.get_serializer(instance=user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
 
-        return get_response(data={'id': request.user.id})
+        return get_response(data={'id': user.id})
 
     def destroy(self, request, user_id=None):
         user = self.get_object()

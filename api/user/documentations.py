@@ -142,14 +142,17 @@ class DecoratedShopperViewSet(ShopperViewSet):
         return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
+    @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
+    @transaction.atomic
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
+    @transaction.atomic
     def destroy(self, *args, **kwargs):
         return super().destroy(*args, **kwargs)
 
@@ -160,14 +163,17 @@ class DecoratedWholesalerViewSet(WholesalerViewSet):
         return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
+    @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
+    @transaction.atomic
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
+    @transaction.atomic
     def destroy(self, *args, **kwargs):
         return super().destroy(*args, **kwargs)
 
