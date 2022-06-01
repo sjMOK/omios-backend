@@ -1,4 +1,5 @@
 from django.forms import model_to_dict
+from django.db.models import Sum, F
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
@@ -6,14 +7,16 @@ from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
-from product.test.factories import ProductFactory
+from product.test.factories import ProductFactory, ProductColorFactory, OptionFactory
 from .factories import (
     MembershipFactory, get_factory_password, get_factory_authentication_data, 
-    FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory,
+    FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory, CartFactory,
 )
-from ..models import BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building
+from ..models import (
+    BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building, Cart,
+)
 from ..serializers import (
-    IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, 
+    IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer,
     BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer,
 )
 
@@ -409,6 +412,118 @@ class ProductLikeViewTestCase(ViewTestCase):
         self._delete()
 
         self._assert_failure(400, 'You are deleting non exist likes')
+
+
+class CartViewSetTestCase(ViewTestCase):
+    _url = '/users/shoppers/{0}/carts'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls._url = cls._url.format(cls._user.id)
+        
+        cls.__product_color = ProductColorFactory()
+        cls.__carts = CartFactory.create_batch(2, option__product_color=cls.__product_color)
+        cls._user.carts.add(*cls.__carts)
+
+    def setUp(self):
+        self._set_authentication()
+
+    def test_list(self):
+        queryset = self._user.carts.all()
+        aggregate_data = queryset.aggregate(
+            total_sale_price=Sum(F('option__product_color__product__sale_price') * F('count')),
+            total_base_discounted_price=Sum(F('option__product_color__product__base_discounted_price') * F('count'))
+        )
+        serializer = CartSerializer(queryset, many=True)
+        self._get()
+
+        self.assertListEqual(self._response_data['results'], serializer.data)
+        self.assertEqual(self._response_data['total_sale_price'], aggregate_data['total_sale_price'])
+        self.assertEqual(self._response_data['total_base_discounted_price'], aggregate_data['total_base_discounted_price'])
+
+    def test_create(self):
+        self._test_data = {
+            'option': OptionFactory(product_color=self.__product_color).id,
+            'count': 1,
+        }
+        self._post()
+
+        self._assert_success_with_id_response()
+
+        cart = Cart.objects.get(id=self._response_data['id'])
+        self.assertDictEqual(
+            model_to_dict(cart, fields=self._test_data.keys()),
+            self._test_data,
+        )
+
+    def test_partial_update(self):
+        updating_cart = self.__carts[0]
+        self._test_data = {
+            'count': updating_cart.count + 1,
+        }
+        self._url += '/{}'.format(updating_cart.id)
+        self._patch()
+        updated_cart = Cart.objects.get(id=self._response_data['id'])
+
+        self._assert_success_with_id_response()
+        self.assertEqual(updated_cart.count, self._test_data['count'])
+
+    def test_partial_update_with_unpatchable_fields(self):
+        updating_cart = self.__carts[0]
+        self._test_data = {
+            'id': updating_cart.id,
+            'count': updating_cart.count,
+        }
+        self._url += '/{}'.format(updating_cart.id)
+        self._patch()
+
+        self._assert_failure_for_non_patchable_field()
+
+    def test_remove(self):
+        self._test_data = {
+            'id': [cart.id for cart in self.__carts],
+        }
+        self._url += '/remove'
+        self._post(format='json')
+
+        self._assert_success()
+        self.assertTrue(not self._user.carts.filter(id__in=self._response_data['id']))
+
+    def test_remove_without_id_list(self):
+        self._test_data = {}
+        self._url += '/remove'
+        self._post(format='json')
+
+        self._assert_failure(400, 'list of id is required.')
+
+    def test_remove_with_non_integer_values_list(self):
+        self._test_data = {
+            'id': [str(cart.id) for cart in self.__carts],
+        }
+        self._url += '/remove'
+        self._post(format='json')
+
+        self._assert_failure(400, 'values in the list must be integers.')
+
+    def test_remove_with_non_list_id(self):
+        self._test_data = {
+            'id': self.__carts[0].id
+        }
+        self._url += '/remove'
+        self._post(format='json')
+
+        self._assert_failure(400, 'values in the list must be integers.')
+
+    def test_remove_raise_permission_denied(self):
+        cart = CartFactory(option__product_color=self.__product_color)
+        self._test_data = {
+            'id': [self.__carts[0].id, cart.id]
+        }
+        self._url += '/remove'
+        self._post(format='json')
+        
+        self._assert_failure(403, 'You do not have permission to perform this action.')
 
 
 class ShopperShippingAddressViewSetTestCase(ViewTestCase):

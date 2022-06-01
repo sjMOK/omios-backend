@@ -1,10 +1,12 @@
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
 from django.db import connection
+from django.db.models import Sum, F
 
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
@@ -13,11 +15,13 @@ from common.utils import get_response, get_response_body
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedShopper
 from product.models import Product
-from .models import ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory
+from .models import (
+    ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory, Cart,
+)
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
     UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
-    ShopperShippingAddressSerializer, PointHistorySerializer
+    ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer,
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
@@ -171,6 +175,72 @@ class ProductLikeView(APIView):
         return get_response(data={'shopper_id': user_id, 'product_id': product_id})
 
 
+class CartViewSet(GenericViewSet):
+    permission_classes = [IsAuthenticatedShopper]
+    serializer_class = CartSerializer
+    lookup_field = 'id'
+    lookup_url_kwarg = 'cart_id'
+    lookup_value_regex = r'[0-9]+'
+    __patchable_fields = set(['count'])
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = self.request.user.shopper.carts.all()
+        if self.action == 'list':
+            queryset = queryset.select_related(
+                'option__product_color__product'
+            ).prefetch_related('option__product_color__product__images')
+
+        return queryset
+
+    def list(self, request, user_id):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        aggregate_data = queryset.aggregate(
+            total_sale_price=Sum(F('option__product_color__product__sale_price') * F('count')),
+            total_base_discounted_price=Sum(F('option__product_color__product__base_discounted_price') * F('count'))
+        )
+
+        response_data = {'results': serializer.data}
+        response_data.update(aggregate_data)
+
+        return get_response(data=response_data)
+
+    def create(self, request, user_id):
+        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+        serializer.is_valid(raise_exception=True)
+        cart = serializer.save()
+
+        return get_response(status=HTTP_201_CREATED, data={'id': cart.id})
+
+    def partial_update(self, request, user_id, cart_id):
+        if set(request.data).difference(self.__patchable_fields):
+            return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
+
+        cart = self.get_object()
+        serializer = self.get_serializer(cart, request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        cart = serializer.save()
+
+        return get_response(data={'id': cart.id})
+
+    @action(methods=['POST'], detail=False)
+    def remove(self, request, user_id):
+        delete_id_list = request.data.get('id', None)
+        if delete_id_list is None:
+            return get_response(status=HTTP_400_BAD_REQUEST, message='list of id is required.')
+        elif not isinstance(delete_id_list, list) or not all(isinstance(id, int) for id in delete_id_list):
+            return get_response(status=HTTP_400_BAD_REQUEST, message='values in the list must be integers.')
+
+        queryset = self.get_queryset()
+        if queryset.filter(id__in=delete_id_list).count() != len(delete_id_list):
+            raise PermissionDenied()
+
+        self.get_queryset().filter(id__in=delete_id_list).delete()
+
+        return get_response(data={'id': delete_id_list})
+
+
 class ShopperShippingAddressViewSet(GenericViewSet):
     permission_classes = [IsAuthenticatedShopper]
     serializer_class = ShopperShippingAddressSerializer
@@ -195,7 +265,7 @@ class ShopperShippingAddressViewSet(GenericViewSet):
     def partial_update(self, request, user_id, shipping_address_id):
         shipping_address = self.get_object()
         serializer = self.get_serializer(
-            instance=shipping_address, data=request.data, partial=True
+            shipping_address, request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         shipping_address = serializer.save(shopper=request.user.shopper)

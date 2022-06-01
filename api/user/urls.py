@@ -8,11 +8,13 @@ from .documentations import (
     decorated_upload_business_registration_image_view, decorated_get_buildings_view, decorated_user_password_view,
     decorated_is_unique_view, decorated_product_like_view, decorated_shopper_point_history_view
 )
+from .views import CartViewSet
 
 app_name = 'user'
 
 router = SimpleRouter(trailing_slash=False)
 router.register('/addresses', DecoratedShopperShippingAddressViewSet, basename='shipping-address')
+router.register('/carts', CartViewSet, basename='cart')
 
 token_urlpatterns = [
     path('', decorated_issuing_token_view),
