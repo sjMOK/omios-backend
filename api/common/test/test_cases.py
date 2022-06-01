@@ -186,20 +186,20 @@ class ViewTestCase(APITestCase):
         else:
             return self._test_data
 
-    def _get(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.get(self._url, self.__get_request_data(data), *args, **kwargs), 200)
+    def _get(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.get(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
-    def _post(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.post(self._url, self.__get_request_data(data), *args, **kwargs), 201)
+    def _post(self, data={}, status_code=201, *args, **kwargs):
+        self.__set_response(self.client.post(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
-    def _put(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.put(self._url, self.__get_request_data(data), *args, **kwargs), 200)
+    def _put(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.put(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
-    def _patch(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.patch(self._url, self.__get_request_data(data), *args, **kwargs), 200)
+    def _patch(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.patch(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
     
-    def _delete(self, data={}, *args, **kwargs):
-        self.__set_response(self.client.delete(self._url, self.__get_request_data(data), *args, **kwargs), 200)
+    def _delete(self, data={}, status_code=200, *args, **kwargs):
+        self.__set_response(self.client.delete(self._url, self.__get_request_data(data), *args, **kwargs), status_code)
 
     @patch('common.storage.MediaStorage.save')
     def _test_image_upload(self, mock, size=1, middle_path=''):
