@@ -11,7 +11,10 @@ from rest_framework.permissions import AllowAny
 from common.utils import get_response
 from user.models import Shopper
 from product.models import ProductImage
-from .models import Order, OrderItem, StatusHistory
+from .models import (
+    PAYMENT_COMPLETION_STATUS, NORMAL_STATUS,
+    Order, OrderItem, Status, StatusHistory
+)
 from .serializers import (
     OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer, 
     CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
@@ -69,7 +72,7 @@ class OrderViewSet(GenericViewSet):
         # todo
         # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료)
 
-        order = serializer.save(status_id=101)
+        order = serializer.save(status_id=PAYMENT_COMPLETION_STATUS)
 
         return get_response(status=HTTP_201_CREATED, data={'id': order.id})
     

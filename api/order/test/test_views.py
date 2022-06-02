@@ -7,7 +7,7 @@ from .test_serializers import (
     get_shipping_address_test_data, get_order_test_data, get_order_confirm_result,
     get_delivery_test_data, get_delivery_result,
 )
-from ..models import OrderItem
+from ..models import PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, OrderItem
 from ..serializers import (
     ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
     StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer,
@@ -22,9 +22,9 @@ class OrderViewSetTestCase(ViewTestCase):
         cls._set_shopper()
         cls.__shipping_address = ShippingAddressFactory()
         cls.__orders = create_orders_with_items(2, 3, False,
-            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': StatusFactory(id=101)})
-        StatusFactory(id=200)
-        StatusFactory(id=201)
+            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': StatusFactory(id=PAYMENT_COMPLETION_STATUS)})
+        StatusFactory(id=DELIVERY_PREPARING_STATUS)
+        StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
 
     def setUp(self):
         self._set_authentication()
@@ -86,7 +86,7 @@ class OrderViewSetTestCase(ViewTestCase):
         self._url += '/delivery'
         order_items = OrderItem.objects.all()
         for order_item in order_items:
-            order_item.status_id = 200
+            order_item.status_id = DELIVERY_PREPARING_STATUS
         OrderItem.objects.bulk_update(order_items, ['status_id'])
         self._test_data = [get_delivery_test_data(order) for order in self.__orders]
         expected_result = get_delivery_result(self._test_data)
@@ -103,7 +103,7 @@ class OrderItemViewSetTestCase(ViewTestCase):
     def setUpTestData(cls):
         cls._set_shopper()
         cls.__order_item = OrderItem.objects.select_related('option__product_color').get(
-            id=OrderItemFactory(order__shopper=cls._user, status=StatusFactory(id=101)).id)
+            id=OrderItemFactory(order__shopper=cls._user, status=StatusFactory(id=PAYMENT_COMPLETION_STATUS)).id)
         cls._url += f'/{cls.__order_item.id}'
 
     def setUp(self):

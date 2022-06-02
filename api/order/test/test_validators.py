@@ -8,7 +8,7 @@ class ValidateOrderItemsTestCase(FunctionTestCase):
     _function = validate_order_items
 
     class TemporaryOrderItemModel:
-        def __init__(self, order_id=10, status_id=100):
+        def __init__(self, order_id=10, status_id=1000):
             self.order_id = order_id
             self.status_id = status_id
     
@@ -36,7 +36,7 @@ class ValidateOrderItemsTestCase(FunctionTestCase):
         self.__test('You can only make a request for one order and for order items that are all in the same status.')
 
     def test_variable_status(self):
-        self.__order_items.append(self.TemporaryOrderItemModel(status_id=200))
+        self.__order_items.append(self.TemporaryOrderItemModel(status_id=2000))
 
         self.__test('You can only make a request for one order and for order items that are all in the same status.')
     
@@ -44,4 +44,4 @@ class ValidateOrderItemsTestCase(FunctionTestCase):
         self.__test('The order requested and the order items are different.', order_id=20)
 
     def test_order_id(self):
-        self.__test('The order_items cannot be requested.', status_id=[200])
+        self.__test('The order_items cannot be requested.', status_id=[2000])

@@ -11,6 +11,18 @@ from django.utils import timezone
 from common.utils import DEFAULT_DATETIME_FORMAT
 
 
+DEPOSIT_WAITING_STATUS = 100
+PAYMENT_COMPLETION_STATUS = 101
+DELIVERY_PREPARING_STATUS = 200
+DELIVERY_PROGRESSING_STATUS = 201
+DELIVERY_COMPLETION_STATUS = 202
+PURCHASE_CONFIRMATION_STATUS = 203
+BEFORE_DELIVERY_STATUS = [DEPOSIT_WAITING_STATUS, PAYMENT_COMPLETION_STATUS]
+NORMAL_STATUS = [
+    DEPOSIT_WAITING_STATUS, PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, 
+    DELIVERY_PROGRESSING_STATUS, DELIVERY_COMPLETION_STATUS, PURCHASE_CONFIRMATION_STATUS
+]
+
 class Order(Model):
     id = BigAutoField(primary_key=True)
     number = CharField(max_length=25, unique=True) 
@@ -59,7 +71,7 @@ class OrderItem(Model):
 
 class Status(Model):
     id = IntegerField(primary_key=True)
-    name = CharField(max_length=20)
+    name = CharField(max_length=20, unique=True)
 
     class Meta:
         db_table = 'status'
