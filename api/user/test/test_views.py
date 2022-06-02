@@ -125,7 +125,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self._set_authentication()
 
     def test_retrieve(self):
-        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
@@ -152,7 +151,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self.assertTrue(user.check_password(self._test_data['password']))
 
     def test_partial_update(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'nickname': 'patch_test',
@@ -170,7 +168,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self.assertEqual(user.weight, self._test_data['weight'])
 
     def test_partial_update_with_non_existent_field(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'non_existent_field': 'test',
@@ -180,7 +177,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self._assert_failure(400, 'It contains requests for fields that do not exist or cannot be modified.')
 
     def test_partial_update_with_non_modifiable_field(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'nickname': 'patch_error_test',
             'password': 'test',
@@ -191,7 +187,6 @@ class ShopperViewSetTestCase(ViewTestCase):
 
     @freeze_time(FREEZE_TIME)
     def test_destroy(self):
-        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Shopper.objects.get(id=self._user.id)
 
@@ -212,7 +207,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
         self._set_authentication()
 
     def test_retrieve(self):
-        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
@@ -241,7 +235,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
         self.assertTrue(user.check_password(self._test_data['password']))
 
     def test_partial_update(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'mobile_number': '01000000000',
             'email': 'user@omios.com'
@@ -256,7 +249,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
 
     @freeze_time(FREEZE_TIME)
     def test_destroy(self):
-        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Wholesaler.objects.get(id=self._user.id)
 

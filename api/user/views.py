@@ -5,6 +5,7 @@ from django.db.models import Sum, F
 
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
@@ -13,7 +14,7 @@ from rest_framework_simplejwt.views import TokenViewBase
 
 from common.utils import get_response, get_response_body
 from common.views import upload_image_view
-from common.permissions import IsAuthenticatedShopper
+from common.permissions import IsAuthenticatedShopper, IsAuthenticatedWholesaler
 from product.models import Product
 from .models import (
     ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory, Cart,
@@ -24,82 +25,6 @@ from .serializers import (
     ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer,
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
-
-
-class TokenView(TokenViewBase):
-    def post(self, request, *args, **kwargs):
-        return get_response(status=HTTP_201_CREATED, data=super().post(request, *args, **kwargs).data)
-
-
-class IssuingTokenView(TokenView):
-    serializer_class = IssuingTokenSerializer
-
-
-class RefreshingTokenView(TokenView):
-    serializer_class = RefreshingTokenSerializer
-
-
-class BlacklistingTokenView(TokenView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    serializer_class = TokenBlacklistSerializer
-
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        response.data = get_response_body(response.status_code, data={'id': request.user.id})
-        return response
-
-
-class UserViewSet(GenericViewSet):
-    permission_classes = [IsAuthenticatedExceptCreate]
-    lookup_field = 'user_id'
-    lookup_value_regex = r'[0-9]+'
-
-    def retrieve(self, request, user_id=None):
-        user = self.get_object()
-        serializer = self.get_serializer(instance=user)
-
-        return get_response(data=serializer.data)
-
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
-
-    def partial_update(self, request, user_id=None):
-        if set(request.data).difference(self._patchable_fields):
-            return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
-        
-        user = self.get_object()
-        serializer = self.get_serializer(instance=user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        return get_response(data={'id': user.id})
-
-    def destroy(self, request, user_id=None):
-        user = self.get_object()
-        user.delete()
-
-        return get_response(data={'id': user.id})
-
-
-class ShopperViewSet(UserViewSet):
-    serializer_class = ShopperSerializer
-    _patchable_fields = set(['email', 'nickname', 'height', 'weight'])
-
-    def get_queryset(self):
-        return Shopper.objects.filter(is_active=True)
-
-
-class WholesalerViewSet(UserViewSet):
-    serializer_class = WholesalerSerializer
-    _patchable_fields = ['mobile_number', 'email']
-
-    def get_queryset(self):
-        return Wholesaler.objects.filter(is_active=True)
 
 
 @api_view(['POST'])
@@ -146,6 +71,84 @@ def is_unique(request):
         return get_response(data={'is_unique': False})
 
     return get_response(data={'is_unique': True})
+
+
+class TokenView(TokenViewBase):
+    def post(self, request, *args, **kwargs):
+        return get_response(status=HTTP_201_CREATED, data=super().post(request, *args, **kwargs).data)
+
+
+class IssuingTokenView(TokenView):
+    serializer_class = IssuingTokenSerializer
+
+
+class RefreshingTokenView(TokenView):
+    serializer_class = RefreshingTokenSerializer
+
+
+class BlacklistingTokenView(TokenView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = TokenBlacklistSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response.data = get_response_body(response.status_code, data={'id': request.user.id})
+        return response
+
+
+class UserView(GenericAPIView):
+    permission_classes = [IsAuthenticatedExceptCreate]
+
+    def get(self, request):
+        serializer = self.get_serializer(self._get_user())
+
+        return get_response(data=serializer.data)
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
+
+    def patch(self, request):
+        if set(request.data).difference(self._patchable_fields):
+            return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
+
+        serializer = self.get_serializer(self._get_user(), request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return get_response(data={'id': user.id})
+
+    def delete(self, request):
+        user = self._get_user()
+        user.delete()
+
+        return get_response(data={'id': user.id})
+
+
+class ShopperView(UserView):
+    serializer_class = ShopperSerializer
+    _patchable_fields = set(['email', 'nickname', 'height', 'weight'])
+
+    def _get_user(self):
+        return self.request.user.shopper
+
+    def get_queryset(self):
+        return Shopper.objects.filter(is_active=True)
+
+
+class WholesalerView(UserView):
+    serializer_class = WholesalerSerializer
+    _patchable_fields = ['mobile_number', 'email']
+
+    def _get_user(self):
+        return self.request.user.wholesaler
+
+    def get_queryset(self):
+        return Wholesaler.objects.filter(is_active=True)
 
 
 class ProductLikeView(APIView):

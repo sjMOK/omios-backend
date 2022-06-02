@@ -7,7 +7,6 @@ from drf_yasg.views import get_schema_view
 from drf_yasg.openapi import Info, License
 
 from product.documentations import DecoratedProductViewSet
-from user.documentations import DecoratedShopperViewSet, DecoratedWholesalerViewSet
 from order.documentations import DecoratedOrderViewSet
 
 
@@ -28,8 +27,6 @@ schema_view = get_schema_view(
 )
 
 router = SimpleRouter(trailing_slash=False)
-router.register(r'users/shoppers', DecoratedShopperViewSet, basename='shoppers')
-router.register(r'users/wholesalers', DecoratedWholesalerViewSet, basename='wholesalers')
 router.register(r'products', DecoratedProductViewSet, basename='products')
 router.register(r'^orders', DecoratedOrderViewSet, basename='orders')
 
