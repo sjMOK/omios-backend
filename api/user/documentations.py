@@ -1,5 +1,7 @@
+from django.db import transaction
+
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField
+from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField, URLField, ListField
 from rest_framework.decorators import action
 
 from common.documentations import UniqueResponse, Image, get_response
@@ -10,7 +12,7 @@ from .serializers import (
 )
 from .views import (
     IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet, ProductLikeView,
-    ShopperShippingAddressViewSet,
+    ShopperShippingAddressViewSet, CartViewSet,
     upload_business_registration_image, get_buildings, change_password, is_unique, get_point_histories,
 )
 
@@ -57,6 +59,19 @@ class WholesalerUpdateRequest(WholesalerSerializer):
         }
 
 
+class CartCreateRequest(Serializer):
+    option = IntegerField()
+    count = IntegerField()
+
+
+class CartUpdateRequest(Serializer):
+    count = IntegerField()
+
+
+class CartDeleteRequest(Serializer):
+    id = ListField(child=IntegerField())
+
+
 class PasswordUpdateRequest(UserPasswordSerializer):
     def __init__(self):
         super(UserPasswordSerializer, self).__init__()
@@ -86,6 +101,31 @@ class Wholesaler(ModelSerializer):
         exclude = ['password']
 
 
+class ProductCartResponse(Serializer):
+    class CartResponse(Serializer):
+            id = IntegerField()
+            base_discounted_price = IntegerField()
+            display_color_name = CharField()
+            size = CharField()
+            count = IntegerField()
+            option = IntegerField()
+
+    product_id = IntegerField()
+    produdct_name = CharField()
+    image = URLField()
+    carts  =CartResponse(many=True)
+
+
+class CartListResponse(Serializer):
+    results = ProductCartResponse(many=True)
+    total_sale_price = IntegerField()
+    total_base_discounted_price = IntegerField()
+
+
+class CartDeleteResponse(CartDeleteRequest):
+    pass
+
+
 class ProductLikeViewResponse(Serializer):
     shopper_id = IntegerField()
     product_id = IntegerField()
@@ -102,14 +142,17 @@ class DecoratedShopperViewSet(ShopperViewSet):
         return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
+    @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
+    @transaction.atomic
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
+    @transaction.atomic
     def destroy(self, *args, **kwargs):
         return super().destroy(*args, **kwargs)
 
@@ -120,16 +163,41 @@ class DecoratedWholesalerViewSet(WholesalerViewSet):
         return super().retrieve(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
+    @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
+    @transaction.atomic
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
+    @transaction.atomic
     def destroy(self, *args, **kwargs):
         return super().destroy(*args, **kwargs)
+
+
+class DecoratedCartViewSet(CartViewSet):
+    @swagger_auto_schema(**get_response(CartListResponse()), operation_description='장바구니 리스트 조회')
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=CartCreateRequest, **get_response(code=201), operation_description='장바구니 항목 등록')
+    @transaction.atomic
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=CartUpdateRequest, **get_response(), operation_description='장바구니 항목 업데이트\n업데이트는 수량만 가능')
+    @transaction.atomic
+    def partial_update(self, *args, **kwargs):
+        return super().partial_update(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=CartDeleteRequest, **get_response(CartDeleteResponse()), operation_description='장바구니 항목 삭제\n다중 삭제 지원(id 배열을 request body에 전송)\n사용자 소유가 아닌 장바구니 항목 id 전송 시 PermissionDenied(403) 반환')
+    @action(methods=['POST'], detail=False)
+    @transaction.atomic
+    def remove(self, *args, **kwargs):
+        return super().remove(*args, **kwargs)
 
 
 class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
@@ -138,14 +206,17 @@ class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
         return super().list(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperShippingAddressSerializer, **get_response(code=201), operation_description='배송지 생성\n최초로 등록하는 배송지는 자동으로 기본 배송지로 지정됨\n기본 배송지를 등록하는 경우 기존의 기본 배송지는 기본 배송지 플래그가 해제됨')
+    @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
     @swagger_auto_schema(request_body=ShopperShippingAddressSerializer, **get_response(), operation_description='배송지 수정\n기본 배송지를 true로 수정하면 기존의 기본 배송지는 기본 배송지 플래그가 해제됨')
+    @transaction.atomic
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
     @swagger_auto_schema(**get_response(), operation_description='배송지 삭제')
+    @transaction.atomic
     def destroy(self, *args, **kwargs):
         return super().destroy(*args, **kwargs)
 

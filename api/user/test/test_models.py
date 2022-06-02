@@ -10,13 +10,13 @@ from freezegun import freeze_time
 from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
-from product.test.factories import ProductFactory
+from product.test.factories import ProductFactory, OptionFactory
 from order.test.factories import OrderFactory
 from .factories import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory, WholesalerFactory
 from ..models import (
     is_shopper, is_wholesaler,
     Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
-    ProductLike, PointHistory,
+    ProductLike, PointHistory, Cart,
 )
 
 
@@ -270,6 +270,22 @@ class WholesalerTestCase(ModelTestCase):
         self.assertEqual(self._wholesaler.base_address, self._test_data['base_address'])
         self.assertEqual(self._wholesaler.detail_address, self._test_data['detail_address'])
         self.assertTrue(not self._wholesaler.is_approved)
+
+
+class CartTestCase(ModelTestCase):
+    _model_class = Cart
+
+    def test_create(self):
+        self._test_data = {
+            'option': OptionFactory(),
+            'shopper': ShopperFactory(),
+            'count': 1,
+        }
+        cart = self._get_model_after_creation()
+
+        self.assertEqual(cart.option, self._test_data['option'])
+        self.assertEqual(cart.shopper, self._test_data['shopper'])
+        self.assertEqual(cart.count, self._test_data['count'])
 
 
 class BuildingTestCase(ModelTestCase):

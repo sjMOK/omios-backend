@@ -81,6 +81,7 @@ class Product(Model):
 
     def delete(self):
         self.question_answers.all().delete()
+        self.productlike_set.all().delete()
         self.colors.all().update(on_sale=False)
         Option.objects.filter(product_color__product=self).update(on_sale=False)
         self.on_sale = False

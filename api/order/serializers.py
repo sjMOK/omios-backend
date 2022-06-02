@@ -28,6 +28,9 @@ from .models import (
 from .validators import validate_order_items
 
 
+ORDER_MAXIMUM_NUMBER = 100
+
+
 class ShippingAddressSerializer(ModelSerializer):
     class Meta:
         model = ShippingAddress

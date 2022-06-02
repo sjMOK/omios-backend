@@ -171,6 +171,18 @@ class ProductLike(Model):
         unique_together = (('shopper', 'product'),)
 
 
+class Cart(Model):
+    id = AutoField(primary_key=True)
+    option = ForeignKey('product.Option', DO_NOTHING, related_name='carts')
+    shopper = ForeignKey('Shopper', DO_NOTHING, related_name='carts')
+    created_at = DateTimeField(auto_now_add=True)
+    count = IntegerField()
+
+    class Meta:
+        db_table = 'cart'
+        ordering = ['-created_at']
+        unique_together = (('shopper', 'option'),)
+
 
 class Floor(Model):
     id = AutoField(primary_key=True)

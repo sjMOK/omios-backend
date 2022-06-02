@@ -143,6 +143,17 @@ class ProductColorFactory(DjangoModelFactory):
     image_url = LazyFunction(lambda: '{}.jpeg'.format(timezone.now().strftime(IMAGE_DATETIME_FORMAT)))
     display_color_name = Sequence(lambda num: 'dp_name_{0}'.format(num))
 
+    @classmethod
+    def _generate(cls, strategy, params):
+        if 'product_color' in params:
+            product_color = params.pop('product_color')
+            copy_fields = ['product', 'color']
+            for field in copy_fields:
+                if field not in params:
+                    params[field] = getattr(product_color, field, None)
+
+        return super()._generate(strategy, params)
+
 
 class OptionFactory(DjangoModelFactory):
     class Meta:

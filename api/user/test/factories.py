@@ -1,4 +1,6 @@
-from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation
+import random
+
+from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation, lazy_attribute
 from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
 from factory.fuzzy import FuzzyDecimal, FuzzyInteger
@@ -59,6 +61,18 @@ class WholesalerFactory(UserFactory):
     base_address = Faker('address', locale='ko-KR')
     detail_address = Faker('address_detail', locale='ko-KR')
     is_approved = False
+
+
+class CartFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.Cart'
+
+    option = SubFactory('product.test.factories.OptionFactory')
+    shopper = SubFactory(ShopperFactory)
+    
+    @lazy_attribute
+    def count(self):
+        return random.randint(1, 100)
 
 
 class FloorFactory(DjangoModelFactory):
