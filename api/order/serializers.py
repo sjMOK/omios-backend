@@ -8,7 +8,7 @@ from django.db.models import Q
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer,
     PrimaryKeyRelatedField, StringRelatedField,
-    IntegerField, ListField
+    IntegerField, ListField, CharField,
 )
 from rest_framework.exceptions import ValidationError
 
@@ -255,9 +255,26 @@ class OrderWriteSerializer(OrderSerializer):
     def update_shipping_address(self, instance, shipping_address_id):
         pass
 
-    
-class OrderConfirmation(Serializer):
-    pass
+
+class OrderItemStatisticsListSerializer(ListSerializer):
+    def to_representation(self, data):
+        result = super().to_representation(data)
+
+        if len(result) < 6:
+            status_names = Status.objects.filter(id__in=NORMAL_STATUS).order_by('id').values_list('name', flat=True)
+            for i in range(len(status_names)):
+                if i == len(result) or result[i]['status'] != status_names[i]:
+                    result.insert(i, self.child.to_representation({'status__name': status_names[i], 'count': 0}))
+        
+        return result
+            
+
+class OrderItemStatisticsSerializer(Serializer):
+    class Meta:
+        list_serializer_class = OrderItemStatisticsListSerializer
+
+    status = CharField(read_only=True, source='status__name')
+    count = IntegerField(read_only=True)
 
 
 class RefundSerializer(ModelSerializer):

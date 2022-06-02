@@ -28,7 +28,8 @@ from ..models import (
 )
 from ..serializers import (
     ShippingAddressSerializer, OrderItemSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
-    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
+    OrderItemStatisticsSerializer, RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, 
+    OrderConfirmSerializer, DeliverySerializer,
 )
 
 
@@ -431,6 +432,51 @@ class OrderWriteSerializerTestCase(SerializerTestCase):
         })
         self.assertEqual(OrderItem.objects.filter(order_id=order.id).count(), len(self._test_data['items']))
         self.assertEqual(self.__shopper.point, original_point - self._test_data['used_point'])
+
+
+class OrderItemStatisticsListSerializerTestCase(ListSerializerTestCase):
+    _child_serializer_class = OrderItemStatisticsSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        status = [StatusFactory(id=status_id) for status_id in NORMAL_STATUS]
+        cls.__test_data = [{
+            'status__name': s.name,
+            'count': 1,
+        } for s in status]
+
+    def __assert_serialization(self, expected_data):
+        self.assertListEqual(self._get_serializer(self.__test_data).data, expected_data)
+
+    def test_model_instance_serialization(self):
+        self.__assert_serialization([self._child_serializer_class(data).data for data in self.__test_data])
+
+    def test_to_representation(self):
+        for i in range(len(self.__test_data)):
+            if i % 2 == 1:
+                self.__test_data[i]['count'] = 0
+        expected_data = [self._child_serializer_class(data).data for data in self.__test_data]
+        for i in range(len(self.__test_data) - 1, -1, -1):
+            if self.__test_data[i]['count'] == 0:
+                del self.__test_data[i]
+
+        self.__assert_serialization(expected_data)
+
+
+class OrderItemStatisticsSerializerTestCase(SerializerTestCase):
+    _serializer_class = OrderItemStatisticsSerializer
+
+    def setUp(self):
+        self.__test_data = {
+            'status__name': 'test_status',
+            'count': 10,
+        }
+
+    def test_model_instance_serialization(self):
+        self._test_model_instance_serialization(self.__test_data, {
+            'status': self.__test_data['status__name'],
+            'count': self.__test_data['count'],
+        })
 
 
 class RefundSerializerTestCase(SerializerTestCase):

@@ -7,9 +7,12 @@ from .test_serializers import (
     get_shipping_address_test_data, get_order_test_data, get_order_confirm_result,
     get_delivery_test_data, get_delivery_result,
 )
-from ..models import PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, OrderItem
+from ..models import (
+    PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, NORMAL_STATUS, 
+    OrderItem,
+)
 from ..serializers import (
-    ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
+    ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, OrderItemStatisticsSerializer,
     StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer,
 )
 
@@ -102,22 +105,39 @@ class OrderItemViewSetTestCase(ViewTestCase):
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls.__order_item = OrderItem.objects.select_related('option__product_color').get(
-            id=OrderItemFactory(order__shopper=cls._user, status=StatusFactory(id=PAYMENT_COMPLETION_STATUS)).id)
-        cls._url += f'/{cls.__order_item.id}'
+
+        for status_id in NORMAL_STATUS:
+            status = StatusFactory(id=status_id)
+            if status_id == PAYMENT_COMPLETION_STATUS:
+                payment_completion_status_instance = status
+
+        cls.__order_item = OrderItem.objects.select_related('status', 'option__product_color').get(
+            id=OrderItemFactory(order__shopper=cls._user, status=payment_completion_status_instance).id)
 
     def setUp(self):
         self._set_authentication()
 
     def test_partial_update_with_non_patchable_field(self):
+        self._url += f'/{self.__order_item.id}'
         self._patch({'sale_price': 1000})
 
         self._assert_failure_for_non_patchable_field()
 
     def test_partial_update(self):
+        self._url += f'/{self.__order_item.id}'
         self._patch({'option': OptionFactory(product_color=self.__order_item.option.product_color).id})
 
         self._assert_success_and_serializer_class(OrderItemWriteSerializer)
+
+    def test_get_statistics(self):
+        self._url += '/statistics'
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, OrderItemStatisticsSerializer([{
+            'status__name': self.__order_item.status.name,
+            'count': 1,
+        }], many=True).data)
 
 
 class ClaimViewSetTestCase(ViewTestCase):
