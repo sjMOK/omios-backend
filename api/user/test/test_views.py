@@ -525,9 +525,14 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
         cls.__default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
         ShopperShippingAddressFactory.create_batch(size=2, shopper=cls._user)
 
-    def test_list(self):
+    def __get_queryset(self):
         order_condition = [Case(When(is_default=True, then=1), default=2), '-id']
         queryset = self._user.addresses.all().order_by(*order_condition)
+
+        return queryset
+
+    def test_list(self):
+        queryset = self.__get_queryset()
         serializer = ShopperShippingAddressSerializer(queryset, many=True)
 
         self._set_authentication()
@@ -602,8 +607,10 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
         self._set_authentication()
         self._url += '/default'
         self._get()
+
+        queryset = self.__get_queryset()
         serializer = ShopperShippingAddressSerializer(
-            ShopperShippingAddress.objects.last()
+            queryset.first()
         )
 
         self._assert_success()

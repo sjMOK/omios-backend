@@ -294,9 +294,9 @@ class ShopperShippingAddressViewSet(GenericViewSet):
             try:
                 shipping_address = queryset.get(is_default=True)
             except ShopperShippingAddress.MultipleObjectsReturned:
-                shipping_address = queryset.filter(is_default=True).last()
+                shipping_address = queryset.filter(is_default=True).first()
         else:
-            shipping_address = queryset.last()
+            shipping_address = queryset.first()
 
         serializer = self.get_serializer(shipping_address)
 
