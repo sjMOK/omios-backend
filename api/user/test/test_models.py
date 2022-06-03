@@ -43,7 +43,7 @@ class CheckUserTypeTestCase(TestCase):
         self.assertTrue(not is_shopper(self.anonymous_user))
 
     def test_anonymous_user_is_not_wholesaler(self):
-        self.assertTrue(not is_shopper(self.anonymous_user))
+        self.assertTrue(not is_wholesaler(self.anonymous_user))
 
 
 class MembershipTestCase(ModelTestCase):
