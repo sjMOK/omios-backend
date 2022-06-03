@@ -1,5 +1,5 @@
 from django.forms import model_to_dict
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Case, When
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
@@ -366,13 +366,13 @@ class IsUniqueTestCase(ViewTestCase):
 
 
 class ProductLikeViewTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/like/{1}'
+    _url = '/users/shoppers/like/products/{}'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
         cls.__product = ProductFactory()
-        cls._url = cls._url.format(cls._user.id, cls.__product.id)
+        cls._url = cls._url.format(cls.__product.id)
         cls._test_data = {'product_id': cls.__product.id}
 
     def test_post(self):
@@ -407,13 +407,11 @@ class ProductLikeViewTestCase(ViewTestCase):
 
 
 class CartViewSetTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/carts'
+    _url = '/users/shoppers/carts'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
-        
         cls.__product_color = ProductColorFactory()
         cls.__carts = CartFactory.create_batch(2, option__product_color=cls.__product_color)
         cls._user.carts.add(*cls.__carts)
@@ -519,19 +517,21 @@ class CartViewSetTestCase(ViewTestCase):
 
 
 class ShopperShippingAddressViewSetTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/addresses'
+    _url = '/users/shoppers/addresses'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
         cls.__default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
         ShopperShippingAddressFactory.create_batch(size=2, shopper=cls._user)
 
     def test_list(self):
+        order_condition = [Case(When(is_default=True, then=1), default=2), '-id']
+        queryset = self._user.addresses.all().order_by(*order_condition)
+        serializer = ShopperShippingAddressSerializer(queryset, many=True)
+
         self._set_authentication()
         self._get()
-        serializer = ShopperShippingAddressSerializer(self._user.addresses.all(), many=True)
 
         self._assert_success()
         self.assertListEqual(self._response_data, serializer.data)

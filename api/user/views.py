@@ -1,7 +1,7 @@
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
-from django.db import connection
-from django.db.models import Sum, F
+from django.db import connection, transaction
+from django.db.models import Sum, F, Case, When
 
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
@@ -152,21 +152,25 @@ class WholesalerView(UserView):
 
 
 class ProductLikeView(APIView):
+    permission_classes = [IsAuthenticatedShopper]
+
     def get_queryset(self):
         return ProductLike.objects.all()
 
-    def post(self, request, user_id, product_id):
-        shopper = get_object_or_404(Shopper, id=user_id)
+    @transaction.atomic
+    def post(self, request, product_id):
+        shopper = request.user.shopper
         product = get_object_or_404(Product, id=product_id)
 
         if self.get_queryset().filter(shopper=shopper, product=product).exists():
             return get_response(status=HTTP_400_BAD_REQUEST, message='Duplicated user and product')
 
         ProductLike.objects.create(shopper=shopper, product=product)
-        return get_response(status=HTTP_201_CREATED, data={'shopper_id': user_id, 'product_id': product.id})
+        return get_response(status=HTTP_201_CREATED, data={'shopper_id': shopper.user_id, 'product_id': product.id})
 
-    def delete(self, request, user_id, product_id):
-        shopper = get_object_or_404(Shopper, id=user_id)
+    @transaction.atomic
+    def delete(self, request, product_id):
+        shopper = request.user.shopper
         product = get_object_or_404(Product, id=product_id)
 
         if not self.get_queryset().filter(shopper=shopper, product=product).exists():
@@ -175,7 +179,7 @@ class ProductLikeView(APIView):
         product_like = ProductLike.objects.get(shopper=shopper, product=product)
         product_like.delete()
 
-        return get_response(data={'shopper_id': user_id, 'product_id': product_id})
+        return get_response(data={'shopper_id': shopper.user_id, 'product_id': product_id})
 
 
 class CartViewSet(GenericViewSet):
@@ -196,7 +200,7 @@ class CartViewSet(GenericViewSet):
 
         return queryset
 
-    def list(self, request, user_id):
+    def list(self, request):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         aggregate_data = queryset.aggregate(
@@ -209,14 +213,14 @@ class CartViewSet(GenericViewSet):
 
         return get_response(data=response_data)
 
-    def create(self, request, user_id):
+    def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
         serializer.is_valid(raise_exception=True)
         cart = serializer.save()
 
         return get_response(status=HTTP_201_CREATED, data={'id': cart.id})
 
-    def partial_update(self, request, user_id, cart_id):
+    def partial_update(self, request, cart_id):
         if set(request.data).difference(self.__patchable_fields):
             return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
 
@@ -227,8 +231,7 @@ class CartViewSet(GenericViewSet):
 
         return get_response(data={'id': cart.id})
 
-    @action(methods=['POST'], detail=False)
-    def remove(self, request, user_id):
+    def remove(self, request):
         delete_id_list = request.data.get('id', None)
         if delete_id_list is None:
             return get_response(status=HTTP_400_BAD_REQUEST, message='list of id is required.')
@@ -251,21 +254,22 @@ class ShopperShippingAddressViewSet(GenericViewSet):
     lookup_value_regex = r'[0-9]+'
 
     def get_queryset(self):
-        return self.request.user.shopper.addresses.all()
+        order_condition = [Case(When(is_default=True, then=1), default=2), '-id']
+        return self.request.user.shopper.addresses.all().order_by(*order_condition)
 
-    def list(self, request, user_id):
+    def list(self, request):
         serializer = self.get_serializer(instance=self.get_queryset(), many=True)
 
         return get_response(data=serializer.data)
 
-    def create(self, request, user_id):
+    def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'id': shipping_address.id})
 
-    def partial_update(self, request, user_id, shipping_address_id):
+    def partial_update(self, request, shipping_address_id):
         shipping_address = self.get_object()
         serializer = self.get_serializer(
             shipping_address, request.data, partial=True
@@ -275,14 +279,13 @@ class ShopperShippingAddressViewSet(GenericViewSet):
 
         return get_response(data={'id': shipping_address.id})
 
-    def destroy(self, request, user_id, shipping_address_id):
+    def destroy(self, request, shipping_address_id):
         shipping_address = self.get_object()
         shipping_address.delete()
 
         return get_response(data={'id': int(shipping_address_id)})
 
-    @action(methods=['GET'], detail=False, url_path='default')
-    def get_default_address(self, request, user_id):
+    def get_default_address(self, request):
         queryset = self.get_queryset()
 
         if not queryset.exists():

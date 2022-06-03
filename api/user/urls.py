@@ -24,8 +24,8 @@ token_urlpatterns = [
 
 shopper_url_patterns = [
     path('', decorated_shopper_view),
-    path('/<int:user_id>', include(router.urls)),
-    path('/<int:user_id>/like/<int:product_id>', decorated_product_like_view),
+    path('', include(router.urls)),
+    path('/like/products/<int:product_id>', decorated_product_like_view),
     path('/<int:user_id>/point-histories', decorated_shopper_point_history_view)
 ]
 
