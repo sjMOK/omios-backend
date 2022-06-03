@@ -26,7 +26,7 @@ shopper_url_patterns = [
     path('', decorated_shopper_view),
     path('', include(router.urls)),
     path('/like/products/<int:product_id>', decorated_product_like_view),
-    path('/<int:user_id>/point-histories', decorated_shopper_point_history_view)
+    path('/point-histories', decorated_shopper_point_history_view)
 ]
 
 wholesaler_url_patterns = [

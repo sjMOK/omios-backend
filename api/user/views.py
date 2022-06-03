@@ -304,7 +304,7 @@ class ShopperShippingAddressViewSet(GenericViewSet):
 
 
 @api_view(['GET'])
-def get_point_histories(request, user_id):
-    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper_id=user_id), many=True)
+def get_point_histories(request):
+    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper=request.user.shopper), many=True)
 
     return get_response(data=serializer.data)

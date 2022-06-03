@@ -635,12 +635,11 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
 
 
 class GetPointHistoriesTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/point-histories'
+    _url = '/users/shoppers/point-histories'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
 
     def test_success(self):
         self._set_authentication()
