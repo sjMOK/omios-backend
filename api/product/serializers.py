@@ -269,11 +269,11 @@ class ProductImageSerializer(ModelSerializer):
             raise ValidationError('Image url data cannot be updated.')
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
 
-        ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
+        result['image_url'] = BASE_IMAGE_URL + result['image_url']
 
-        return ret
+        return result
 
 
 class ProductMaterialListSerializer(ListSerializer):
@@ -445,14 +445,14 @@ class OptionInOrderItemSerializer(Serializer):
     product_code = CharField(read_only=True, source='product_color.product.code')
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
 
         if instance.product_color.product.images.all().exists():
-            ret['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
+            result['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
         else:
-            ret['product_image_url'] = DEFAULT_IMAGE_URL
+            result['product_image_url'] = DEFAULT_IMAGE_URL
 
-        return ret
+        return result
 
 
 class ProductColorListSerializer(ListSerializer):
@@ -618,11 +618,11 @@ class ProductColorSerializer(ModelSerializer):
             raise ValidationError('The product color must have at least one option.')
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
         
-        ret['image_url'] = BASE_IMAGE_URL + ret['image_url']
+        result['image_url'] = BASE_IMAGE_URL + result['image_url']
 
-        return ret
+        return result
 
 
 
@@ -654,10 +654,10 @@ class ProductSerializer(DynamicFieldsSerializer):
         return ret_dict
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret = self.__sort_dictionary_by_field_name(ret)
+        result = super().to_representation(instance)
+        result = self.__sort_dictionary_by_field_name(result)
 
-        return ret
+        return result
 
 
 class ProductReadSerializer(ProductSerializer):
@@ -677,33 +677,33 @@ class ProductReadSerializer(ProductSerializer):
     total_like = IntegerField(read_only=True)
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
 
         if self.context['detail']:
-            return self.__to_representation_retrieve(ret, instance)
+            return self.__to_representation_retrieve(result, instance)
         else:
-            return self.__to_representation_list(ret, instance)
+            return self.__to_representation_list(result, instance)
 
-    def __to_representation_list(self, ret, instance):
+    def __to_representation_list(self, result, instance):
         if instance.related_images:
-            ret['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
+            result['main_image'] = BASE_IMAGE_URL + instance.related_images[0].image_url
         else:
-            ret['main_image'] = DEFAULT_IMAGE_URL
+            result['main_image'] = DEFAULT_IMAGE_URL
 
-        if ret['id'] in self.context.get('shoppers_like_products_id_list', []):
-            ret['shopper_like'] = True
+        if result['id'] in self.context.get('shoppers_like_products_id_list', []):
+            result['shopper_like'] = True
         else:
-            ret['shopper_like'] = False
+            result['shopper_like'] = False
 
-        return ret
+        return result
 
-    def __to_representation_retrieve(self, ret, instance):
+    def __to_representation_retrieve(self, result, instance):
         if not instance.related_images:
-            ret['images'] = [DEFAULT_IMAGE_URL]
+            result['images'] = [DEFAULT_IMAGE_URL]
 
-        ret['shopper_like'] = self.context.get('shopper_like', False)
+        result['shopper_like'] = self.context.get('shopper_like', False)
 
-        return ret
+        return result
 
 
 class ProductWriteSerializer(ProductSerializer):
@@ -854,8 +854,8 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
         return username[:3] + '***'
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret['classification'] = instance.classification.name
-        ret['username'] = self.__get_username(instance.shopper.username)
+        result = super().to_representation(instance)
+        result['classification'] = instance.classification.name
+        result['username'] = self.__get_username(instance.shopper.username)
 
-        return ret
+        return result

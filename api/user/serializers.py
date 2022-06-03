@@ -169,15 +169,15 @@ class CartSerializer(ModelSerializer):
         list_serializer_class = CartListSerializer
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
 
-        ret['base_discounted_price'] *= ret['count'] 
+        result['base_discounted_price'] *= result['count'] 
         if instance.option.product_color.product.images.all().exists():
-            ret['image'] = BASE_IMAGE_URL + instance.option.product_color.product.images.all()[0].image_url
+            result['image'] = BASE_IMAGE_URL + instance.option.product_color.product.images.all()[0].image_url
         else:
-            ret['image'] = DEFAULT_IMAGE_URL
+            result['image'] = DEFAULT_IMAGE_URL
 
-        return ret
+        return result
 
     def validate(self, attrs):
         if self.instance is None:
