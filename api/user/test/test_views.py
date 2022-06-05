@@ -433,19 +433,17 @@ class CartViewSetTestCase(ViewTestCase):
         self.assertEqual(self._response_data['total_base_discounted_price'], aggregate_data['total_base_discounted_price'])
 
     def test_create(self):
-        self._test_data = {
+        self._test_data = [{
             'option': OptionFactory(product_color=self.__product_color).id,
             'count': 1,
-        }
-        self._post()
+        },
+        {
+            'option': OptionFactory(product_color=self.__product_color).id,
+            'count': 1,
+        }]
+        self._post(format='json')
 
-        self._assert_success_with_id_response()
-
-        cart = Cart.objects.get(id=self._response_data['id'])
-        self.assertDictEqual(
-            model_to_dict(cart, fields=self._test_data.keys()),
-            self._test_data,
-        )
+        self._assert_success_and_serializer_class(CartSerializer, False)
 
     def test_partial_update(self):
         updating_cart = self.__carts[0]

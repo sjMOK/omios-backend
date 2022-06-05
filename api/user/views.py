@@ -214,11 +214,11 @@ class CartViewSet(GenericViewSet):
         return get_response(data=response_data)
 
     def create(self, request):
-        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper}, many=True)
         serializer.is_valid(raise_exception=True)
-        cart = serializer.save()
+        serializer.save()
 
-        return get_response(status=HTTP_201_CREATED, data={'id': cart.id})
+        return get_response(status=HTTP_201_CREATED, data={'option_id': [data['option'] for data in request.data]})
 
     def partial_update(self, request, cart_id):
         if set(request.data).difference(self.__patchable_fields):

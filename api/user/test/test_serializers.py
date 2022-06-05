@@ -213,61 +213,24 @@ class CartSerializerTestCase(SerializerTestCase):
             'base_discounted_price': cart.option.product_color.product.base_discounted_price * cart.count,
         })
 
-    def test_validate_count_of_carts(self):   
-        product_color = ProductColorFactory(product=self.__product)
-        for _ in range(ORDER_MAXIMUM_NUMBER):
-            CartFactory(shopper=self.__shopper, option=OptionFactory(product_color=product_color))
-        data = {
-            'option': OptionFactory(product_color=product_color).id,
-            'count': 1,
-        }
-
-        self._test_serializer_raise_validation_error(
-            'exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER),
-            data=data, context={'shopper': self.__shopper}
-        )
-
-    def test_create(self):
-        data = {
-            'option': OptionFactory(product_color=self.__product_color).id,
-            'count': 1,
-        }
-        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
-        cart = serializer.save()
-
-        self.assertEqual(cart.option.id, data['option']),
-        self.assertEqual(cart.shopper, self.__shopper)
-        self.assertEqual(cart.count, data['count'])
-
-    def test_create_option_already_exists(self):
-        data = {
-            'option': self.__cart.option.id,
-            'count': 1
-        }
-        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
-        cart = serializer.save()
-
-        self.assertEqual(cart, self.__cart)
-        self.assertEqual(cart.count, self.__cart.count + data['count'])
-
 
 class CartListSerializerTestCase(ListSerializerTestCase):
-    maxDiff = None
     _child_serializer_class = CartSerializer
 
-    def setUp(self):
-        self.__shopper = ShopperFactory()
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = ShopperFactory()
 
-        self.__product_1 = ProductFactory()
-        product_color_1 = ProductColorFactory(product=self.__product_1)
-        ProductImageFactory(product=self.__product_1)
+        cls.__product_1 = ProductFactory()
+        cls.__product_color_1 = ProductColorFactory(product=cls.__product_1)
+        ProductImageFactory(product=cls.__product_1)
 
-        self.__product_2 = ProductFactory(product=self.__product_1)
-        product_color_2 = ProductColorFactory(product=self.__product_2)
-        ProductImageFactory(product=self.__product_2)
+        cls.__product_2 = ProductFactory(product=cls.__product_1)
+        cls.__product_color_2 = ProductColorFactory(product=cls.__product_2)
+        ProductImageFactory(product=cls.__product_2)
 
-        CartFactory.create_batch(2, option__product_color=product_color_1, shopper=self.__shopper)
-        CartFactory.create_batch(2, option__product_color=product_color_2, shopper=self.__shopper)
+        CartFactory.create_batch(2, option__product_color=cls.__product_color_1, shopper=cls.__shopper)
+        CartFactory.create_batch(2, option__product_color=cls.__product_color_2, shopper=cls.__shopper)
 
     def test_to_representation(self):
         serializer = self._get_serializer(self.__shopper.carts.all())
@@ -292,6 +255,41 @@ class CartListSerializerTestCase(ListSerializerTestCase):
         ]
 
         self.assertListEqual(expected_data, serializer.data)
+
+    def test_validate_count_of_carts(self):
+        product_color = ProductColorFactory(product=self.__product_1)
+        data = [{'option': OptionFactory(product_color=product_color).id, 'count': 1} for _ in range(ORDER_MAXIMUM_NUMBER)]
+
+        self._test_serializer_raise_validation_error(
+            'exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER),
+            data=data, context={'shopper': self.__shopper}
+        )
+
+    def test_create(self):
+        data = [{
+            'option': OptionFactory(product_color=self.__product_color_1).id,
+            'count': 1,
+        }]
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        serializer.save()
+        cart = self.__shopper.carts.get(option_id=data[0]['option'])
+
+        self.assertEqual(cart.option.id, data[0]['option']),
+        self.assertEqual(cart.shopper, self.__shopper)
+        self.assertEqual(cart.count, data[0]['count'])
+
+    def test_create_option_already_exists(self):
+        cart = self.__shopper.carts.first()
+        data = [{
+            'option': cart.option.id,
+            'count': 1
+        }]
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        serializer.save()
+        updated_cart = self.__shopper.carts.get(option_id=data[0]['option'])
+
+        self.assertEqual(updated_cart, cart)
+        self.assertEqual(updated_cart.count, cart.count + data[0]['count'])
 
 
 class BuildingSerializerTestCase(SerializerTestCase):

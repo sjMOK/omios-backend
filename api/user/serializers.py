@@ -152,6 +152,37 @@ class CartListSerializer(ListSerializer):
 
         return results
 
+    def validate(self, attrs):
+        if self.instance is None:
+            shopper = self.context['shopper']
+            options = [attr['option'] for attr in attrs]
+            if shopper.carts.exclude(option__in=options).count() + len(attrs) > ORDER_MAXIMUM_NUMBER:
+                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
+        
+        return attrs
+
+    def create(self, validated_data):
+        shopper = self.context['shopper']
+
+        input_data = {}
+        for data in validated_data:
+            input_data[data['option'].id] = data
+            input_data[data['option'].id].pop('option')
+
+        existing_option_id = list(shopper.carts.all().values_list('option__id', flat=True))
+        input_option_id = input_data.keys()
+        
+        create_option_id = set(input_option_id) - set(existing_option_id)
+        update_option_id = set(input_option_id) - set(create_option_id)
+
+        for option_id in update_option_id:
+            cart = shopper.carts.get(option_id=option_id)
+            cart.count += input_data[option_id]['count']
+            cart.save()
+
+        carts = [self.child.Meta.model(shopper=shopper, option_id=option_id, **input_data[option_id]) for option_id in create_option_id]
+        return self.child.Meta.model.objects.bulk_create(carts)
+
 
 class CartSerializer(ModelSerializer):
     product_name = CharField(read_only=True, source='option.product_color.product.name')
@@ -178,28 +209,6 @@ class CartSerializer(ModelSerializer):
             result['image'] = DEFAULT_IMAGE_URL
 
         return result
-
-    def validate(self, attrs):
-        if self.instance is None:
-            shopper = self.context['shopper']
-            option = attrs['option']
-            if shopper.carts.exclude(option=option).count() >= ORDER_MAXIMUM_NUMBER:
-                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
-
-        return attrs
-
-    def create(self, validated_data):
-        shopper = self.context['shopper']
-        option = validated_data['option']
-
-        if shopper.carts.filter(option=option).exists():
-            cart = shopper.carts.get(option=option)
-            cart.count += validated_data['count']    
-            cart.save()
-        else:
-            cart = self.Meta.model.objects.create(shopper=shopper, **validated_data)
-
-        return cart
 
 
 class BuildingSerializer(ModelSerializer):
