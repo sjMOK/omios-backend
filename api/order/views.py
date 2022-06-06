@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.db.models.query import Prefetch
 from django.db.transaction import atomic
 
@@ -11,9 +11,12 @@ from rest_framework.permissions import AllowAny
 from common.utils import get_response
 from user.models import Shopper
 from product.models import ProductImage
-from .models import Order, OrderItem, StatusHistory
+from .models import (
+    PAYMENT_COMPLETION_STATUS, NORMAL_STATUS,
+    Order, OrderItem, Status, StatusHistory
+)
 from .serializers import (
-    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, ShippingAddressSerializer, 
+    OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, OrderItemStatisticsSerializer, ShippingAddressSerializer, 
     CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
 )
 from .permissions import OrderPermission, OrderItemPermission
@@ -69,7 +72,7 @@ class OrderViewSet(GenericViewSet):
         # todo
         # 결제 로직 + 결제 관련 상태 (입금 대기 or 결제 완료)
 
-        order = serializer.save(status_id=101)
+        order = serializer.save(status_id=PAYMENT_COMPLETION_STATUS)
 
         return get_response(status=HTTP_201_CREATED, data={'id': order.id})
     
@@ -107,13 +110,25 @@ class OrderViewSet(GenericViewSet):
 class OrderItemViewSet(GenericViewSet):
     pagination_class = None
     permission_classes = [OrderItemPermission]
-    serializer_class = OrderItemWriteSerializer
     lookup_field = 'id'
     lookup_url_kwarg = 'item_id'
     __patchable_fields = set(['option'])
  
+    def get_serializer_class(self):
+        if self.action == 'get_statistics':
+            return OrderItemStatisticsSerializer
+
+        return OrderItemWriteSerializer
+
     def get_queryset(self):
-        return OrderItem.objects.select_related('order', 'option__product_color')
+        queryset = OrderItem.objects
+        if self.action == 'partial_update':
+            queryset = queryset.select_related('order', 'option__product_color')
+        elif self.action == 'get_statistics':
+            queryset = queryset.filter(order__shopper_id=self.request.user.id, status__in=NORMAL_STATUS) \
+                .values('status', 'status__name').annotate(count=Count('*')).order_by('status')
+
+        return queryset        
 
     def partial_update(self, request, item_id):
         if set(request.data).difference(self.__patchable_fields):
@@ -124,6 +139,10 @@ class OrderItemViewSet(GenericViewSet):
         serializer.save()
 
         return get_response(data={'id': int(item_id)})
+
+    @action(['get'], False, 'statistics')
+    def get_statistics(self, request):
+        return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)
 
 
 class ClaimViewSet(GenericViewSet):

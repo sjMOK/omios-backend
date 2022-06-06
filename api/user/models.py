@@ -125,6 +125,9 @@ class Shopper(User):
         super().delete()
 
     def update_point(self, point, content, order_id=None, order_items=[None]):
+        if point == 0:
+            return
+
         self.point += point
         self.save(update_fields=['point'])
 
@@ -252,4 +255,4 @@ class PointHistory(Model):
 
     class Meta:
         db_table = 'point_history'
-        ordering = ['id']
+        ordering = ['-id']

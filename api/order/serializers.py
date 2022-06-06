@@ -1,5 +1,6 @@
 import random
 import string
+from dateutil.relativedelta import relativedelta
 
 from django.utils import timezone
 from django.db.models import Q
@@ -7,7 +8,7 @@ from django.db.models import Q
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer,
     PrimaryKeyRelatedField, StringRelatedField,
-    IntegerField, ListField
+    IntegerField, ListField, CharField,
 )
 from rest_framework.exceptions import ValidationError
 
@@ -20,7 +21,8 @@ from common.utils import DATETIME_WITHOUT_MILISECONDS_FORMAT
 from product.models import Option
 from product.serializers import OptionInOrderItemSerializer
 from .models import (
-    Order, OrderItem, ShippingAddress, Refund, CancellationInformation, StatusHistory,
+    PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, BEFORE_DELIVERY_STATUS, NORMAL_STATUS,
+    Order, OrderItem, Status, ShippingAddress, Refund, CancellationInformation, StatusHistory,
     ExchangeInformation, Delivery
 )
 from .validators import validate_order_items
@@ -43,7 +45,7 @@ class ShippingAddressSerializer(ModelSerializer):
     # todo test code 작성
     def __validate_status(self):
         for order_item in self.context['order'].items.all():
-            if order_item.status_id not in [100, 101]:
+            if order_item.status_id not in BEFORE_DELIVERY_STATUS:
                 raise ValidationError('The shipping address for this order cannot be changed.')
 
     def create(self, validated_data):
@@ -129,7 +131,7 @@ class OrderItemWriteSerializer(OrderItemSerializer):
         if self.instance is None:
             return value
 
-        if self.instance.status_id not in [100, 101]:
+        if self.instance.status_id not in BEFORE_DELIVERY_STATUS:
             raise ValidationError('This order is in a state where options cannot be changed.')
         elif self.instance.option.product_color.product_id != value.product_color.product_id:
             raise ValidationError('It cannot be changed to an option for another product.')
@@ -256,9 +258,26 @@ class OrderWriteSerializer(OrderSerializer):
     def update_shipping_address(self, instance, shipping_address_id):
         pass
 
-    
-class OrderConfirmation(Serializer):
-    pass
+
+class OrderItemStatisticsListSerializer(ListSerializer):
+    def to_representation(self, data):
+        result = super().to_representation(data)
+
+        if len(result) < 6:
+            status_names = Status.objects.filter(id__in=NORMAL_STATUS).order_by('id').values_list('name', flat=True)
+            for i in range(len(status_names)):
+                if i == len(result) or result[i]['status'] != status_names[i]:
+                    result.insert(i, self.child.to_representation({'status__name': status_names[i], 'count': 0}))
+        
+        return result
+            
+
+class OrderItemStatisticsSerializer(Serializer):
+    class Meta:
+        list_serializer_class = OrderItemStatisticsListSerializer
+
+    status = CharField(read_only=True, source='status__name')
+    count = IntegerField(read_only=True)
 
 
 class RefundSerializer(ModelSerializer):
@@ -380,15 +399,15 @@ class OrderConfirmSerializer(Serializer):
         requested_order_items_id = requested_order_items.values_list('id', flat=True)
 
         self.__nonexistence = sorted(set(value).difference(requested_order_items_id))
-        self.__not_requestable_status = list(requested_order_items_id.exclude(status_id=101))
+        self.__not_requestable_status = list(requested_order_items_id.exclude(status_id=PAYMENT_COMPLETION_STATUS))
 
-        return requested_order_items.filter(status_id=101)
+        return requested_order_items.filter(status_id=PAYMENT_COMPLETION_STATUS)
 
     def create(self, validated_data):
         order_items = validated_data['order_items']
 
         success = list(order_items.values_list('id', flat=True))
-        OrderItemWriteSerializer(many=True).update_status(order_items, 200)
+        OrderItemWriteSerializer(many=True).update_status(order_items, DELIVERY_PREPARING_STATUS)
 
         return {
             'success': success,
@@ -443,7 +462,7 @@ class DeliveryListSerializer(ListSerializer):
                 order_items.append(order_item)
 
         OrderItem.objects.bulk_update(order_items, ['delivery'])
-        OrderItemWriteSerializer(many=True).update_status(order_items, 201)
+        OrderItemWriteSerializer(many=True).update_status(order_items, DELIVERY_PROGRESSING_STATUS)
 
         return {
             'success': [data['order'] for data in validated_data],
@@ -474,7 +493,7 @@ class DeliverySerializer(ModelSerializer):
             raise ValidationError(f'order_item of order {order} is duplicated.')
 
         requested_order_items = OrderItem.objects.select_for_update() \
-            .filter(id__in=order_items, order_id=order, status_id=200, delivery_id=None)
+            .filter(id__in=order_items, order_id=order, status_id=DELIVERY_PREPARING_STATUS, delivery_id=None)
         
         if len(requested_order_items) != len(order_items):
             attrs['order_items'] = None

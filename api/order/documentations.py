@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny
 from common.documentations import get_response, get_ids_response
 from product.serializers import OptionInOrderItemSerializer
 from .serializers import (
-    OrderSerializer, OrderWriteSerializer, OrderItemSerializer, StatusHistorySerializer,
-    CancellationInformationSerializer, DeliverySerializer,
+    OrderSerializer, OrderWriteSerializer, OrderItemSerializer, OrderItemStatisticsSerializer,
+    StatusHistorySerializer, CancellationInformationSerializer, DeliverySerializer,
 )
 from .views import OrderViewSet, OrderItemViewSet, ClaimViewSet, StatusHistoryAPIView
 
@@ -91,6 +91,10 @@ class DecoratedOrderItemViewSet(OrderItemViewSet):
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
+    @swagger_auto_schema(**get_response(OrderItemStatisticsSerializer(many=True)), operation_description='상태별 주문 개수 조회 (정상인 6개 상태)')
+    @action(['get'], False, 'statistics')
+    def get_statistics(self, *args, **kwargs):
+        return super().get_statistics(*args, **kwargs)
 
 class DecoratedClaimViewset(ClaimViewSet):
     cancel_discription = '''

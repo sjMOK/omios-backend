@@ -22,10 +22,14 @@ from .factories import (
     create_orders_with_items, ShippingAddressFactory, OrderFactory, OrderItemFactory, 
     StatusFactory, StatusHistoryFactory, DeliveryFactory,
 )
-from ..models import OrderItem, ShippingAddress, StatusHistory, Delivery
+from ..models import (
+    PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, NORMAL_STATUS,
+    OrderItem, ShippingAddress, StatusHistory, Delivery
+)
 from ..serializers import (
     ShippingAddressSerializer, OrderItemSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
-    RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
+    OrderItemStatisticsSerializer, RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, 
+    OrderConfirmSerializer, DeliverySerializer,
 )
 
 
@@ -257,7 +261,7 @@ class OrderItemWriteSerializerTestCase(SerializerTestCase):
     def setUpTestData(cls):
         cls.__shopper = ShopperFactory()
         cls.__option = OptionFactory()
-        cls.__order_item = OrderItemFactory(order=OrderFactory(shopper=cls.__shopper), option=cls.__option, status=StatusFactory(id=101))
+        cls.__order_item = OrderItemFactory(order=OrderFactory(shopper=cls.__shopper), option=cls.__option, status=StatusFactory(id=PAYMENT_COMPLETION_STATUS))
 
         cls._test_data = get_order_item_test_data(cls.__option, cls.__shopper)
 
@@ -281,7 +285,7 @@ class OrderItemWriteSerializerTestCase(SerializerTestCase):
         self.__test_validate_price('payment_price', f'payment_price of option {self.__option.id} is different from the actual price.')
 
     def test_validate_option_for_status(self):
-        self.__order_item.status = StatusFactory(id=102)
+        self.__order_item.status = StatusFactory(id=1000)
 
         self._test_serializer_raise_validation_error('This order is in a state where options cannot be changed.', self.__order_item)
 
@@ -430,6 +434,51 @@ class OrderWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(self.__shopper.point, original_point - self._test_data['used_point'])
 
 
+class OrderItemStatisticsListSerializerTestCase(ListSerializerTestCase):
+    _child_serializer_class = OrderItemStatisticsSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        status = [StatusFactory(id=status_id) for status_id in NORMAL_STATUS]
+        cls.__test_data = [{
+            'status__name': s.name,
+            'count': 1,
+        } for s in status]
+
+    def __assert_serialization(self, expected_data):
+        self.assertListEqual(self._get_serializer(self.__test_data).data, expected_data)
+
+    def test_model_instance_serialization(self):
+        self.__assert_serialization([self._child_serializer_class(data).data for data in self.__test_data])
+
+    def test_to_representation(self):
+        for i in range(len(self.__test_data)):
+            if i % 2 == 1:
+                self.__test_data[i]['count'] = 0
+        expected_data = [self._child_serializer_class(data).data for data in self.__test_data]
+        for i in range(len(self.__test_data) - 1, -1, -1):
+            if self.__test_data[i]['count'] == 0:
+                del self.__test_data[i]
+
+        self.__assert_serialization(expected_data)
+
+
+class OrderItemStatisticsSerializerTestCase(SerializerTestCase):
+    _serializer_class = OrderItemStatisticsSerializer
+
+    def setUp(self):
+        self.__test_data = {
+            'status__name': 'test_status',
+            'count': 10,
+        }
+
+    def test_model_instance_serialization(self):
+        self._test_model_instance_serialization(self.__test_data, {
+            'status': self.__test_data['status__name'],
+            'count': self.__test_data['count'],
+        })
+
+
 class RefundSerializerTestCase(SerializerTestCase):
     _serializer_class = RefundSerializer
 
@@ -468,7 +517,7 @@ class OrderConfirmSerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.__original_status = StatusFactory(id=101)
+        cls.__original_status = StatusFactory(id=PAYMENT_COMPLETION_STATUS)
         create_orders_with_items(
             order_size=2, 
             only_product_color=True, 
@@ -476,7 +525,7 @@ class OrderConfirmSerializerTestCase(SerializerTestCase):
             item_kwargs={'status': cls.__original_status}
         )
     
-        cls.__expected_result = get_order_confirm_result(OrderItem.objects.all(), StatusFactory(id=200).id)
+        cls.__expected_result = get_order_confirm_result(OrderItem.objects.all(), StatusFactory(id=DELIVERY_PREPARING_STATUS).id)
         cls._test_data = {'order_items': sum([data for data in list(cls.__expected_result.values())], [])}
 
     def test_duplicated_order_items(self):
@@ -506,8 +555,8 @@ class DeliveryListSerializerTestCase(ListSerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.__status = StatusFactory(id=200)
-        StatusFactory(id=201)
+        cls.__status = StatusFactory(id=DELIVERY_PREPARING_STATUS)
+        StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
         cls.__orders = create_orders_with_items(order_size=3, only_product_color=True, order_kwargs={'shopper': ShopperFactory()}, item_kwargs={'status': cls.__status})
         cls._test_data = [get_delivery_test_data(order) for order in cls.__orders]
         cls.__expected_result = get_delivery_result(cls._test_data)
@@ -559,7 +608,7 @@ class DeliverySerializerTestCase(SerializerTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.__status = StatusFactory(id=200)
+        cls.__status = StatusFactory(id=DELIVERY_PREPARING_STATUS)
         cls.__order = create_orders_with_items(only_product_color=True, item_kwargs={'status': cls.__status})[0]
         cls.__delivery = DeliveryFactory()
         cls._test_data = get_delivery_test_data(cls.__order)
@@ -567,7 +616,7 @@ class DeliverySerializerTestCase(SerializerTestCase):
     def __set_invalid_order_item(self, update_field):
         order_item = self.__order.items.all()[0]
         if update_field == 'status':
-            order_item.status = StatusFactory(id=100)
+            order_item.status = StatusFactory(id=1000)
         elif update_field == 'delivery':
             order_item.delivery = self.__delivery
         order_item.save(update_fields=[update_field])

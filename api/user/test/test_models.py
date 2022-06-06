@@ -188,6 +188,12 @@ class ShopperTestCase(ModelTestCase):
         self.assertEqual(self._shopper.point, point)
         self.assertTrue(PointHistory.objects.get(shopper=self._shopper, point=point, content=content))
 
+    def test_update_zero_point(self):
+        point = 0
+        self._shopper.update_point(0, 'test')
+
+        self.assertTrue(not PointHistory.objects.filter(shopper=self._shopper, point=point).exists())
+
     def test_update_point_including_order_items(self):
         order = OrderFactory(shopper=self._shopper)
         order_items = [
