@@ -116,6 +116,10 @@ class ProductCartResponse(Serializer):
     carts  =CartResponse(many=True)
 
 
+class CartCreateResponse(Serializer):
+    option_id = ListField(child=IntegerField())
+
+
 class CartListResponse(Serializer):
     results = ProductCartResponse(many=True)
     total_sale_price = IntegerField()
@@ -165,7 +169,7 @@ class DecoratedCartViewSet(CartViewSet):
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=CartCreateRequest, **get_response(code=201), operation_description='장바구니 항목 등록')
+    @swagger_auto_schema(request_body=CartCreateRequest(many=True), **get_response(CartCreateResponse()), operation_description='장바구니 항목 등록')
     @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
