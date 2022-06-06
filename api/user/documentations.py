@@ -169,7 +169,7 @@ class DecoratedCartViewSet(CartViewSet):
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=CartCreateRequest(many=True), **get_response(CartCreateResponse()), operation_description='장바구니 항목 등록')
+    @swagger_auto_schema(request_body=CartCreateRequest(many=True), **get_response(CartCreateResponse()), operation_description='장바구니 항목 등록\n최대 100개까지 등록 가능')
     @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
