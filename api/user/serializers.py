@@ -1,4 +1,7 @@
+from datetime import date, timedelta
+
 from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField,
@@ -9,15 +12,16 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, Toke
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
-from order.serializers import ORDER_MAXIMUM_NUMBER
 from common.utils import gmt_to_kst, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
 from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
+from order.serializers import ORDER_MAXIMUM_NUMBER
+from coupon.models import Coupon
 from .models import (
     is_shopper, is_wholesaler, OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper,
-    Wholesaler, PointHistory, Building, Cart,
+    Wholesaler, PointHistory, Building, Cart, ShopperCoupon
 )
 from .validators import PasswordSimilarityValidator
 
@@ -101,7 +105,7 @@ class ShopperSerializer(UserSerializer):
 
     class Meta:
         model = Shopper
-        exclude = ['like_products']
+        exclude = ['like_products', 'coupons']
         extra_kwargs = {            
             'height': {'min_value': 100, 'max_value': 250},
             'weight': {'min_value': 30, 'max_value': 200},
@@ -267,3 +271,27 @@ class PointHistorySerializer(ModelSerializer):
     class Meta:
         model = PointHistory
         exclude = ['shopper', 'order']
+
+
+class ShopperCouponSerializer(ModelSerializer):
+    class Meta:
+        model = ShopperCoupon
+        exclude = ['id', 'end_date', 'is_available', 'shopper']
+        extra_kwargs = {
+            'coupon': {
+                'queryset': Coupon.objects.filter(is_auto_issue=False).filter(Q(end_date__gte=date.today()) | Q(end_date__isnull=True)),
+            }
+        }
+
+    def create(self, validated_data):
+        coupon = validated_data['coupon']
+        shopper = validated_data['shopper']
+        if self.Meta.model.objects.filter(coupon=coupon, shopper=shopper).exists():
+            raise ValidationError('already exists.')
+
+        if coupon.end_date is not None:
+            validated_data['end_date'] = coupon.end_date
+        else:
+            validated_data['end_date'] = timedelta(days=coupon.available_period) + date.today()
+
+        return self.Meta.model.objects.create(**validated_data)

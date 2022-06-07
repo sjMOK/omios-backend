@@ -99,6 +99,7 @@ class Shopper(User):
     weight = IntegerField(null=True)
     point = IntegerField(default=0)
     like_products = ManyToManyField('product.Product', through='ProductLike')
+    coupons = ManyToManyField('coupon.Coupon', through='ShopperCoupon')
 
     class Meta:
         db_table = 'shopper'
@@ -256,3 +257,15 @@ class PointHistory(Model):
     class Meta:
         db_table = 'point_history'
         ordering = ['-id']
+
+
+class ShopperCoupon(Model):
+    id = AutoField(primary_key=True)
+    shopper = ForeignKey('Shopper', DO_NOTHING)
+    coupon = ForeignKey('coupon.Coupon', DO_NOTHING)
+    end_date = DateField()
+    is_available = IntegerField(default=True)
+
+    class Meta:
+        db_table = 'shopper_coupon'
+        unique_together = (('shopper', 'coupon'),)

@@ -5,6 +5,8 @@ from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
 from factory.fuzzy import FuzzyDecimal, FuzzyInteger
 
+from coupon.test.factories import CouponFactory
+
 
 def get_factory_password(user):
     return user.username + '_Password'
@@ -133,3 +135,13 @@ class PointHistoryFactory(DjangoModelFactory):
     content = 'test'
     order = SubFactory('order.test.factories.OrderFactory', shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
     product_name = 'test'
+
+
+class ShopperCouponFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.ShopperCoupon'
+
+    shopper = SubFactory(ShopperFactory)
+    coupon = SubFactory(CouponFactory)
+    end_date = LazyAttribute(lambda o: o.coupon.end_date)
+    is_available = Faker('pybool')

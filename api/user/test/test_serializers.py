@@ -1,20 +1,23 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
+
+from rest_framework.exceptions import ValidationError
 
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
+from coupon.test.factories import CouponFactory, CouponClassificationFactory
 from order.serializers import ORDER_MAXIMUM_NUMBER
 from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
 from .factories import (
     get_factory_password, get_factory_authentication_data, 
     MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, CartFactory, BuildingWithFloorFactory,
-    ShopperShippingAddressFactory, PointHistoryFactory,
+    ShopperShippingAddressFactory, PointHistoryFactory, ShopperCouponFactory,
 )
 from ..models import OutstandingToken, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
     UserSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer, BuildingSerializer, UserPasswordSerializer,
-    ShopperShippingAddressSerializer, PointHistorySerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 
 
@@ -133,6 +136,7 @@ class UserSerializerTestCase(SerializerTestCase):
 
 
 class ShopperSerializerTestCase(SerializerTestCase):
+    maxDiff = None
     _serializer_class = ShopperSerializer
 
     def test_model_instance_serialization(self):
@@ -261,7 +265,7 @@ class CartListSerializerTestCase(ListSerializerTestCase):
         data = [{'option': OptionFactory(product_color=product_color).id, 'count': 1} for _ in range(ORDER_MAXIMUM_NUMBER)]
 
         self._test_serializer_raise_validation_error(
-            'exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER),
+            'exceeded'.format(ORDER_MAXIMUM_NUMBER),
             data=data, context={'shopper': self.__shopper}
         )
 
@@ -382,3 +386,76 @@ class PointHistorySerializerTestCase(SerializerTestCase):
             'content': point_history.content,
             'created_at': datetime_to_iso(point_history.created_at),
         })
+
+
+from django.test import tag
+
+class ShopperCouponSerializerTestCase(SerializerTestCase):
+    _serializer_class = ShopperCouponSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = ShopperFactory()
+        cls.__coupon_classification = CouponClassificationFactory()
+        cls.__coupon = CouponFactory(is_auto_issue=False, classification=cls.__coupon_classification)
+
+    def test_create_end_date_coupon(self):
+        self._test_data = {
+            'coupon': self.__coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper_coupon = serializer.save(shopper=self.__shopper)
+
+        self.assertEqual(shopper_coupon.shopper, self.__shopper)
+        self.assertEqual(shopper_coupon.coupon, self.__coupon)
+        self.assertEqual(shopper_coupon.end_date, self.__coupon.end_date)
+        self.assertEqual(shopper_coupon.is_available, True)
+
+    def test_create_available_period_coupon(self):
+        coupon = CouponFactory(is_auto_issue=False, start_date=None, end_date=None, available_period=7, classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper_coupon = serializer.save(shopper=self.__shopper)
+
+        self.assertEqual(shopper_coupon.shopper, self.__shopper)
+        self.assertEqual(shopper_coupon.coupon, coupon)
+        self.assertEqual(shopper_coupon.end_date, date.today() + timedelta(days=coupon.available_period))
+        self.assertEqual(shopper_coupon.is_available, True)
+
+    def test_create_already_existing_coupon(self):
+        ShopperCouponFactory(shopper=self.__shopper, coupon=self.__coupon)
+        self._test_data = {
+            'coupon': self.__coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'already exists.',
+            serializer.save,
+            shopper=self.__shopper
+        )
+
+    def test_create_auto_issued_coupon(self):
+        coupon = CouponFactory(is_auto_issue=True, classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        
+        self._test_serializer_raise_validation_error(
+            'object does not exist.',
+            self._get_serializer_after_validation,
+        )
+
+    def test_create_expired_coupon(self):
+        coupon = CouponFactory(end_date=date.today() - timedelta(days=1), classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        
+        self._test_serializer_raise_validation_error(
+            'object does not exist.',
+            self._get_serializer_after_validation,
+        )

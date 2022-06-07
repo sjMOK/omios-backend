@@ -9,12 +9,15 @@ from .documentations import (
     decorated_is_unique_view, decorated_shopper_view, decorated_wholesaler_view, decorated_product_like_view,
     decorated_shopper_point_history_view,
 )
+from .views import ShopperCouponViewSet
 
 app_name = 'user'
 
 router = SimpleRouter(trailing_slash=False)
-router.register('/addresses', DecoratedShopperShippingAddressViewSet, basename='shipping-address')
-router.register('/carts', DecoratedCartViewSet, basename='cart')
+router.register('/addresses', DecoratedShopperShippingAddressViewSet, basename='shipping-addresses')
+router.register('/carts', DecoratedCartViewSet, basename='carts')
+router.register('/coupons', ShopperCouponViewSet, basename='coupons')
+
 
 token_urlpatterns = [
     path('', decorated_issuing_token_view),

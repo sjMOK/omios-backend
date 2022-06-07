@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
 from django.db import connection, transaction
@@ -7,8 +9,9 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import ListModelMixin
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
 
@@ -16,13 +19,16 @@ from common.utils import get_response, get_response_body
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedShopper, IsAuthenticatedWholesaler
 from product.models import Product
+from coupon.serializers import CouponSerializer
+from coupon.models import Coupon
 from .models import (
     ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory, Cart,
+    ShopperCoupon,
 )
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
     UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
-    ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer, ShopperCouponSerializer,
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
@@ -71,6 +77,13 @@ def is_unique(request):
         return get_response(data={'is_unique': False})
 
     return get_response(data={'is_unique': True})
+
+
+@api_view(['GET'])
+def get_point_histories(request):
+    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper=request.user.shopper), many=True)
+
+    return get_response(data=serializer.data)
 
 
 class TokenView(TokenViewBase):
@@ -303,8 +316,26 @@ class ShopperShippingAddressViewSet(GenericViewSet):
         return get_response(data=serializer.data)
 
 
-@api_view(['GET'])
-def get_point_histories(request):
-    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper=request.user.shopper), many=True)
+class ShopperCouponViewSet(ListModelMixin, GenericViewSet):
+    permission_classes = [IsAuthenticatedShopper]
+    lookup_field = 'id'
+    lookup_url_kwarg = 'cart_id'
+    lookup_value_regex = r'[0-9]+'
 
-    return get_response(data=serializer.data)
+    def get_serializer_class(self):
+        if self.action == 'list': 
+            return CouponSerializer
+        elif self.action == 'create': 
+            return ShopperCouponSerializer
+
+    def get_queryset(self):
+        return self.request.user.shopper.coupons.filter(
+            shoppercoupon__is_available=True, shoppercoupon__end_date__gte=date.today()
+        )
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(shopper=request.user.shopper)
+
+        return get_response(data={'coupon_id': request.data['coupon']})
