@@ -111,7 +111,7 @@ class ProductCartResponse(Serializer):
             option = IntegerField()
 
     product_id = IntegerField()
-    produdct_name = CharField()
+    product_name = CharField()
     image = URLField()
     carts  =CartResponse(many=True)
 
