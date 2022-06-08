@@ -1,16 +1,18 @@
 from datetime import date
 
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.db import connection
 from django.shortcuts import get_object_or_404
 
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.decorators import action
 
 from common.permissions import IsAdminUser
 from common.utils import get_response, check_integer_format
 from user.models import is_shopper
 from product.models import Product
+from product.serializers import ProductReadSerializer
 from .models import Coupon
 from .serializers import CouponSerializer
 from .permissions import CouponPermission
@@ -20,14 +22,14 @@ class CouponViewSet(GenericViewSet):
     permission_classes = [CouponPermission | IsAdminUser]
     serializer_class = CouponSerializer
     lookup_field = 'id'
-    lookup_url_kwarg = 'cart_id'
+    lookup_url_kwarg = 'coupon_id'
     lookup_value_regex = r'[0-9]+'
 
     def get_queryset(self):
         queryset = Coupon.objects.all()
         if self.request.user.is_authenticated and self.request.user.is_admin:
             return queryset
-        
+
         end_date_condition = Q(end_date__gte=date.today()) | Q(end_date__isnull=True)
         queryset = queryset.filter(end_date_condition, is_auto_issue=False)
 
