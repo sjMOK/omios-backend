@@ -1,4 +1,5 @@
 import random
+from datetime import date, timedelta
 
 from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation, lazy_attribute
 from factory.django import DjangoModelFactory, get_model
@@ -145,3 +146,10 @@ class ShopperCouponFactory(DjangoModelFactory):
     coupon = SubFactory(CouponFactory)
     end_date = LazyAttribute(lambda o: o.coupon.end_date)
     is_available = Faker('pybool')
+
+    @lazy_attribute
+    def end_date(self):
+        if self.coupon.available_period is not None:
+            return date.today() + timedelta(days=self.coupon.available_period)
+        else:
+            return self.coupon.end_date
