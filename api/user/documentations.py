@@ -135,12 +135,15 @@ class DecoratedShopperView(ShopperView):
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
 
+    @transaction.atomic
     def post(self, *args, **kwargs):
         return super().post(*args, **kwargs)
 
+    @transaction.atomic
     def patch(self, *args, **kwargs):
         return super().patch(*args, **kwargs)
 
+    @transaction.atomic
     def delete(self, *args, **kwargs):
         return super().delete(*args, **kwargs)
 
@@ -149,12 +152,15 @@ class DecoratedWholesalerView(WholesalerView):
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
 
+    @transaction.atomic
     def post(self, *args, **kwargs):
         return super().post(*args, **kwargs)
 
+    @transaction.atomic
     def patch(self, *args, **kwargs):
         return super().patch(*args, **kwargs)
 
+    @transaction.atomic
     def delete(self, *args, **kwargs):
         return super().delete(*args, **kwargs)
 
