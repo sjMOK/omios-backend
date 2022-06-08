@@ -11,6 +11,8 @@ class CouponClassification(Model):
     class Meta:
         db_table = 'coupon_classification'
 
+    def __str__(self):
+        return self.name
 
 class Coupon(Model):
     id = AutoField(primary_key=True)
@@ -31,6 +33,9 @@ class Coupon(Model):
     class Meta:
         db_table = 'coupon'
         ordering = ['-id']
+
+    def __str__(self):
+        return self.name
 
 
 class CouponSubCategory(Model):
