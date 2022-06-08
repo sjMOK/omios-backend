@@ -1,5 +1,5 @@
 from django.db.models import (
-    Model, AutoField, CharField, ForeignKey, IntegerField, DateField, BooleanField,
+    Model, AutoField, CharField, IntegerField, DateField, BooleanField, ForeignKey, ManyToManyField,
     DO_NOTHING,
 )
 
@@ -25,22 +25,15 @@ class Coupon(Model):
     available_period = IntegerField(null=True)
     is_auto_issue = BooleanField()
 
+    products = ManyToManyField('product.Product', db_table='coupon_product')
+    sub_categories = ManyToManyField('product.SubCategory', through='CouponSubCategory')
+
     class Meta:
         db_table = 'coupon'
-
-
-class CouponProduct(Model):
-    # ManyToManyField로 대체
-    id = AutoField(primary_key=True)
-    coupon = ForeignKey('Coupon', DO_NOTHING)
-    product = ForeignKey('product.Product', DO_NOTHING)
-
-    class Meta:
-        db_table = 'coupon_product'
+        ordering = ['-id']
 
 
 class CouponSubCategory(Model):
-    # ManyToManyField로 대체
     id = AutoField(primary_key=True)
     coupon = ForeignKey('Coupon', DO_NOTHING)
     sub_category = ForeignKey('product.SubCategory', DO_NOTHING)

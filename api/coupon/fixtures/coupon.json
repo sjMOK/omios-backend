@@ -1,0 +1,37 @@
+[{
+    "model": "coupon.Coupon",
+    "pk": 1,
+    "fields": {
+        "classification": 5,
+        "name": "welcome 회원가입 쿠폰팩 - 3천원",
+        "discount_price": 3000,
+        "minimum_order_price": 20000,
+        "maximum_discount_price": 3000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 2,
+    "fields": {
+        "classification": 5,
+        "name": "welcom 회원가입 쿠폰팩 - 10%",
+        "discount_rate": 10,
+        "minimum_order_price": 10000,
+        "maximum_discount_price": 30000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 3,
+    "fields": {
+        "classification": 5,
+        "name": "welcome 회원가입 쿠폰팩 - 50000원",
+        "discount_price": 50000,
+        "minimum_order_price": 200000,
+        "maximum_discount_price": 50000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}]
