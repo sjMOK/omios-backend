@@ -9,6 +9,7 @@ from faker import Faker
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
+from coupon.models import Coupon
 from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
 from .factories import (
@@ -27,6 +28,8 @@ from ..serializers import (
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
 )
 
+from django.test import tag
+from pdb import set_trace
 
 class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
     _function = sort_keywords_by_levenshtein_distance
@@ -340,6 +343,7 @@ class ProductViewSetTestCase(ViewTestCase):
 
 class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
     __default_sorting = '-created_at'
+    fixtures = ['coupon', 'coupon_classification']
 
     @classmethod
     def setUpTestData(cls):
@@ -519,6 +523,36 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         }
 
         self.__test_filtering(query_params)
+
+    def test_filter_all_products_coupon(self):
+        coupon = Coupon.objects.filter(classification_id=1).first()
+        queryset = self.__get_queryset()
+
+        self.__test_list_response(queryset, {'coupon': coupon.id})
+
+    def test_filter_partial_products_coupon(self):
+        coupon = Coupon.objects.filter(classification_id=2).first()
+        queryset = self.__get_queryset()[1:]
+        coupon.products.add(*queryset)
+
+        self.__test_list_response(queryset, {'coupon': coupon.id})
+
+    def test_filter_sub_category_coupon(self):
+        coupon = Coupon.objects.filter(classification_id=3).first()
+
+        sub_category = SubCategoryFactory()
+        ProductFactory.create_batch(size=3, sub_category=sub_category, product=self._product)
+        coupon.sub_categories.add(sub_category)
+
+        queryset = self.__get_queryset().filter(sub_category=sub_category)
+
+        self.__test_list_response(queryset, {'coupon': coupon.id})
+
+    def test_filter_signup_products_coupon(self):
+        coupon = Coupon.objects.filter(classification_id=5).first()
+        queryset = self.__get_queryset()
+
+        self.__test_list_response(queryset, {'coupon': coupon.id})
 
     def __test_sorting(self, sort_key):
         sort_mapping = {

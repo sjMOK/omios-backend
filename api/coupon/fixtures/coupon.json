@@ -34,4 +34,52 @@
         "available_period": 14,
         "is_auto_issue": true
     }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 4,
+    "fields": {
+        "classification": 1,
+        "name": "전 상품 쿠폰",
+        "discount_price": 50000,
+        "minimum_order_price": 200000,
+        "maximum_discount_price": 50000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 5,
+    "fields": {
+        "classification": 2,
+        "name": "일부 상품 쿠폰",
+        "discount_price": 50000,
+        "minimum_order_price": 200000,
+        "maximum_discount_price": 50000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 6,
+    "fields": {
+        "classification": 3,
+        "name": "카테고리별 쿠폰",
+        "discount_price": 50000,
+        "minimum_order_price": 200000,
+        "maximum_discount_price": 50000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
+}, {
+    "model": "coupon.Coupon",
+    "pk": 7,
+    "fields": {
+        "classification": 4,
+        "name": "기획전별 쿠폰",
+        "discount_price": 50000,
+        "minimum_order_price": 200000,
+        "maximum_discount_price": 50000,
+        "available_period": 14,
+        "is_auto_issue": true
+    }
 }]
