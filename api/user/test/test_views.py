@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from django.forms import model_to_dict
 from django.db.models import Sum, F, Case, When
 
@@ -7,17 +9,20 @@ from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
+from coupon.test.factories import CouponFactory, CouponClassificationFactory
+from coupon.serializers import CouponSerializer
 from product.test.factories import ProductFactory, ProductColorFactory, OptionFactory
 from .factories import (
     MembershipFactory, get_factory_password, get_factory_authentication_data, 
     FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory, CartFactory,
+    ShopperCouponFactory,
 )
 from ..models import (
     BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building, Cart,
 )
 from ..serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer,
-    BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer,
+    BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 
 
@@ -115,6 +120,7 @@ class BlacklistingTokenViewTestCase(TokenViewTestCase):
 
 
 class ShopperViewSetTestCase(ViewTestCase):
+    fixtures = ['coupon_classification', 'coupon']
     _url = '/users/shoppers'
 
     @classmethod
@@ -650,6 +656,65 @@ class GetPointHistoriesTestCase(ViewTestCase):
         self._set_authentication()
         PointHistoryFactory.create_batch(2, shopper=self._user)
         self._get()
-
+        
         self._assert_success()
         self.assertListEqual(self._response_data, PointHistorySerializer(self._user.point_histories.all(), many=True).data)
+
+
+class ShopperCouponViewSetTestCase(ViewTestCase):
+    _url = '/users/shoppers/coupons'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls.__coupon_classification = CouponClassificationFactory()
+        coupons = CouponFactory.create_batch(2, classification=cls.__coupon_classification)
+        for coupon in coupons:
+            ShopperCouponFactory(shopper=cls._user, coupon=coupon, is_available=True)
+
+    def setUp(self):
+        self._set_authentication()
+
+    def test_list(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], serializer.data)
+
+    def test_list_with_not_available_coupon(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        expected_data = serializer.data
+
+        coupon = CouponFactory(classification=self.__coupon_classification)
+        ShopperCouponFactory(shopper=self._user, coupon=coupon, is_available=False)
+        
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], expected_data)
+
+    def test_list_with_expired_coupont(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        expected_data = serializer.data
+
+        coupon = CouponFactory(classification=self.__coupon_classification)
+        ShopperCouponFactory(shopper=self._user, coupon=coupon, end_date=date.today() - timedelta(days=1))
+        
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], expected_data)
+
+    def test_create(self):
+        coupon = CouponFactory(classification=self.__coupon_classification, is_auto_issue=False)
+        self._test_data = {
+            'coupon': coupon.id,
+        }
+        self._post()
+
+        self._assert_success_and_serializer_class(ShopperCouponSerializer, False)
+        self.assertEqual(self._response_data, {'coupon_id': str(coupon.id)})

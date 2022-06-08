@@ -331,11 +331,15 @@ class ShopperCouponViewSet(ListModelMixin, GenericViewSet):
     def get_queryset(self):
         return self.request.user.shopper.coupons.filter(
             shoppercoupon__is_available=True, shoppercoupon__end_date__gte=date.today()
-        )
+        ).order_by('-shoppercoupon__coupon')
+
+    def list(self, request):
+        response = super().list(request)
+        return get_response(data=response.data)
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(shopper=request.user.shopper)
 
-        return get_response(data={'coupon_id': request.data['coupon']})
+        return get_response(status=HTTP_201_CREATED, data={'coupon_id': request.data['coupon']})
