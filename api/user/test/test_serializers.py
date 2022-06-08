@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
 from coupon.test.factories import CouponFactory, CouponClassificationFactory
+from coupon.models import CouponClassification, Coupon
 from order.serializers import ORDER_MAXIMUM_NUMBER
 from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
 from .factories import (
@@ -136,11 +137,15 @@ class UserSerializerTestCase(SerializerTestCase):
 
 
 class ShopperSerializerTestCase(SerializerTestCase):
-    maxDiff = None
+    fixtures = ['coupon_classification', 'coupon']
     _serializer_class = ShopperSerializer
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.__membership = MembershipFactory(id=1)
+
     def test_model_instance_serialization(self):
-        shopper = ShopperFactory()
+        shopper = ShopperFactory(membership=self.__membership)
         self._test_model_instance_serialization(shopper, {
             **UserSerializer(instance=shopper).data,
             'membership': MembershipSerializer(instance=shopper.membership).data,
@@ -154,6 +159,25 @@ class ShopperSerializerTestCase(SerializerTestCase):
             'weight': shopper.weight,
             'point': shopper.point,
         })
+
+    def test_add_signup_coupons(self):
+        shopper = ShopperFactory.build(membership=self.__membership)
+        self._test_data = {
+            'username': shopper.username,
+            'name': shopper.name,
+            'mobile_number': shopper.mobile_number,
+            'email': shopper.email,
+            'gender': shopper.gender,
+            'birthday': shopper.birthday,
+            'height': shopper.height,
+            'weight': shopper.weight,
+            'password': shopper.password,
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper = serializer.save()
+        signup_coupons = Coupon.objects.filter(classification_id=5)
+
+        self.assertQuerysetEqual(shopper.coupons.all(), signup_coupons, ordered=False)
 
 
 class WholesalerSerializerTestCase(SerializerTestCase):
@@ -387,8 +411,6 @@ class PointHistorySerializerTestCase(SerializerTestCase):
             'created_at': datetime_to_iso(point_history.created_at),
         })
 
-
-from django.test import tag
 
 class ShopperCouponSerializerTestCase(SerializerTestCase):
     _serializer_class = ShopperCouponSerializer

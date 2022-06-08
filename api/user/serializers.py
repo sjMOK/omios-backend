@@ -17,8 +17,8 @@ from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
+from coupon.models import Coupon, CouponClassification
 from order.serializers import ORDER_MAXIMUM_NUMBER
-from coupon.models import Coupon
 from .models import (
     is_shopper, is_wholesaler, OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper,
     Wholesaler, PointHistory, Building, Cart, ShopperCoupon
@@ -110,6 +110,21 @@ class ShopperSerializer(UserSerializer):
             'height': {'min_value': 100, 'max_value': 250},
             'weight': {'min_value': 30, 'max_value': 200},
         }
+
+    def create(self, validated_data):
+        user = super().create(validated_data)
+        self.__add_signup_coupons(user.shopper)
+
+        return user
+
+    def __add_signup_coupons(self, shopper):
+        signup_coupon_classification = CouponClassification.objects.get(id=5)
+        signup_coupons = Coupon.objects.filter(classification=signup_coupon_classification)
+        shopper_signup_coupons = [
+            ShopperCoupon(shopper=shopper, coupon=coupon, end_date=date.today() + timedelta(days=coupon.available_period))
+            for coupon in signup_coupons
+        ]
+        ShopperCoupon.objects.bulk_create(shopper_signup_coupons)
 
 
 class WholesalerSerializer(UserSerializer):
