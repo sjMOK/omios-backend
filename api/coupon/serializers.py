@@ -19,9 +19,11 @@ class CouponClassificationSerializer(ModelSerializer):
 
 
 class CouponSerializer(ModelSerializer):
+    products = PrimaryKeyRelatedField(write_only=True, queryset=Product.objects.filter(on_sale=True), many=True, required=False)
+    sub_categories = PrimaryKeyRelatedField(write_only=True, queryset=SubCategory.objects.all(), many=True, required=False)
     class Meta:
         model = Coupon
-        exclude = ['products', 'sub_categories']
+        fields = '__all__'
         extra_kwargs = {
             'discount_rate': {'min_value': 0, 'max_value': 100},
             'discount_price': {'min_value': 0, 'max_value': 1000000},
@@ -46,7 +48,17 @@ class CouponSerializer(ModelSerializer):
 
         return value
 
+    def validate_products(self, value):
+        if len(value) > COUPON_PRODUCT_MAX_LENGTH:
+            raise ValidationError('You can register up to 1000 products per coupon.')
+
+    def validate_sub_categories(self, value):
+        if len(value) > COUPON_SUBCATEGORY_MAX_LENGTH:
+            raise ValidationError('You can register up to 20 categories per coupon.')
+
     def validate(self, attrs):
+        attrs = self.__validate_classification(attrs)
+
         discount_rate = attrs.get('discount_rate', None)
         discount_price = attrs.get('discount_price', None)
         self.__validate_discount_rate_and_discount_price_exclusive_or(discount_rate, discount_price)
@@ -55,6 +67,25 @@ class CouponSerializer(ModelSerializer):
         end_date = attrs.get('end_date', None)
         available_period = attrs.get('available_period', None)
         self.__validate_expiration_data(start_date, end_date, available_period)
+
+        return attrs
+
+    def __validate_classification(self, attrs):
+        classification = attrs['classification']
+        if classification.id in [1, 5]:
+            attrs.pop('products', None)
+            attrs.pop('sub_categories', None)
+        elif classification.id == 2:
+            if 'products' not in attrs:
+                raise ValidationError('You must pass product_id list.')
+            attrs.pop('sub_categories', None)
+        elif classification.id == 3:
+            if 'sub_categories' not in attrs:
+                raise ValidationError('You must pass sub_category_id list.')
+            attrs.pop('products', None)
+        elif classification.id == 4:
+            attrs.pop('products', None)
+            attrs.pop('sub_categories', None)
 
         return attrs
 

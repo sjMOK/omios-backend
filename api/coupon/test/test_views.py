@@ -35,7 +35,7 @@ class CouponViewSetTestCase(ViewTestCase):
     @classmethod
     def setUpTestData(cls):
         cls.__admin_user = UserFactory(is_admin=True)
-        cls.__coupon_classification = CouponClassificationFactory()
+        cls.__coupon_classification = CouponClassificationFactory(id=1)
         CouponFactory(classification=cls.__coupon_classification, is_auto_issue=False)
         CouponFactory(classification=cls.__coupon_classification, end_date=date.today() - timedelta(days=1), is_auto_issue=False)
         CouponFactory(classification=cls.__coupon_classification, is_auto_issue=True)
