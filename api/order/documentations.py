@@ -1,15 +1,21 @@
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.serializers import Serializer, IntegerField, ListField, ImageField
+from rest_framework.serializers import Serializer, IntegerField, ListField, ImageField, CharField, DateField
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 
-from common.documentations import get_response, get_ids_response
+from common.documentations import get_response, get_ids_response, get_paginated_response
 from product.serializers import OptionInOrderItemSerializer
 from .serializers import (
     OrderSerializer, OrderWriteSerializer, OrderItemSerializer, OrderItemStatisticsSerializer,
     StatusHistorySerializer, CancellationInformationSerializer, DeliverySerializer,
 )
 from .views import OrderViewSet, OrderItemViewSet, ClaimViewSet, StatusHistoryAPIView
+
+
+class OrderQuerySerializer(Serializer):
+    status = CharField(required=False, help_text='응답받은 한글 상태명을 그대로 입력')
+    start_date = DateField(required=False, help_text='end_date와 함께 입력되지 않으면 무시\nformat="YYYY-mm-dd"')
+    end_date = DateField(required=False, help_text='start_date와 함께 입력되지 않으면 무시\nformat="YYYY-mm-dd"')
 
 
 class OptionInOrderItemResponse(OptionInOrderItemSerializer):
@@ -59,7 +65,7 @@ class DeliveryResponse(Serializer):
 
 
 class DecoratedOrderViewSet(OrderViewSet):
-    @swagger_auto_schema(**get_response(OrderResponse(many=True)), operation_description='주문 목록 조회')
+    @swagger_auto_schema(query_serializer=OrderQuerySerializer, **get_paginated_response(OrderResponse(many=True)), operation_description='주문 목록 조회')
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 

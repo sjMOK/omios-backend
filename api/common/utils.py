@@ -13,6 +13,7 @@ BASE_IMAGE_URL= 'https://deepy.s3.ap-northeast-2.amazonaws.com/media/'
 DEFAULT_DATETIME_FORMAT = '%Y%m%d%H%M%S%f'
 DATETIME_WITHOUT_MILISECONDS_FORMAT = '%Y%m%d%H%M%S'
 IMAGE_DATETIME_FORMAT = '%Y%m%d_%H%M%S%f'
+REQUEST_DATE_FORMAT = '%Y-%m-%d'
 
 def get_response_body(code, message='success', data=None):
     if int(code / 100) == 2:

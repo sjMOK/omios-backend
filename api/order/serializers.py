@@ -3,7 +3,6 @@ import string
 from dateutil.relativedelta import relativedelta
 
 from django.utils import timezone
-from django.db.models import Q
 
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer,
@@ -44,9 +43,8 @@ class ShippingAddressSerializer(ModelSerializer):
 
     # todo test code 작성
     def __validate_status(self):
-        for order_item in self.context['order'].items.all():
-            if order_item.status_id not in BEFORE_DELIVERY_STATUS:
-                raise ValidationError('The shipping address for this order cannot be changed.')
+        if self.context['order'].items.exclude(status__in=BEFORE_DELIVERY_STATUS).exists():
+            raise ValidationError('The shipping address for this order cannot be changed.')
 
     def create(self, validated_data):
         instance = self.Meta.model.objects.get_or_create(**validated_data)[0]

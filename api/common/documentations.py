@@ -39,3 +39,15 @@ def get_response(serializer=IdResponse(), code=200):
 
 def get_ids_response(code=200):
     return get_response(IdsResponse(), code)
+
+def get_paginated_response(serializer, code=200):
+    class PaginatedResponse(Serializer):
+        class Meta:
+            ref_name = None
+
+        count = IntegerField()
+        next = URLField(allow_null=True)
+        previous = URLField(allow_null=True)
+        results = serializer
+
+    return get_response(PaginatedResponse(), code)

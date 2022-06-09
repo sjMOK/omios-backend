@@ -1,4 +1,4 @@
-from django.db.models import Q, Count
+from django.db.models import Count
 from django.db.models.query import Prefetch
 from django.db.transaction import atomic
 
@@ -19,14 +19,12 @@ from .serializers import (
     OrderSerializer, OrderWriteSerializer, OrderItemWriteSerializer, OrderItemStatisticsSerializer, ShippingAddressSerializer, 
     CancellationInformationSerializer, StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer
 )
+from .paginations import OrderPagination
 from .permissions import OrderPermission, OrderItemPermission
 
 
-from django.db import connection
-
-
 class OrderViewSet(GenericViewSet):
-    pagination_class = None
+    pagination_class = OrderPagination
     permission_classes = [OrderPermission]
     lookup_field = 'id'
     lookup_url_kwarg = 'order_id'
@@ -43,24 +41,40 @@ class OrderViewSet(GenericViewSet):
         
         return OrderSerializer
 
-    def __get_conditions(self):
-        conditions = Q()
-        if self.action == 'list':
-            conditions = Q(shopper_id=self.request.user.id)
+    def __apply_filters(self, order_queryset, item_queryset):
+        if self.action != 'list':
+            return order_queryset, item_queryset
 
-        return conditions
+        if 'status' in self.request.query_params:
+            status = Status.objects.filter(name=self.request.query_params['status']).first()
+            order_queryset = order_queryset.filter(items__status=status).annotate(count=Count('id')).order_by('-id')
+            item_queryset = item_queryset.filter(status=status)
+        
+        if 'start_date' in self.request.query_params and 'end_date' in self.request.query_params:
+            order_queryset = order_queryset.filter(created_at__range=[
+                self.request.query_params['start_date'], 
+                self.request.query_params['end_date'] + ' 23:59:59',
+            ])
+
+        return order_queryset.filter(shopper_id=self.request.user.id), item_queryset
 
     def get_queryset(self):
         queryset = Order.objects
-        if self.action in ['list', 'retrieve']:
-            image = ProductImage.objects.filter(sequence=1)
-            items = OrderItem.objects.select_related('option__product_color__product', 'status').prefetch_related(Prefetch('option__product_color__product__images', queryset=image))
-            queryset = queryset.select_related('shipping_address').prefetch_related(Prefetch('items', queryset=items))
 
-        return queryset.filter(self.__get_conditions())
+        if self.action in ['list', 'retrieve']:
+            images = ProductImage.objects.filter(sequence=1)
+            item_queryset = OrderItem.objects.select_related('option__product_color__product', 'status'). \
+                prefetch_related(Prefetch('option__product_color__product__images', images))
+
+            queryset, item_queryset = self.__apply_filters(queryset, item_queryset)
+            queryset = queryset.select_related('shipping_address').prefetch_related(Prefetch('items', item_queryset))
+
+        return queryset
 
     def list(self, request):
-        return get_response(data=self.get_serializer(self.get_queryset(), many=True).data)        
+        serializer = self.get_serializer(self.paginate_queryset(self.get_queryset()), many=True)
+
+        return get_response(data=self.get_paginated_response(serializer.data).data)
 
     @atomic
     def create(self, request):

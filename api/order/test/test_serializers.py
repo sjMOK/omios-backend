@@ -7,15 +7,16 @@ from django.utils import timezone
 from django.forms import model_to_dict
 from django.db.utils import DatabaseError
 from django.db.models import Q
+from django.db.models.query import Prefetch
 
 from freezegun import freeze_time
 
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase, FREEZE_TIME
-from common.querysets import get_order_item_queryset, get_order_queryset
 from common.serializers import get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element
 from common.utils import DEFAULT_DATETIME_FORMAT, DATETIME_WITHOUT_MILISECONDS_FORMAT, datetime_to_iso
 from user.models import Shopper
 from user.test.factories import ShopperFactory
+from product.models import ProductImage
 from product.serializers import OptionInOrderItemSerializer
 from product.test.factories import ProductFactory, OptionFactory, create_options
 from .factories import (
@@ -24,13 +25,24 @@ from .factories import (
 )
 from ..models import (
     PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, NORMAL_STATUS,
-    OrderItem, ShippingAddress, StatusHistory, Delivery
+    Order, OrderItem, ShippingAddress, StatusHistory, Delivery
 )
 from ..serializers import (
     ShippingAddressSerializer, OrderItemSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, 
     OrderItemStatisticsSerializer, RefundSerializer, CancellationInformationSerializer, StatusHistorySerializer, 
     OrderConfirmSerializer, DeliverySerializer,
 )
+
+
+def get_order_item_queryset():
+    images = ProductImage.objects.filter(sequence=1)
+    return OrderItem.objects.select_related('option__product_color__product', 'status'). \
+        prefetch_related(Prefetch('option__product_color__product__images', images))
+
+
+def get_order_queryset(queryset=Order.objects, item_queryset=get_order_item_queryset()):
+    return queryset.select_related('shipping_address'). \
+        prefetch_related(Prefetch('items', item_queryset))
 
 
 def get_shipping_address_test_data(shipping_address):

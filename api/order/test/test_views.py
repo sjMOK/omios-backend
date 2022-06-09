@@ -1,15 +1,20 @@
+from dateutil.relativedelta import relativedelta
+
+from django.db.models import Count
+from django.utils import timezone
+
 from common.test.test_cases import ViewTestCase
-from common.querysets import get_order_queryset
+from common.utils import REQUEST_DATE_FORMAT
 from product.models import Option
 from product.test.factories import OptionFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
 from .test_serializers import (
-    get_shipping_address_test_data, get_order_test_data, get_order_confirm_result,
-    get_delivery_test_data, get_delivery_result,
+    get_order_item_queryset, get_order_queryset, get_shipping_address_test_data, get_order_test_data, 
+    get_order_confirm_result, get_delivery_test_data, get_delivery_result,
 )
 from ..models import (
     PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, NORMAL_STATUS, 
-    OrderItem,
+    Order, OrderItem, Status,
 )
 from ..serializers import (
     ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, OrderItemStatisticsSerializer,
@@ -24,26 +29,57 @@ class OrderViewSetTestCase(ViewTestCase):
     def setUpTestData(cls):
         cls._set_shopper()
         cls.__shipping_address = ShippingAddressFactory()
+        cls.__payment_completion_status = StatusFactory(id=PAYMENT_COMPLETION_STATUS)
         cls.__orders = create_orders_with_items(2, 3, False,
-            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': StatusFactory(id=PAYMENT_COMPLETION_STATUS)})
+            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': cls.__payment_completion_status})
         StatusFactory(id=DELIVERY_PREPARING_STATUS)
         StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
 
     def setUp(self):
         self._set_authentication()
 
-    def __get_queryset(self):
-        return get_order_queryset().filter(shopper_id=self._user.id)
+    def __get_queryset(self, **filters):
+        queryset = Order.objects
+        item_queryset = get_order_item_queryset()
+        if 'status' in filters:
+            status = Status.objects.get(name=filters['status'])
+            item_queryset = item_queryset.filter(status=status)
+            queryset = queryset.filter(items__status=status).annotate(count=Count('id')).order_by('-id')
+        if 'start_date' in filters and 'end_date' in filters:
+            queryset = queryset.filter(created_at__range=[
+                filters['start_date'], 
+                filters['end_date'] + ' 23:59:59',
+            ])
+            
+        return get_order_queryset(queryset, item_queryset).filter(shopper_id=self._user.id)
 
     def __set_detail_url(self):
         self.__order = self.__orders[0]
         self._url += f'/{self.__order.id}'
 
+    def __test_pagination_list(self, **query_params):
+        self._get(query_params)
+
+        self._assert_pagination_success(OrderSerializer(self.__get_queryset(**query_params), many=True).data)
+
     def test_list(self):
-        self._get()
-        
-        self._assert_success()
-        self.assertListEqual(self._response_data, OrderSerializer(self.__get_queryset(), many=True).data)
+        self.__test_pagination_list()
+
+    def test_status_filter_list(self):
+        order_item = OrderItem.objects.filter(order__shopper_id=self._user.id).only('status').first()
+        order_item.status_id = DELIVERY_PREPARING_STATUS
+        order_item.save()
+
+        self.__test_pagination_list(status=self.__payment_completion_status.name)
+
+    def test_date_filter_list(self):
+        order = Order.objects.filter(shopper_id=self._user.id).only('created_at').first()
+        order.created_at = timezone.now() - relativedelta(months=1)
+        order.save()
+        start_date = (order.created_at + relativedelta(days=1)).strftime(REQUEST_DATE_FORMAT)
+        end_date = timezone.now().strftime(REQUEST_DATE_FORMAT)
+
+        self.__test_pagination_list(start_date=start_date, end_date=end_date)
 
     def test_create(self):
         options = Option.objects.select_related('product_color__product').all()

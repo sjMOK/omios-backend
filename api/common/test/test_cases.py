@@ -222,6 +222,11 @@ class ViewTestCase(APITestCase):
         self.__assert_default_response(self.__expected_success_status_code, 'success')
         self.assertTrue('data' in self._response_body)
 
+    def _assert_pagination_success(self, expected_data):
+        self._assert_success()
+        self.assertEqual(self._response_data['count'], len(expected_data))
+        self.assertListEqual(self._response_data['results'], expected_data)
+
     def _assert_success_with_id_response(self):
         self._assert_success()
         self.assertTrue(not set(self._response_data).difference(set(['id'])))
