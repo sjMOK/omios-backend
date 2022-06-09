@@ -1,11 +1,10 @@
 from django.urls import path, include
 
-from rest_framework.routers import SimpleRouter
-
-from .views import CouponViewSet
+from .views import get_coupon_classifications
 
 
 app_name = 'coupon'
 
-
-urlpatterns = []
+urlpatterns = [
+    path('/classifications', get_coupon_classifications),
+]

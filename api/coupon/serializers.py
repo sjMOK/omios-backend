@@ -1,11 +1,21 @@
 from datetime import date
 
 from rest_framework.serializers import (
-    ModelSerializer,
+    ModelSerializer, PrimaryKeyRelatedField,
 )
 from rest_framework.exceptions import ValidationError
 
-from .models import Coupon
+from product.models import Product, SubCategory
+from .models import CouponClassification, Coupon
+
+COUPON_PRODUCT_MAX_LENGTH = 1000
+COUPON_SUBCATEGORY_MAX_LENGTH = 20
+
+
+class CouponClassificationSerializer(ModelSerializer):
+    class Meta:
+        model = CouponClassification
+        fields = '__all__'
 
 
 class CouponSerializer(ModelSerializer):

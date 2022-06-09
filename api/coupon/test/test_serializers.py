@@ -1,10 +1,25 @@
 from datetime import date, timedelta
 
+from rest_framework.exceptions import ValidationError
+
 from common.test.test_cases import SerializerTestCase
 from common.utils import datetime_to_iso
+from product.test.factories import ProductFactory, SubCategoryFactory
 from user.test.factories import ShopperFactory, ShopperCouponFactory
 from .factories import CouponFactory, CouponClassificationFactory
-from ..serializers import CouponSerializer
+from ..serializers import COUPON_PRODUCT_MAX_LENGTH, COUPON_SUBCATEGORY_MAX_LENGTH, CouponClassificationSerializer, CouponSerializer
+
+
+class CouponClassificationSerializerTestCase(SerializerTestCase):
+    _serializer_class = CouponClassificationSerializer
+
+    def test_model_instance_serialization(self):
+        coupon_classification = CouponClassificationFactory()
+        self._test_model_instance_serialization(coupon_classification, {
+            'id': coupon_classification.id,
+            'name': coupon_classification.name,
+        })
+
 
 class CouponSerializerTestCase(SerializerTestCase):
     _serializer_class = CouponSerializer

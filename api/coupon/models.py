@@ -10,6 +10,7 @@ class CouponClassification(Model):
 
     class Meta:
         db_table = 'coupon_classification'
+        ordering = ['id']
 
     def __str__(self):
         return self.name

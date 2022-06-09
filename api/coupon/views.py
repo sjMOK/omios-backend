@@ -6,16 +6,24 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
-from rest_framework.decorators import action
+from rest_framework.decorators import api_view, permission_classes
 
 from common.permissions import IsAdminUser
 from common.utils import get_response, check_integer_format
 from user.models import is_shopper
 from product.models import Product
-from product.serializers import ProductReadSerializer
-from .models import Coupon
-from .serializers import CouponSerializer
+from .models import CouponClassification, Coupon
+from .serializers import CouponClassificationSerializer, CouponSerializer
 from .permissions import CouponPermission
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def get_coupon_classifications(request):
+    queryset = CouponClassification.objects.all()
+    serializer = CouponClassificationSerializer(queryset, many=True)
+
+    return get_response(data=serializer.data)
 
 
 class CouponViewSet(GenericViewSet):

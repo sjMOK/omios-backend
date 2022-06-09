@@ -4,11 +4,29 @@ import random
 from django.db.models import Q
 
 from common.test.test_cases import ViewTestCase
-from coupon.models import Coupon
+from coupon.models import CouponClassification, Coupon
 from product.test.factories import ProductFactory
 from user.test.factories import UserFactory, ShopperCouponFactory
 from .factories import CouponClassificationFactory, CouponFactory
-from ..serializers import CouponSerializer
+from ..serializers import CouponClassificationSerializer, CouponSerializer
+
+
+class GetCouponClassificationTestCase(ViewTestCase):
+    _url = '/coupons/classifications'
+
+    def setUp(self):
+        CouponClassificationFactory.create_batch(size=2)
+
+        self._user = UserFactory(is_admin=True)
+        self._set_authentication()
+
+    def test(self):
+        queryset = CouponClassification.objects.all()
+        serializer = CouponClassificationSerializer(queryset, many=True)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data, serializer.data)
 
 
 class CouponViewSetTestCase(ViewTestCase):
