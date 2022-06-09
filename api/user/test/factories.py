@@ -25,7 +25,7 @@ class MembershipFactory(DjangoModelFactory):
         model = 'user.Membership'
 
     name = Sequence(lambda num: f'membership{num}')
-    discount_rate = FuzzyDecimal(0, 5, 1)
+    discount_rate = FuzzyDecimal(0, 5, 2)
     qualification = 'qualification'
 
 
