@@ -28,8 +28,6 @@ from ..serializers import (
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
 )
 
-from django.test import tag
-from pdb import set_trace
 
 class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
     _function = sort_keywords_by_levenshtein_distance

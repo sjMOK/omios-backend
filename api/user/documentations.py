@@ -5,14 +5,15 @@ from rest_framework.serializers import Serializer, ModelSerializer, IntegerField
 from rest_framework.decorators import action
 
 from common.documentations import UniqueResponse, Image, get_response
+from coupon.documentations import CouponResponse
 from .models import Shopper, Wholesaler
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, ShopperShippingAddressSerializer, 
-    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer
+    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 from .views import (
     IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView, ProductLikeView,
-    CartViewSet, ShopperShippingAddressViewSet,
+    CartViewSet, ShopperShippingAddressViewSet, ShopperCouponViewSet,
     upload_business_registration_image, get_buildings, change_password, is_unique, get_point_histories,
 )
 
@@ -131,6 +132,10 @@ class ProductLikeViewResponse(Serializer):
     product_id = IntegerField()
 
 
+class ShopperCouponCreateResponse(Serializer):
+    coupon_id = IntegerField()
+
+
 class DecoratedShopperView(ShopperView):
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
@@ -216,6 +221,21 @@ class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
     @action(methods=['GET'], detail=False, url_path='default')
     def get_default_address(self, *args, **kwargs):
         return super().get_default_address(*args, **kwargs)
+
+
+class DecoratedShopperCouponViewSet(ShopperCouponViewSet):
+    create_description = '''shopper 쿠폰 발급
+    전송한 쿠폰의 id가 발급 가능하지 않다면(만료일자가 지났거나 자동 발급 쿠폰인 경우) 404에러 반환
+    사용자가 이미 발급 받은 쿠폰을 전송하는 경우 400에러 반환
+    '''
+
+    @swagger_auto_schema(**get_response(CouponResponse()), operation_description='shopper가 보유한 쿠폰 리스트 조회')
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ShopperCouponSerializer, **get_response(ShopperCouponCreateResponse(), code=201), operation_description=create_description)
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
 
 
 decorated_issuing_token_view = swagger_auto_schema(

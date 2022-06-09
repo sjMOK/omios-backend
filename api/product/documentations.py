@@ -45,6 +45,7 @@ class ProductListQuerySerializer(Serializer):
     min_price = IntegerField(required=False, help_text='최소 가격 필터링')
     max_price = IntegerField(required=False, help_text='최대 가격 필터링')
     color = IntegerField(required=False, help_text='색상 필터링 - id 값, 여러 개 가능')
+    coupon = IntegerField(required=False, help_text='쿠폰 필터링: 해당 쿠폰에 적용 가능한 상품 조회 - id 값')
     sort = ChoiceField(
         choices=['price_asc', 'price_desc'],
         required=False,
@@ -125,7 +126,7 @@ class RegistryDataResponse(Serializer):
 
 
 class ProductListResponse(Serializer):
-    class ResultsResponse(Serializer):
+    class ProductResultsResponse(Serializer):
         id = IntegerField()
         created_at = DateTimeField()
         name = CharField()
@@ -139,7 +140,7 @@ class ProductListResponse(Serializer):
     count = IntegerField()
     next = URLField(allow_null=True)
     previous = URLField(allow_null=True)
-    results = ResultsResponse(many=True)
+    results = ProductResultsResponse(many=True)
     max_price = IntegerField()
 
 
@@ -149,13 +150,13 @@ class ProductDetailResponse(ProductReadSerializer):
 
 
 class ProductQuestionAnswerResponse(Serializer):
-    class ResultResponse(ProductQuestionAnswerSerializer):
+    class ProductQuestionAnswerResultResponse(ProductQuestionAnswerSerializer):
         classification = CharField()
 
     count = IntegerField()
     next = URLField(allow_null=True)
     previous = URLField(allow_null=True)
-    results = ResultResponse(many=True)
+    results = ProductQuestionAnswerResultResponse(many=True)
 
 
 class DecoratedProductViewSet(ProductViewSet):

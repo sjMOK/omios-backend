@@ -3,20 +3,20 @@ from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 
 from .documentations import (
-    DecoratedCartViewSet, DecoratedShopperShippingAddressViewSet,
+    DecoratedCartViewSet, DecoratedShopperShippingAddressViewSet, DecoratedShopperCouponViewSet,
     decorated_issuing_token_view, decorated_refreshing_token_view, decorated_blacklisting_token_view,
     decorated_upload_business_registration_image_view, decorated_get_buildings_view, decorated_user_password_view,
     decorated_is_unique_view, decorated_shopper_view, decorated_wholesaler_view, decorated_product_like_view,
     decorated_shopper_point_history_view,
 )
-from .views import ShopperCouponViewSet
+
 
 app_name = 'user'
 
 router = SimpleRouter(trailing_slash=False)
 router.register('/addresses', DecoratedShopperShippingAddressViewSet, basename='shipping-addresses')
 router.register('/carts', DecoratedCartViewSet, basename='carts')
-router.register('/coupons', ShopperCouponViewSet, basename='coupons')
+router.register('/coupons', DecoratedShopperCouponViewSet, basename='coupons')
 
 
 token_urlpatterns = [
