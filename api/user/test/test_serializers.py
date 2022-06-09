@@ -1,20 +1,25 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
+from decimal import Decimal
+
+from rest_framework.exceptions import ValidationError
 
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
+from coupon.test.factories import CouponFactory, CouponClassificationFactory
+from coupon.models import CouponClassification, Coupon
 from order.serializers import ORDER_MAXIMUM_NUMBER
 from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
 from .factories import (
     get_factory_password, get_factory_authentication_data, 
     MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, CartFactory, BuildingWithFloorFactory,
-    ShopperShippingAddressFactory, PointHistoryFactory,
+    ShopperShippingAddressFactory, PointHistoryFactory, ShopperCouponFactory,
 )
 from ..models import OutstandingToken, Floor
 from ..serializers import (
     get_token_time,
     IssuingTokenSerializer, RefreshingTokenSerializer, RefreshToken, MembershipSerializer, 
     UserSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer, BuildingSerializer, UserPasswordSerializer,
-    ShopperShippingAddressSerializer, PointHistorySerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 
 
@@ -74,7 +79,7 @@ class MembershipSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(membership, {
             'id': membership.id,
             'name': membership.name,
-            'discount_rate': float(membership.discount_rate),
+            'discount_rate': str(membership.discount_rate),
         })
 
 
@@ -133,10 +138,15 @@ class UserSerializerTestCase(SerializerTestCase):
 
 
 class ShopperSerializerTestCase(SerializerTestCase):
+    fixtures = ['coupon_classification', 'coupon']
     _serializer_class = ShopperSerializer
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.__membership = MembershipFactory(id=1)
+
     def test_model_instance_serialization(self):
-        shopper = ShopperFactory()
+        shopper = ShopperFactory(membership=self.__membership)
         self._test_model_instance_serialization(shopper, {
             **UserSerializer(instance=shopper).data,
             'membership': MembershipSerializer(instance=shopper.membership).data,
@@ -150,6 +160,25 @@ class ShopperSerializerTestCase(SerializerTestCase):
             'weight': shopper.weight,
             'point': shopper.point,
         })
+
+    def test_add_signup_coupons(self):
+        shopper = ShopperFactory.build(membership=self.__membership)
+        self._test_data = {
+            'username': shopper.username,
+            'name': shopper.name,
+            'mobile_number': shopper.mobile_number,
+            'email': shopper.email,
+            'gender': shopper.gender,
+            'birthday': shopper.birthday,
+            'height': shopper.height,
+            'weight': shopper.weight,
+            'password': shopper.password,
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper = serializer.save()
+        signup_coupons = Coupon.objects.filter(classification_id=5)
+
+        self.assertQuerysetEqual(shopper.coupons.all(), signup_coupons, ordered=False)
 
 
 class WholesalerSerializerTestCase(SerializerTestCase):
@@ -213,61 +242,24 @@ class CartSerializerTestCase(SerializerTestCase):
             'base_discounted_price': cart.option.product_color.product.base_discounted_price * cart.count,
         })
 
-    def test_validate_count_of_carts(self):   
-        product_color = ProductColorFactory(product=self.__product)
-        for _ in range(ORDER_MAXIMUM_NUMBER):
-            CartFactory(shopper=self.__shopper, option=OptionFactory(product_color=product_color))
-        data = {
-            'option': OptionFactory(product_color=product_color).id,
-            'count': 1,
-        }
-
-        self._test_serializer_raise_validation_error(
-            'exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER),
-            data=data, context={'shopper': self.__shopper}
-        )
-
-    def test_create(self):
-        data = {
-            'option': OptionFactory(product_color=self.__product_color).id,
-            'count': 1,
-        }
-        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
-        cart = serializer.save()
-
-        self.assertEqual(cart.option.id, data['option']),
-        self.assertEqual(cart.shopper, self.__shopper)
-        self.assertEqual(cart.count, data['count'])
-
-    def test_create_option_already_exists(self):
-        data = {
-            'option': self.__cart.option.id,
-            'count': 1
-        }
-        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
-        cart = serializer.save()
-
-        self.assertEqual(cart, self.__cart)
-        self.assertEqual(cart.count, self.__cart.count + data['count'])
-
 
 class CartListSerializerTestCase(ListSerializerTestCase):
-    maxDiff = None
     _child_serializer_class = CartSerializer
 
-    def setUp(self):
-        self.__shopper = ShopperFactory()
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = ShopperFactory()
 
-        self.__product_1 = ProductFactory()
-        product_color_1 = ProductColorFactory(product=self.__product_1)
-        ProductImageFactory(product=self.__product_1)
+        cls.__product_1 = ProductFactory()
+        cls.__product_color_1 = ProductColorFactory(product=cls.__product_1)
+        ProductImageFactory(product=cls.__product_1)
 
-        self.__product_2 = ProductFactory(product=self.__product_1)
-        product_color_2 = ProductColorFactory(product=self.__product_2)
-        ProductImageFactory(product=self.__product_2)
+        cls.__product_2 = ProductFactory(product=cls.__product_1)
+        cls.__product_color_2 = ProductColorFactory(product=cls.__product_2)
+        ProductImageFactory(product=cls.__product_2)
 
-        CartFactory.create_batch(2, option__product_color=product_color_1, shopper=self.__shopper)
-        CartFactory.create_batch(2, option__product_color=product_color_2, shopper=self.__shopper)
+        CartFactory.create_batch(2, option__product_color=cls.__product_color_1, shopper=cls.__shopper)
+        CartFactory.create_batch(2, option__product_color=cls.__product_color_2, shopper=cls.__shopper)
 
     def test_to_representation(self):
         serializer = self._get_serializer(self.__shopper.carts.all())
@@ -292,6 +284,41 @@ class CartListSerializerTestCase(ListSerializerTestCase):
         ]
 
         self.assertListEqual(expected_data, serializer.data)
+
+    def test_validate_count_of_carts(self):
+        product_color = ProductColorFactory(product=self.__product_1)
+        data = [{'option': OptionFactory(product_color=product_color).id, 'count': 1} for _ in range(ORDER_MAXIMUM_NUMBER)]
+
+        self._test_serializer_raise_validation_error(
+            'exceeded'.format(ORDER_MAXIMUM_NUMBER),
+            data=data, context={'shopper': self.__shopper}
+        )
+
+    def test_create(self):
+        data = [{
+            'option': OptionFactory(product_color=self.__product_color_1).id,
+            'count': 1,
+        }]
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        serializer.save()
+        cart = self.__shopper.carts.get(option_id=data[0]['option'])
+
+        self.assertEqual(cart.option.id, data[0]['option']),
+        self.assertEqual(cart.shopper, self.__shopper)
+        self.assertEqual(cart.count, data[0]['count'])
+
+    def test_create_option_already_exists(self):
+        cart = self.__shopper.carts.first()
+        data = [{
+            'option': cart.option.id,
+            'count': 1
+        }]
+        serializer = self._get_serializer_after_validation(data=data, context={'shopper': self.__shopper})
+        serializer.save()
+        updated_cart = self.__shopper.carts.get(option_id=data[0]['option'])
+
+        self.assertEqual(updated_cart, cart)
+        self.assertEqual(updated_cart.count, cart.count + data[0]['count'])
 
 
 class BuildingSerializerTestCase(SerializerTestCase):
@@ -384,3 +411,74 @@ class PointHistorySerializerTestCase(SerializerTestCase):
             'content': point_history.content,
             'created_at': datetime_to_iso(point_history.created_at),
         })
+
+
+class ShopperCouponSerializerTestCase(SerializerTestCase):
+    _serializer_class = ShopperCouponSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__shopper = ShopperFactory()
+        cls.__coupon_classification = CouponClassificationFactory()
+        cls.__coupon = CouponFactory(is_auto_issue=False, classification=cls.__coupon_classification)
+
+    def test_create_end_date_coupon(self):
+        self._test_data = {
+            'coupon': self.__coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper_coupon = serializer.save(shopper=self.__shopper)
+
+        self.assertEqual(shopper_coupon.shopper, self.__shopper)
+        self.assertEqual(shopper_coupon.coupon, self.__coupon)
+        self.assertEqual(shopper_coupon.end_date, self.__coupon.end_date)
+        self.assertEqual(shopper_coupon.is_available, True)
+
+    def test_create_available_period_coupon(self):
+        coupon = CouponFactory(is_auto_issue=False, start_date=None, end_date=None, available_period=7, classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+        shopper_coupon = serializer.save(shopper=self.__shopper)
+
+        self.assertEqual(shopper_coupon.shopper, self.__shopper)
+        self.assertEqual(shopper_coupon.coupon, coupon)
+        self.assertEqual(shopper_coupon.end_date, date.today() + timedelta(days=coupon.available_period))
+        self.assertEqual(shopper_coupon.is_available, True)
+
+    def test_create_already_existing_coupon(self):
+        ShopperCouponFactory(shopper=self.__shopper, coupon=self.__coupon)
+        self._test_data = {
+            'coupon': self.__coupon.id
+        }
+        serializer = self._get_serializer_after_validation()
+
+        self.assertRaisesMessage(
+            ValidationError,
+            'already exists.',
+            serializer.save,
+            shopper=self.__shopper
+        )
+
+    def test_create_auto_issued_coupon(self):
+        coupon = CouponFactory(is_auto_issue=True, classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        
+        self._test_serializer_raise_validation_error(
+            'object does not exist.',
+            self._get_serializer_after_validation,
+        )
+
+    def test_create_expired_coupon(self):
+        coupon = CouponFactory(end_date=date.today() - timedelta(days=1), classification=self.__coupon_classification)
+        self._test_data = {
+            'coupon': coupon.id
+        }
+        
+        self._test_serializer_raise_validation_error(
+            'object does not exist.',
+            self._get_serializer_after_validation,
+        )

@@ -11,12 +11,13 @@ from common.utils import datetime_to_iso
 from common.storage import MediaStorage
 from common.test.test_cases import FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS, ModelTestCase
 from product.test.factories import ProductFactory, OptionFactory
+from coupon.test.factories import CouponFactory
 from order.test.factories import OrderFactory
 from .factories import MembershipFactory, ShopperFactory, BuildingFactory, FloorFactory, WholesalerFactory
 from ..models import (
     is_shopper, is_wholesaler,
     Membership, User, Shopper, ShopperShippingAddress, Wholesaler, Building, Floor, BuildingFloor,
-    ProductLike, PointHistory, Cart,
+    ProductLike, PointHistory, Cart, ShopperCoupon,
 )
 
 
@@ -43,7 +44,7 @@ class CheckUserTypeTestCase(TestCase):
         self.assertTrue(not is_shopper(self.anonymous_user))
 
     def test_anonymous_user_is_not_wholesaler(self):
-        self.assertTrue(not is_shopper(self.anonymous_user))
+        self.assertTrue(not is_wholesaler(self.anonymous_user))
 
 
 class MembershipTestCase(ModelTestCase):
@@ -424,3 +425,31 @@ class PointHistoryTestCase(ModelTestCase):
 
         self.assertEqual(point_history.order, self._test_data['order'])
         self.assertEqual(point_history.product_name, self._test_data['product_name'])
+
+
+class ShopperCouponTestCase(ModelTestCase):
+    _model_class = ShopperCoupon
+
+    @classmethod
+    def setUpTestData(cls):
+        coupon = CouponFactory()
+        cls._test_data = {
+            'shopper': ShopperFactory(),
+            'coupon': coupon,
+            'end_date': coupon.end_date,
+            'is_available': True,
+        }
+
+    def test_create(self):
+        shopper_coupon = self._get_model_after_creation()
+
+        self.assertEqual(shopper_coupon.shopper, self._test_data['shopper'])
+        self.assertEqual(shopper_coupon.coupon, self._test_data['coupon'])
+        self.assertEqual(shopper_coupon.end_date, self._test_data['end_date'])
+        self.assertEqual(shopper_coupon.is_available, self._test_data['is_available'])
+
+    def test_create_default_value(self):
+        self._test_data.pop('is_available')
+        shopper_coupon = self._get_model_after_creation()
+
+        self.assertEqual(shopper_coupon.is_available, True)

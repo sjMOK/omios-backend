@@ -1,9 +1,12 @@
 import random
+from datetime import date, timedelta
 
 from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation, lazy_attribute
 from factory.django import DjangoModelFactory, get_model
 from factory.faker import Faker
 from factory.fuzzy import FuzzyDecimal, FuzzyInteger
+
+from coupon.test.factories import CouponFactory
 
 
 def get_factory_password(user):
@@ -22,7 +25,7 @@ class MembershipFactory(DjangoModelFactory):
         model = 'user.Membership'
 
     name = Sequence(lambda num: f'membership{num}')
-    discount_rate = FuzzyDecimal(0, 5, 1)
+    discount_rate = FuzzyDecimal(0, 5, 2)
     qualification = 'qualification'
 
 
@@ -133,3 +136,20 @@ class PointHistoryFactory(DjangoModelFactory):
     content = 'test'
     order = SubFactory('order.test.factories.OrderFactory', shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
     product_name = 'test'
+
+
+class ShopperCouponFactory(DjangoModelFactory):
+    class Meta:
+        model = 'user.ShopperCoupon'
+
+    shopper = SubFactory(ShopperFactory)
+    coupon = SubFactory(CouponFactory)
+    end_date = LazyAttribute(lambda o: o.coupon.end_date)
+    is_available = Faker('pybool')
+
+    @lazy_attribute
+    def end_date(self):
+        if self.coupon.available_period is not None:
+            return date.today() + timedelta(days=self.coupon.available_period)
+        else:
+            return self.coupon.end_date

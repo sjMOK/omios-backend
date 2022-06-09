@@ -13,6 +13,7 @@ from rest_framework.mixins import ListModelMixin
 from common.utils import get_response, querydict_to_dict, levenshtein, check_integer_format
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedWholesaler
+from coupon.models import  Coupon
 from user.models import is_shopper, is_wholesaler, ProductLike
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
@@ -196,7 +197,7 @@ class ProductViewSet(GenericViewSet):
     permission_classes = [ProductPermission]
     lookup_field = 'id'
     lookup_value_regex = r'[0-9]+'
-    __integer_format_validation_keys = ['main_category', 'sub_category', 'color', 'id', 'min_price', 'max_price']
+    __integer_format_validation_keys = ['main_category', 'sub_category', 'color', 'id', 'min_price', 'max_price', 'coupon']
     __filter_mapping = {
             'min_price': 'sale_price__gte',
             'max_price': 'sale_price__lte',
@@ -267,6 +268,11 @@ class ProductViewSet(GenericViewSet):
                     filter_set[self.__filter_mapping[key] + '__in'] = value    
                 else:
                     filter_set[self.__filter_mapping[key]] = value
+
+        queryset = queryset.filter(**filter_set)
+
+        if 'coupon' in self.request.query_params:
+            queryset = self.__filter_queryset_by_coupon_id(queryset, self.request.query_params['coupon'])
 
         return queryset.filter(**filter_set)
 
@@ -342,6 +348,22 @@ class ProductViewSet(GenericViewSet):
 
         return
 
+    def __filter_queryset_by_coupon_id(self, queryset, coupon_id):
+        coupon = get_object_or_404(Coupon, id=coupon_id)
+
+        if coupon.classification_id in [1, 5]:
+            pass
+        elif coupon.classification_id == 2:
+            queryset = queryset.filter(coupon=coupon)
+        elif coupon.classification_id == 3:
+            sub_categories = coupon.sub_categories.all()
+            queryset = queryset.filter(sub_category__in=sub_categories)
+        elif coupon.classification_id ==4:
+            pass
+
+        return queryset
+
+
     def list(self, request):
         validation_exception = self.__validate_query_params()
         if validation_exception is not None:
@@ -356,7 +378,6 @@ class ProductViewSet(GenericViewSet):
             id_list = request.query_params.getlist('id')
             order_condition = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(id_list)])
             queryset= self.get_queryset().filter(id__in=id_list).order_by(order_condition)
-
             return self.__get_response_for_list(queryset)
 
         queryset = self.__sort_queryset(

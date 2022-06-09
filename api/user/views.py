@@ -1,105 +1,36 @@
+from datetime import date
+
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
-from django.db import connection
-from django.db.models import Sum, F
+from django.db import connection, transaction
+from django.db.models import Sum, F, Case, When
 
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import ListModelMixin
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenViewBase
 
 from common.utils import get_response, get_response_body
 from common.views import upload_image_view
-from common.permissions import IsAuthenticatedShopper
+from common.permissions import IsAuthenticatedShopper, IsAuthenticatedWholesaler
 from product.models import Product
+from coupon.serializers import CouponSerializer
+from coupon.models import Coupon
 from .models import (
     ShopperShippingAddress, User, Shopper, Wholesaler, Building, ProductLike, PointHistory, Cart,
+    ShopperCoupon,
 )
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, TokenBlacklistSerializer,
     UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
-    ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer,
+    ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer, ShopperCouponSerializer,
 )
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
-
-
-class TokenView(TokenViewBase):
-    def post(self, request, *args, **kwargs):
-        return get_response(status=HTTP_201_CREATED, data=super().post(request, *args, **kwargs).data)
-
-
-class IssuingTokenView(TokenView):
-    serializer_class = IssuingTokenSerializer
-
-
-class RefreshingTokenView(TokenView):
-    serializer_class = RefreshingTokenSerializer
-
-
-class BlacklistingTokenView(TokenView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    serializer_class = TokenBlacklistSerializer
-
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        response.data = get_response_body(response.status_code, data={'id': request.user.id})
-        return response
-
-
-class UserViewSet(GenericViewSet):
-    permission_classes = [IsAuthenticatedExceptCreate]
-    lookup_field = 'user_id'
-    lookup_value_regex = r'[0-9]+'
-
-    def retrieve(self, request, user_id=None):
-        user = self.get_object()
-        serializer = self.get_serializer(instance=user)
-
-        return get_response(data=serializer.data)
-
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
-
-    def partial_update(self, request, user_id=None):
-        if set(request.data).difference(self._patchable_fields):
-            return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
-        
-        user = self.get_object()
-        serializer = self.get_serializer(instance=user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        return get_response(data={'id': user.id})
-
-    def destroy(self, request, user_id=None):
-        user = self.get_object()
-        user.delete()
-
-        return get_response(data={'id': user.id})
-
-
-class ShopperViewSet(UserViewSet):
-    serializer_class = ShopperSerializer
-    _patchable_fields = set(['email', 'nickname', 'height', 'weight'])
-
-    def get_queryset(self):
-        return Shopper.objects.filter(is_active=True)
-
-
-class WholesalerViewSet(UserViewSet):
-    serializer_class = WholesalerSerializer
-    _patchable_fields = ['mobile_number', 'email']
-
-    def get_queryset(self):
-        return Wholesaler.objects.filter(is_active=True)
 
 
 @api_view(['POST'])
@@ -148,22 +79,111 @@ def is_unique(request):
     return get_response(data={'is_unique': True})
 
 
+@api_view(['GET'])
+def get_point_histories(request):
+    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper=request.user.shopper), many=True)
+
+    return get_response(data=serializer.data)
+
+
+class TokenView(TokenViewBase):
+    def post(self, request, *args, **kwargs):
+        return get_response(status=HTTP_201_CREATED, data=super().post(request, *args, **kwargs).data)
+
+
+class IssuingTokenView(TokenView):
+    serializer_class = IssuingTokenSerializer
+
+
+class RefreshingTokenView(TokenView):
+    serializer_class = RefreshingTokenSerializer
+
+
+class BlacklistingTokenView(TokenView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = TokenBlacklistSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        response.data = get_response_body(response.status_code, data={'id': request.user.id})
+        return response
+
+
+class UserView(GenericAPIView):
+    permission_classes = [IsAuthenticatedExceptCreate]
+
+    def get(self, request):
+        serializer = self.get_serializer(self._get_user())
+
+        return get_response(data=serializer.data)
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return get_response(status=HTTP_201_CREATED, data={'id': user.user_id})
+
+    def patch(self, request):
+        if set(request.data).difference(self._patchable_fields):
+            return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
+
+        serializer = self.get_serializer(self._get_user(), request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return get_response(data={'id': user.id})
+
+    def delete(self, request):
+        user = self._get_user()
+        user.delete()
+
+        return get_response(data={'id': user.id})
+
+
+class ShopperView(UserView):
+    serializer_class = ShopperSerializer
+    _patchable_fields = set(['email', 'nickname', 'height', 'weight'])
+
+    def _get_user(self):
+        return self.request.user.shopper
+
+    def get_queryset(self):
+        return Shopper.objects.filter(is_active=True)
+
+
+class WholesalerView(UserView):
+    serializer_class = WholesalerSerializer
+    _patchable_fields = ['mobile_number', 'email']
+
+    def _get_user(self):
+        return self.request.user.wholesaler
+
+    def get_queryset(self):
+        return Wholesaler.objects.filter(is_active=True)
+
+
 class ProductLikeView(APIView):
+    permission_classes = [IsAuthenticatedShopper]
+
     def get_queryset(self):
         return ProductLike.objects.all()
 
-    def post(self, request, user_id, product_id):
-        shopper = get_object_or_404(Shopper, id=user_id)
+    @transaction.atomic
+    def post(self, request, product_id):
+        shopper = request.user.shopper
         product = get_object_or_404(Product, id=product_id)
 
         if self.get_queryset().filter(shopper=shopper, product=product).exists():
             return get_response(status=HTTP_400_BAD_REQUEST, message='Duplicated user and product')
 
         ProductLike.objects.create(shopper=shopper, product=product)
-        return get_response(status=HTTP_201_CREATED, data={'shopper_id': user_id, 'product_id': product.id})
+        return get_response(status=HTTP_201_CREATED, data={'shopper_id': shopper.user_id, 'product_id': product.id})
 
-    def delete(self, request, user_id, product_id):
-        shopper = get_object_or_404(Shopper, id=user_id)
+    @transaction.atomic
+    def delete(self, request, product_id):
+        shopper = request.user.shopper
         product = get_object_or_404(Product, id=product_id)
 
         if not self.get_queryset().filter(shopper=shopper, product=product).exists():
@@ -172,7 +192,7 @@ class ProductLikeView(APIView):
         product_like = ProductLike.objects.get(shopper=shopper, product=product)
         product_like.delete()
 
-        return get_response(data={'shopper_id': user_id, 'product_id': product_id})
+        return get_response(data={'shopper_id': shopper.user_id, 'product_id': product_id})
 
 
 class CartViewSet(GenericViewSet):
@@ -193,7 +213,7 @@ class CartViewSet(GenericViewSet):
 
         return queryset
 
-    def list(self, request, user_id):
+    def list(self, request):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         aggregate_data = queryset.aggregate(
@@ -206,14 +226,14 @@ class CartViewSet(GenericViewSet):
 
         return get_response(data=response_data)
 
-    def create(self, request, user_id):
-        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper})
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data, context={'shopper': request.user.shopper}, many=True)
         serializer.is_valid(raise_exception=True)
-        cart = serializer.save()
+        serializer.save()
 
-        return get_response(status=HTTP_201_CREATED, data={'id': cart.id})
+        return get_response(status=HTTP_201_CREATED, data={'option_id': [data['option'] for data in request.data]})
 
-    def partial_update(self, request, user_id, cart_id):
+    def partial_update(self, request, cart_id):
         if set(request.data).difference(self.__patchable_fields):
             return get_response(status=HTTP_400_BAD_REQUEST, message='It contains requests for fields that do not exist or cannot be modified.')
 
@@ -224,8 +244,7 @@ class CartViewSet(GenericViewSet):
 
         return get_response(data={'id': cart.id})
 
-    @action(methods=['POST'], detail=False)
-    def remove(self, request, user_id):
+    def remove(self, request):
         delete_id_list = request.data.get('id', None)
         if delete_id_list is None:
             return get_response(status=HTTP_400_BAD_REQUEST, message='list of id is required.')
@@ -248,21 +267,22 @@ class ShopperShippingAddressViewSet(GenericViewSet):
     lookup_value_regex = r'[0-9]+'
 
     def get_queryset(self):
-        return self.request.user.shopper.addresses.all()
+        order_condition = [Case(When(is_default=True, then=1), default=2), '-id']
+        return self.request.user.shopper.addresses.all().order_by(*order_condition)
 
-    def list(self, request, user_id):
+    def list(self, request):
         serializer = self.get_serializer(instance=self.get_queryset(), many=True)
 
         return get_response(data=serializer.data)
 
-    def create(self, request, user_id):
+    def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         shipping_address = serializer.save(shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'id': shipping_address.id})
 
-    def partial_update(self, request, user_id, shipping_address_id):
+    def partial_update(self, request, shipping_address_id):
         shipping_address = self.get_object()
         serializer = self.get_serializer(
             shipping_address, request.data, partial=True
@@ -272,14 +292,13 @@ class ShopperShippingAddressViewSet(GenericViewSet):
 
         return get_response(data={'id': shipping_address.id})
 
-    def destroy(self, request, user_id, shipping_address_id):
+    def destroy(self, request, shipping_address_id):
         shipping_address = self.get_object()
         shipping_address.delete()
 
         return get_response(data={'id': int(shipping_address_id)})
 
-    @action(methods=['GET'], detail=False, url_path='default')
-    def get_default_address(self, request, user_id):
+    def get_default_address(self, request):
         queryset = self.get_queryset()
 
         if not queryset.exists():
@@ -288,17 +307,39 @@ class ShopperShippingAddressViewSet(GenericViewSet):
             try:
                 shipping_address = queryset.get(is_default=True)
             except ShopperShippingAddress.MultipleObjectsReturned:
-                shipping_address = queryset.filter(is_default=True).last()
+                shipping_address = queryset.filter(is_default=True).first()
         else:
-            shipping_address = queryset.last()
+            shipping_address = queryset.first()
 
         serializer = self.get_serializer(shipping_address)
 
         return get_response(data=serializer.data)
 
 
-@api_view(['GET'])
-def get_point_histories(request, user_id):
-    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper_id=user_id), many=True)
+class ShopperCouponViewSet(ListModelMixin, GenericViewSet):
+    permission_classes = [IsAuthenticatedShopper]
+    lookup_field = 'id'
+    lookup_url_kwarg = 'cart_id'
+    lookup_value_regex = r'[0-9]+'
 
-    return get_response(data=serializer.data)
+    def get_serializer_class(self):
+        if self.action == 'list': 
+            return CouponSerializer
+        elif self.action == 'create': 
+            return ShopperCouponSerializer
+
+    def get_queryset(self):
+        return self.request.user.shopper.coupons.filter(
+            shoppercoupon__is_available=True, shoppercoupon__end_date__gte=date.today()
+        ).order_by('-shoppercoupon__coupon')
+
+    def list(self, request):
+        response = super().list(request)
+        return get_response(data=response.data)
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(shopper=request.user.shopper)
+
+        return get_response(status=HTTP_201_CREATED, data={'coupon_id': request.data['coupon']})

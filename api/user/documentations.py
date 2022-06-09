@@ -5,16 +5,29 @@ from rest_framework.serializers import Serializer, ModelSerializer, IntegerField
 from rest_framework.decorators import action
 
 from common.documentations import UniqueResponse, Image, get_response
+from coupon.documentations import CouponResponse
 from .models import Shopper, Wholesaler
 from .serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, MembershipSerializer, ShopperSerializer, ShopperShippingAddressSerializer, 
-    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer
+    WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperViewSet, WholesalerViewSet, ProductLikeView,
-    ShopperShippingAddressViewSet, CartViewSet,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView, ProductLikeView,
+    CartViewSet, ShopperShippingAddressViewSet, ShopperCouponViewSet,
     upload_business_registration_image, get_buildings, change_password, is_unique, get_point_histories,
 )
+
+
+class PasswordUpdateRequest(UserPasswordSerializer):
+    def __init__(self):
+        super(UserPasswordSerializer, self).__init__()
+
+
+class UniqueRequest(Serializer):
+    username = CharField(required=False)
+    shopper_nickname = CharField(required=False)
+    wholesaler_name = CharField(required=False)
+    wholesaler_company_registration_number = CharField(required=False)
 
 
 class IssuingTokenRequest(IssuingTokenSerializer):
@@ -72,30 +85,18 @@ class CartDeleteRequest(Serializer):
     id = ListField(child=IntegerField())
 
 
-class PasswordUpdateRequest(UserPasswordSerializer):
-    def __init__(self):
-        super(UserPasswordSerializer, self).__init__()
-
-
-class UniqueRequest(Serializer):
-    username = CharField(required=False)
-    shopper_nickname = CharField(required=False)
-    wholesaler_name = CharField(required=False)
-    wholesaler_company_registration_number = CharField(required=False)
-
-
-class Token(RefreshingTokenSerializer):
+class TokenResponse(RefreshingTokenSerializer):
     access = CharField()
 
 
-class Shopper(ModelSerializer):
+class ShopperResponse(ModelSerializer):
     membership = MembershipSerializer()
     class Meta:
         model = Shopper
         exclude = ['password']
 
 
-class Wholesaler(ModelSerializer):
+class WholesalerResponse(ModelSerializer):
     class Meta:
         model = Wholesaler
         exclude = ['password']
@@ -111,9 +112,13 @@ class ProductCartResponse(Serializer):
             option = IntegerField()
 
     product_id = IntegerField()
-    produdct_name = CharField()
+    product_name = CharField()
     image = URLField()
     carts  =CartResponse(many=True)
+
+
+class CartCreateResponse(Serializer):
+    option_id = ListField(child=IntegerField())
 
 
 class CartListResponse(Serializer):
@@ -122,13 +127,47 @@ class CartListResponse(Serializer):
     total_base_discounted_price = IntegerField()
 
 
-class CartDeleteResponse(CartDeleteRequest):
-    pass
-
-
 class ProductLikeViewResponse(Serializer):
     shopper_id = IntegerField()
     product_id = IntegerField()
+
+
+class ShopperCouponCreateResponse(Serializer):
+    coupon_id = IntegerField()
+
+
+class DecoratedShopperView(ShopperView):
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
+
+    @transaction.atomic
+    def post(self, *args, **kwargs):
+        return super().post(*args, **kwargs)
+
+    @transaction.atomic
+    def patch(self, *args, **kwargs):
+        return super().patch(*args, **kwargs)
+
+    @transaction.atomic
+    def delete(self, *args, **kwargs):
+        return super().delete(*args, **kwargs)
+
+
+class DecoratedWholesalerView(WholesalerView):
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
+
+    @transaction.atomic
+    def post(self, *args, **kwargs):
+        return super().post(*args, **kwargs)
+
+    @transaction.atomic
+    def patch(self, *args, **kwargs):
+        return super().patch(*args, **kwargs)
+
+    @transaction.atomic
+    def delete(self, *args, **kwargs):
+        return super().delete(*args, **kwargs)
 
 
 class DecoratedRefreshingTokenView(RefreshingTokenView):
@@ -136,54 +175,12 @@ class DecoratedRefreshingTokenView(RefreshingTokenView):
         return super().post(request, *args, **kwargs)
 
 
-class DecoratedShopperViewSet(ShopperViewSet):
-    @swagger_auto_schema(**get_response(Shopper()), operation_description='Shopper 데이터 가져오기')
-    def retrieve(self, *args, **kwargs):
-        return super().retrieve(*args, **kwargs)
-
-    @swagger_auto_schema(request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입')
-    @transaction.atomic
-    def create(self, *args, **kwargs):
-        return super().create(*args, **kwargs)
-
-    @swagger_auto_schema(request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정')
-    @transaction.atomic
-    def partial_update(self, *args, **kwargs):
-        return super().partial_update(*args, **kwargs)
-
-    @swagger_auto_schema(**get_response(), operation_description='Shopper 회원탈퇴')
-    @transaction.atomic
-    def destroy(self, *args, **kwargs):
-        return super().destroy(*args, **kwargs)
-
-
-class DecoratedWholesalerViewSet(WholesalerViewSet):
-    @swagger_auto_schema(**get_response(Wholesaler()), operation_description='Wholesaler 데이터 가져오기')
-    def retrieve(self, *args, **kwargs):
-        return super().retrieve(*args, **kwargs)
-
-    @swagger_auto_schema(request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입')
-    @transaction.atomic
-    def create(self, *args, **kwargs):
-        return super().create(*args, **kwargs)
-
-    @swagger_auto_schema(request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정')
-    @transaction.atomic
-    def partial_update(self, *args, **kwargs):
-        return super().partial_update(*args, **kwargs)
-
-    @swagger_auto_schema(**get_response(), operation_description='Wholesaler 회원탈퇴')
-    @transaction.atomic
-    def destroy(self, *args, **kwargs):
-        return super().destroy(*args, **kwargs)
-
-
 class DecoratedCartViewSet(CartViewSet):
     @swagger_auto_schema(**get_response(CartListResponse()), operation_description='장바구니 리스트 조회')
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=CartCreateRequest, **get_response(code=201), operation_description='장바구니 항목 등록')
+    @swagger_auto_schema(request_body=CartCreateRequest(many=True), **get_response(CartCreateResponse()), operation_description='장바구니 항목 등록\n최대 100개까지 등록 가능')
     @transaction.atomic
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
@@ -193,7 +190,7 @@ class DecoratedCartViewSet(CartViewSet):
     def partial_update(self, *args, **kwargs):
         return super().partial_update(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=CartDeleteRequest, **get_response(CartDeleteResponse()), operation_description='장바구니 항목 삭제\n다중 삭제 지원(id 배열을 request body에 전송)\n사용자 소유가 아닌 장바구니 항목 id 전송 시 PermissionDenied(403) 반환')
+    @swagger_auto_schema(request_body=CartDeleteRequest, **get_response(CartDeleteRequest()), operation_description='장바구니 항목 삭제\n다중 삭제 지원(id 배열을 request body에 전송)\n사용자 소유가 아닌 장바구니 항목 id 전송 시 PermissionDenied(403) 반환')
     @action(methods=['POST'], detail=False)
     @transaction.atomic
     def remove(self, *args, **kwargs):
@@ -226,12 +223,27 @@ class DecoratedShopperShippingAddressViewSet(ShopperShippingAddressViewSet):
         return super().get_default_address(*args, **kwargs)
 
 
+class DecoratedShopperCouponViewSet(ShopperCouponViewSet):
+    create_description = '''shopper 쿠폰 발급
+    전송한 쿠폰의 id가 발급 가능하지 않다면(만료일자가 지났거나 자동 발급 쿠폰인 경우) 404에러 반환
+    사용자가 이미 발급 받은 쿠폰을 전송하는 경우 400에러 반환
+    '''
+
+    @swagger_auto_schema(**get_response(CouponResponse()), operation_description='shopper가 보유한 쿠폰 리스트 조회')
+    def list(self, *args, **kwargs):
+        return super().list(*args, **kwargs)
+
+    @swagger_auto_schema(request_body=ShopperCouponSerializer, **get_response(ShopperCouponCreateResponse(), code=201), operation_description=create_description)
+    def create(self, *args, **kwargs):
+        return super().create(*args, **kwargs)
+
+
 decorated_issuing_token_view = swagger_auto_schema(
-    method='POST', request_body=IssuingTokenRequest, **get_response(Token(), 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
+    method='POST', request_body=IssuingTokenRequest, **get_response(TokenResponse(), 201), security=[], operation_description='id, password로 토큰 발급 (로그인)'
 )(IssuingTokenView.as_view())
 
 decorated_refreshing_token_view = swagger_auto_schema(
-    method='POST', request_body=RefreshingTokenRequest, **get_response(Token(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
+    method='POST', request_body=RefreshingTokenRequest, **get_response(TokenResponse(), 201), security=[], operation_description='refresh 토큰으로 토큰 발급'
 )(DecoratedRefreshingTokenView.as_view())
 
 decorated_blacklisting_token_view = swagger_auto_schema(
@@ -253,6 +265,26 @@ decorated_user_password_view = swagger_auto_schema(
 decorated_is_unique_view = swagger_auto_schema(
     method='GET', query_serializer=UniqueRequest, **get_response(UniqueResponse()), security=[], operation_description='중복검사\n한 번에 하나의 파라미터에 대해서만 요청 가능'
 )(is_unique)
+
+decorated_shopper_view = swagger_auto_schema(
+    method='GET', **get_response(ShopperResponse()), operation_description='Shopper 데이터 가져오기'
+)(swagger_auto_schema(
+    method='POST', request_body=ShopperCreateRequest, **get_response(code=201), security=[], operation_description='Shopper 회원가입'
+)(swagger_auto_schema(
+    method='PATCH', request_body=ShopperUpdateRequest, **get_response(), operation_description='Shopper 회원정보 수정'
+)(swagger_auto_schema(
+    method='DELETE', **get_response(), operation_description='Shopper 회원탈퇴'
+)(DecoratedShopperView.as_view()))))
+
+decorated_wholesaler_view = swagger_auto_schema(
+    method='GET', **get_response(WholesalerResponse()), operation_description='Wholesaler 데이터 가져오기'
+)(swagger_auto_schema(
+    method='POST', request_body=WholesalerCreateRequest, **get_response(code=201), security=[], operation_description='Wholesaler 회원가입'
+)(swagger_auto_schema(
+    method='PATCH', request_body=WholesalerUpdateRequest, **get_response(), operation_description='Wholesaler 회원정보 수정'
+)(swagger_auto_schema(
+    method='DELETE', **get_response(), operation_description='Wholesaler 회원탈퇴'
+)(DecoratedWholesalerView.as_view()))))
 
 decorated_product_like_view = swagger_auto_schema(
     method='POST', **get_response(ProductLikeViewResponse(), 201), operation_description='상품 좋아요 생성(좋아요 버튼 클릭시 요청)'

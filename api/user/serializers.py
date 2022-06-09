@@ -1,4 +1,7 @@
+from datetime import date, timedelta
+
 from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework.serializers import (
     Serializer, ModelSerializer, ListSerializer, ValidationError, IntegerField, CharField, RegexField, DateTimeField,
@@ -9,15 +12,16 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, Toke
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import datetime_from_epoch
 
-from order.serializers import ORDER_MAXIMUM_NUMBER
 from common.utils import gmt_to_kst, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
 from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
+from coupon.models import Coupon, CouponClassification
+from order.serializers import ORDER_MAXIMUM_NUMBER
 from .models import (
     is_shopper, is_wholesaler, OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper,
-    Wholesaler, PointHistory, Building, Cart,
+    Wholesaler, PointHistory, Building, Cart, ShopperCoupon
 )
 from .validators import PasswordSimilarityValidator
 
@@ -101,11 +105,26 @@ class ShopperSerializer(UserSerializer):
 
     class Meta:
         model = Shopper
-        exclude = ['like_products']
+        exclude = ['like_products', 'coupons']
         extra_kwargs = {            
             'height': {'min_value': 100, 'max_value': 250},
             'weight': {'min_value': 30, 'max_value': 200},
         }
+
+    def create(self, validated_data):
+        user = super().create(validated_data)
+        self.__add_signup_coupons(user.shopper)
+
+        return user
+
+    def __add_signup_coupons(self, shopper):
+        signup_coupon_classification = CouponClassification.objects.get(id=5)
+        signup_coupons = Coupon.objects.filter(classification=signup_coupon_classification)
+        shopper_signup_coupons = [
+            ShopperCoupon(shopper=shopper, coupon=coupon, end_date=date.today() + timedelta(days=coupon.available_period))
+            for coupon in signup_coupons
+        ]
+        ShopperCoupon.objects.bulk_create(shopper_signup_coupons)
 
 
 class WholesalerSerializer(UserSerializer):
@@ -152,6 +171,37 @@ class CartListSerializer(ListSerializer):
 
         return results
 
+    def validate(self, attrs):
+        if self.instance is None:
+            shopper = self.context['shopper']
+            options = [attr['option'] for attr in attrs]
+            if shopper.carts.exclude(option__in=options).count() + len(attrs) > ORDER_MAXIMUM_NUMBER:
+                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
+        
+        return attrs
+
+    def create(self, validated_data):
+        shopper = self.context['shopper']
+
+        input_data = {}
+        for data in validated_data:
+            input_data[data['option'].id] = data
+            input_data[data['option'].id].pop('option')
+
+        existing_option_id = list(shopper.carts.all().values_list('option__id', flat=True))
+        input_option_id = input_data.keys()
+        
+        create_option_id = set(input_option_id) - set(existing_option_id)
+        update_option_id = set(input_option_id) - set(create_option_id)
+
+        for option_id in update_option_id:
+            cart = shopper.carts.get(option_id=option_id)
+            cart.count += input_data[option_id]['count']
+            cart.save()
+
+        carts = [self.child.Meta.model(shopper=shopper, option_id=option_id, **input_data[option_id]) for option_id in create_option_id]
+        return self.child.Meta.model.objects.bulk_create(carts)
+
 
 class CartSerializer(ModelSerializer):
     product_name = CharField(read_only=True, source='option.product_color.product.name')
@@ -169,37 +219,15 @@ class CartSerializer(ModelSerializer):
         list_serializer_class = CartListSerializer
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
+        result = super().to_representation(instance)
 
-        ret['base_discounted_price'] *= ret['count'] 
+        result['base_discounted_price'] *= result['count'] 
         if instance.option.product_color.product.images.all().exists():
-            ret['image'] = BASE_IMAGE_URL + instance.option.product_color.product.images.all()[0].image_url
+            result['image'] = BASE_IMAGE_URL + instance.option.product_color.product.images.all()[0].image_url
         else:
-            ret['image'] = DEFAULT_IMAGE_URL
+            result['image'] = DEFAULT_IMAGE_URL
 
-        return ret
-
-    def validate(self, attrs):
-        if self.instance is None:
-            shopper = self.context['shopper']
-            option = attrs['option']
-            if shopper.carts.exclude(option=option).count() >= ORDER_MAXIMUM_NUMBER:
-                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
-
-        return attrs
-
-    def create(self, validated_data):
-        shopper = self.context['shopper']
-        option = validated_data['option']
-
-        if shopper.carts.filter(option=option).exists():
-            cart = shopper.carts.get(option=option)
-            cart.count += validated_data['count']    
-            cart.save()
-        else:
-            cart = self.Meta.model.objects.create(shopper=shopper, **validated_data)
-
-        return cart
+        return result
 
 
 class BuildingSerializer(ModelSerializer):
@@ -258,3 +286,27 @@ class PointHistorySerializer(ModelSerializer):
     class Meta:
         model = PointHistory
         exclude = ['shopper', 'order']
+
+
+class ShopperCouponSerializer(ModelSerializer):
+    class Meta:
+        model = ShopperCoupon
+        exclude = ['id', 'end_date', 'is_available', 'shopper']
+        extra_kwargs = {
+            'coupon': {
+                'queryset': Coupon.objects.filter(is_auto_issue=False).filter(Q(end_date__gte=date.today()) | Q(end_date__isnull=True)),
+            }
+        }
+
+    def create(self, validated_data):
+        coupon = validated_data['coupon']
+        shopper = validated_data['shopper']
+        if self.Meta.model.objects.filter(coupon=coupon, shopper=shopper).exists():
+            raise ValidationError('already exists.')
+
+        if coupon.end_date is not None:
+            validated_data['end_date'] = coupon.end_date
+        else:
+            validated_data['end_date'] = timedelta(days=coupon.available_period) + date.today()
+
+        return self.Meta.model.objects.create(**validated_data)

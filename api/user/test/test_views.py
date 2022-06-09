@@ -1,5 +1,7 @@
+from datetime import date, timedelta
+
 from django.forms import model_to_dict
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Case, When
 
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
@@ -7,17 +9,20 @@ from freezegun import freeze_time
 
 from common.test.test_cases import ViewTestCase, FREEZE_TIME
 from common.utils import datetime_to_iso
+from coupon.test.factories import CouponFactory, CouponClassificationFactory
+from coupon.serializers import CouponSerializer
 from product.test.factories import ProductFactory, ProductColorFactory, OptionFactory
 from .factories import (
     MembershipFactory, get_factory_password, get_factory_authentication_data, 
     FloorFactory, BuildingFactory, ShopperShippingAddressFactory, PointHistoryFactory, CartFactory,
+    ShopperCouponFactory,
 )
 from ..models import (
     BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper, Wholesaler, Building, Cart,
 )
 from ..serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer,
-    BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer,
+    BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 
 
@@ -115,6 +120,7 @@ class BlacklistingTokenViewTestCase(TokenViewTestCase):
 
 
 class ShopperViewSetTestCase(ViewTestCase):
+    fixtures = ['coupon_classification', 'coupon']
     _url = '/users/shoppers'
 
     @classmethod
@@ -125,7 +131,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self._set_authentication()
 
     def test_retrieve(self):
-        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
@@ -152,7 +157,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self.assertTrue(user.check_password(self._test_data['password']))
 
     def test_partial_update(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'nickname': 'patch_test',
@@ -170,7 +174,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self.assertEqual(user.weight, self._test_data['weight'])
 
     def test_partial_update_with_non_existent_field(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'email': 'user@omios.com',
             'non_existent_field': 'test',
@@ -180,7 +183,6 @@ class ShopperViewSetTestCase(ViewTestCase):
         self._assert_failure(400, 'It contains requests for fields that do not exist or cannot be modified.')
 
     def test_partial_update_with_non_modifiable_field(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'nickname': 'patch_error_test',
             'password': 'test',
@@ -191,7 +193,6 @@ class ShopperViewSetTestCase(ViewTestCase):
 
     @freeze_time(FREEZE_TIME)
     def test_destroy(self):
-        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Shopper.objects.get(id=self._user.id)
 
@@ -212,7 +213,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
         self._set_authentication()
 
     def test_retrieve(self):
-        self._url += '/{0}'.format(self._user.id)
         self._get()
 
         self._assert_success()
@@ -241,7 +241,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
         self.assertTrue(user.check_password(self._test_data['password']))
 
     def test_partial_update(self):
-        self._url += '/{0}'.format(self._user.id)
         self._test_data = {
             'mobile_number': '01000000000',
             'email': 'user@omios.com'
@@ -256,7 +255,6 @@ class WholesalerViewSetTestCase(ViewTestCase):
 
     @freeze_time(FREEZE_TIME)
     def test_destroy(self):
-        self._url += '/{0}'.format(self._user.id)
         self._delete()
         user = Wholesaler.objects.get(id=self._user.id)
 
@@ -374,13 +372,13 @@ class IsUniqueTestCase(ViewTestCase):
 
 
 class ProductLikeViewTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/like/{1}'
+    _url = '/users/shoppers/like/products/{}'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
         cls.__product = ProductFactory()
-        cls._url = cls._url.format(cls._user.id, cls.__product.id)
+        cls._url = cls._url.format(cls.__product.id)
         cls._test_data = {'product_id': cls.__product.id}
 
     def test_post(self):
@@ -415,13 +413,11 @@ class ProductLikeViewTestCase(ViewTestCase):
 
 
 class CartViewSetTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/carts'
+    _url = '/users/shoppers/carts'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
-        
         cls.__product_color = ProductColorFactory()
         cls.__carts = CartFactory.create_batch(2, option__product_color=cls.__product_color)
         cls._user.carts.add(*cls.__carts)
@@ -443,19 +439,17 @@ class CartViewSetTestCase(ViewTestCase):
         self.assertEqual(self._response_data['total_base_discounted_price'], aggregate_data['total_base_discounted_price'])
 
     def test_create(self):
-        self._test_data = {
+        self._test_data = [{
             'option': OptionFactory(product_color=self.__product_color).id,
             'count': 1,
-        }
-        self._post()
+        },
+        {
+            'option': OptionFactory(product_color=self.__product_color).id,
+            'count': 1,
+        }]
+        self._post(format='json')
 
-        self._assert_success_with_id_response()
-
-        cart = Cart.objects.get(id=self._response_data['id'])
-        self.assertDictEqual(
-            model_to_dict(cart, fields=self._test_data.keys()),
-            self._test_data,
-        )
+        self._assert_success_and_serializer_class(CartSerializer, False)
 
     def test_partial_update(self):
         updating_cart = self.__carts[0]
@@ -527,19 +521,26 @@ class CartViewSetTestCase(ViewTestCase):
 
 
 class ShopperShippingAddressViewSetTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/addresses'
+    _url = '/users/shoppers/addresses'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
         cls.__default_shipping_address = ShopperShippingAddressFactory(shopper=cls._user, is_default=True)
         ShopperShippingAddressFactory.create_batch(size=2, shopper=cls._user)
 
+    def __get_queryset(self):
+        order_condition = [Case(When(is_default=True, then=1), default=2), '-id']
+        queryset = self._user.addresses.all().order_by(*order_condition)
+
+        return queryset
+
     def test_list(self):
+        queryset = self.__get_queryset()
+        serializer = ShopperShippingAddressSerializer(queryset, many=True)
+
         self._set_authentication()
         self._get()
-        serializer = ShopperShippingAddressSerializer(self._user.addresses.all(), many=True)
 
         self._assert_success()
         self.assertListEqual(self._response_data, serializer.data)
@@ -610,8 +611,10 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
         self._set_authentication()
         self._url += '/default'
         self._get()
+
+        queryset = self.__get_queryset()
         serializer = ShopperShippingAddressSerializer(
-            ShopperShippingAddress.objects.last()
+            queryset.first()
         )
 
         self._assert_success()
@@ -643,17 +646,75 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
 
 
 class GetPointHistoriesTestCase(ViewTestCase):
-    _url = '/users/shoppers/{0}/point-histories'
+    _url = '/users/shoppers/point-histories'
 
     @classmethod
     def setUpTestData(cls):
         cls._set_shopper()
-        cls._url = cls._url.format(cls._user.id)
 
     def test_success(self):
         self._set_authentication()
         PointHistoryFactory.create_batch(2, shopper=self._user)
         self._get()
-
+        
         self._assert_success()
         self.assertListEqual(self._response_data, PointHistorySerializer(self._user.point_histories.all(), many=True).data)
+
+
+class ShopperCouponViewSetTestCase(ViewTestCase):
+    _url = '/users/shoppers/coupons'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        cls.__coupon_classification = CouponClassificationFactory()
+        coupons = CouponFactory.create_batch(2, classification=cls.__coupon_classification)
+        for coupon in coupons:
+            ShopperCouponFactory(shopper=cls._user, coupon=coupon, is_available=True)
+
+    def setUp(self):
+        self._set_authentication()
+
+    def test_list(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], serializer.data)
+
+    def test_list_with_not_available_coupon(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        expected_data = serializer.data
+
+        coupon = CouponFactory(classification=self.__coupon_classification)
+        ShopperCouponFactory(shopper=self._user, coupon=coupon, is_available=False)
+        
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], expected_data)
+
+    def test_list_with_expired_coupont(self):
+        queryset = self._user.coupons.all().order_by('-shoppercoupon__coupon')
+        serializer = CouponSerializer(queryset, many=True)
+        expected_data = serializer.data
+
+        coupon = CouponFactory(classification=self.__coupon_classification)
+        ShopperCouponFactory(shopper=self._user, coupon=coupon, end_date=date.today() - timedelta(days=1))
+        
+        self._get()
+
+        self._assert_success()
+        self.assertListEqual(self._response_data['results'], expected_data)
+
+    def test_create(self):
+        coupon = CouponFactory(classification=self.__coupon_classification, is_auto_issue=False)
+        self._test_data = {
+            'coupon': coupon.id,
+        }
+        self._post()
+
+        self._assert_success_and_serializer_class(ShopperCouponSerializer, False)
+        self.assertEqual(self._response_data, {'coupon_id': str(coupon.id)})

@@ -7,8 +7,8 @@ from drf_yasg.views import get_schema_view
 from drf_yasg.openapi import Info, License
 
 from product.documentations import DecoratedProductViewSet
-from user.documentations import DecoratedShopperViewSet, DecoratedWholesalerViewSet
 from order.documentations import DecoratedOrderViewSet
+from coupon.documentations import DecoratedCouponViewSet
 
 
 handler404 = 'common.views.custom_404_view'
@@ -28,16 +28,16 @@ schema_view = get_schema_view(
 )
 
 router = SimpleRouter(trailing_slash=False)
-router.register(r'users/shoppers', DecoratedShopperViewSet, basename='shoppers')
-router.register(r'users/wholesalers', DecoratedWholesalerViewSet, basename='wholesalers')
 router.register(r'products', DecoratedProductViewSet, basename='products')
 router.register(r'^orders', DecoratedOrderViewSet, basename='orders')
+router.register(r'^coupons', DecoratedCouponViewSet, basename='coupons')
 
 urlpatterns = [
    re_path(r'^swagger$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
    path('users', include('user.urls')),
    path('products', include('product.urls')),
    path('orders', include('order.urls')),
+   path('coupons', include('coupon.urls')),
 ]
 
 urlpatterns += router.urls

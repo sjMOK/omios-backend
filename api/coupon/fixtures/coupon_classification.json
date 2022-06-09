@@ -1,0 +1,31 @@
+[{
+    "model": "coupon.CouponClassification",
+    "pk": 1,
+    "fields": {
+        "name": "전 상품 쿠폰"
+    }
+}, {
+    "model": "coupon.CouponClassification",
+    "pk": 2,
+    "fields": {
+        "name": "일부 상품 쿠폰"
+    }
+}, {
+    "model": "coupon.CouponClassification",
+    "pk": 3,
+    "fields": {
+        "name": "카테고리별 쿠폰"
+    }
+}, {
+    "model": "coupon.CouponClassification",
+    "pk": 4,
+    "fields": {
+        "name": "기획전별 쿠폰"
+    }
+}, {
+    "model": "coupon.CouponClassification",
+    "pk": 5,
+    "fields": {
+        "name": "회원가입 쿠폰"
+    }
+}]
