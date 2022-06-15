@@ -30,6 +30,7 @@ from .serializers import (
     UserPasswordSerializer, ShopperSerializer, WholesalerSerializer, BuildingSerializer,
     ShopperShippingAddressSerializer, PointHistorySerializer, CartSerializer, ShopperCouponSerializer,
 )
+from .paginations import PointHistoryPagination
 from .permissions import AllowAny, IsAuthenticated, IsAuthenticatedExceptCreate
 
 
@@ -77,13 +78,6 @@ def is_unique(request):
         return get_response(data={'is_unique': False})
 
     return get_response(data={'is_unique': True})
-
-
-@api_view(['GET'])
-def get_point_histories(request):
-    serializer = PointHistorySerializer(PointHistory.objects.select_related('order').filter(shopper=request.user.shopper), many=True)
-
-    return get_response(data=serializer.data)
 
 
 class TokenView(TokenViewBase):
@@ -162,6 +156,31 @@ class WholesalerView(UserView):
 
     def get_queryset(self):
         return Wholesaler.objects.filter(is_active=True)
+
+
+class PointHistoryView(GenericAPIView):
+    permission_classes = [IsAuthenticatedShopper]
+    pagination_class = PointHistoryPagination
+    serializer_class = PointHistorySerializer
+
+    def filter_queryset(self, queryset):
+        if 'type' in self.request.query_params:
+            if self.request.query_params['type'] == 'USE':
+                queryset = queryset.filter(point__lt=0)
+            elif self.request.query_params['type'] == 'SAVE':
+                queryset = queryset.filter(point__gt=0)
+    
+        return queryset
+
+    def get_queryset(self):
+        queryset = PointHistory.objects.select_related('order').filter(shopper=self.request.user.shopper)
+
+        return self.filter_queryset(queryset)
+
+    def get(self, request):
+        serializer = self.get_serializer(self.paginate_queryset(self.get_queryset()), many=True)
+
+        return get_response(data=self.get_paginated_response(serializer.data).data)
 
 
 class ProductLikeView(APIView):

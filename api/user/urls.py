@@ -6,8 +6,8 @@ from .documentations import (
     DecoratedCartViewSet, DecoratedShopperShippingAddressViewSet, DecoratedShopperCouponViewSet,
     decorated_issuing_token_view, decorated_refreshing_token_view, decorated_blacklisting_token_view,
     decorated_upload_business_registration_image_view, decorated_get_buildings_view, decorated_user_password_view,
-    decorated_is_unique_view, decorated_shopper_view, decorated_wholesaler_view, decorated_product_like_view,
-    decorated_shopper_point_history_view,
+    decorated_is_unique_view, decorated_shopper_view, decorated_wholesaler_view, decorated_point_history_view,
+    decorated_product_like_view,
 )
 
 
@@ -29,7 +29,7 @@ shopper_url_patterns = [
     path('', decorated_shopper_view),
     path('', include(router.urls)),
     path('/like/products/<int:product_id>', decorated_product_like_view),
-    path('/point-histories', decorated_shopper_point_history_view)
+    path('/point-histories', decorated_point_history_view)
 ]
 
 wholesaler_url_patterns = [

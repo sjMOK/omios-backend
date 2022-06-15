@@ -132,7 +132,7 @@ class PointHistoryFactory(DjangoModelFactory):
         model = 'user.PointHistory'
 
     shopper = SubFactory(ShopperFactory)
-    point = FuzzyInteger(10000)
+    point = FuzzyInteger(-10000, 10000)
     content = 'test'
     order = SubFactory('order.test.factories.OrderFactory', shopper=LazyAttribute(lambda obj: obj.factory_parent.shopper))
     product_name = 'test'

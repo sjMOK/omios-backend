@@ -4,7 +4,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.serializers import Serializer, ModelSerializer, IntegerField, CharField, URLField, ListField
 from rest_framework.decorators import action
 
-from common.documentations import UniqueResponse, Image, get_response
+from common.documentations import UniqueResponse, Image, get_response, get_paginated_response
 from coupon.documentations import CouponResponse
 from .models import Shopper, Wholesaler
 from .serializers import (
@@ -12,9 +12,9 @@ from .serializers import (
     WholesalerSerializer, UserPasswordSerializer, BuildingSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
 from .views import (
-    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView, ProductLikeView,
-    CartViewSet, ShopperShippingAddressViewSet, ShopperCouponViewSet,
-    upload_business_registration_image, get_buildings, change_password, is_unique, get_point_histories,
+    IssuingTokenView, RefreshingTokenView, BlacklistingTokenView, ShopperView, WholesalerView, PointHistoryView, 
+    ProductLikeView, CartViewSet, ShopperShippingAddressViewSet, ShopperCouponViewSet,
+    upload_business_registration_image, get_buildings, change_password, is_unique,
 )
 
 
@@ -100,6 +100,10 @@ class WholesalerResponse(ModelSerializer):
     class Meta:
         model = Wholesaler
         exclude = ['password']
+
+
+class PointHistoryQuerySerializer(Serializer):
+    type = CharField(required=False, help_text='사용 내역은 USE, 적립 내역은 SAVE로 입력\n위 두 가지가 아닌 경우는 무시')
 
 
 class ProductCartResponse(Serializer):
@@ -286,12 +290,12 @@ decorated_wholesaler_view = swagger_auto_schema(
     method='DELETE', **get_response(), operation_description='Wholesaler 회원탈퇴'
 )(DecoratedWholesalerView.as_view()))))
 
+decorated_point_history_view = swagger_auto_schema(
+    method='GET', query_serializer=PointHistoryQuerySerializer(), **get_paginated_response(PointHistorySerializer(many=True)), operation_description='적립금 사용 내역 정보 가져오기'
+)(PointHistoryView.as_view())
+
 decorated_product_like_view = swagger_auto_schema(
     method='POST', **get_response(ProductLikeViewResponse(), 201), operation_description='상품 좋아요 생성(좋아요 버튼 클릭시 요청)'
 )(swagger_auto_schema(
     method='DELETE', **get_response(ProductLikeViewResponse()), operation_description='상품 좋아요 삭제(좋아요 버튼 한번 더 클릭시 요청)'
 )(ProductLikeView.as_view()))
-
-decorated_shopper_point_history_view = swagger_auto_schema(
-    method='GET', **get_response(PointHistorySerializer()), operation_description='적립금 사용 내역 정보 가져오기'
-)(get_point_histories)

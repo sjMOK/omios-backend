@@ -24,6 +24,8 @@ from ..serializers import (
     IssuingTokenSerializer, RefreshingTokenSerializer, ShopperSerializer, WholesalerSerializer, CartSerializer,
     BuildingSerializer, ShopperShippingAddressSerializer, PointHistorySerializer, ShopperCouponSerializer,
 )
+from ..views import PointHistoryView
+from ..paginations import PointHistoryPagination
 
 
 class TokenViewTestCase(ViewTestCase):
@@ -371,6 +373,37 @@ class IsUniqueTestCase(ViewTestCase):
         self._assert_failure(400, 'Invalid parameter name.')
 
 
+class PointHistoryViewTestCase(ViewTestCase):
+    _url = '/users/shoppers/point-histories'
+    _view_class = PointHistoryView
+
+    @classmethod
+    def setUpTestData(cls):
+        cls._set_shopper()
+        PointHistoryFactory.create_batch(2, shopper=cls._user)
+
+    def setUp(self):
+        self._set_authentication()
+
+    def test_pagination_class(self):
+        self._test_pagination_class(PointHistoryPagination, 20)
+
+    def test_get(self):
+        self._get()
+
+        self._assert_pagination_success(PointHistorySerializer(self._user.point_histories.all(), many=True).data)
+
+    def test_type_use_filter_get(self):
+        self._get({'type': 'USE'})
+
+        self._assert_pagination_success(PointHistorySerializer(self._user.point_histories.filter(point__lt=0), many=True).data)
+
+    def test_type_save_filter_get(self):
+        self._get({'type': 'SAVE'})
+
+        self._assert_pagination_success(PointHistorySerializer(self._user.point_histories.filter(point__gt=0), many=True).data)
+
+
 class ProductLikeViewTestCase(ViewTestCase):
     _url = '/users/shoppers/like/products/{}'
 
@@ -643,22 +676,6 @@ class ShopperShippingAddressViewSetTestCase(ViewTestCase):
 
         self._assert_success()
         self.assertDictEqual(self._response_data, {})
-
-
-class GetPointHistoriesTestCase(ViewTestCase):
-    _url = '/users/shoppers/point-histories'
-
-    @classmethod
-    def setUpTestData(cls):
-        cls._set_shopper()
-
-    def test_success(self):
-        self._set_authentication()
-        PointHistoryFactory.create_batch(2, shopper=self._user)
-        self._get()
-        
-        self._assert_success()
-        self.assertListEqual(self._response_data, PointHistorySerializer(self._user.point_histories.all(), many=True).data)
 
 
 class ShopperCouponViewSetTestCase(ViewTestCase):
