@@ -12,6 +12,7 @@ from .test_serializers import (
     get_order_item_queryset, get_order_queryset, get_shipping_address_test_data, get_order_test_data, 
     get_order_confirm_result, get_delivery_test_data, get_delivery_result,
 )
+from ..paginations import OrderPagination
 from ..models import (
     PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, NORMAL_STATUS, 
     Order, OrderItem, Status,
@@ -20,10 +21,12 @@ from ..serializers import (
     ShippingAddressSerializer, OrderItemWriteSerializer, OrderSerializer, OrderWriteSerializer, OrderItemStatisticsSerializer,
     StatusHistorySerializer, OrderConfirmSerializer, DeliverySerializer,
 )
+from ..views import OrderViewSet
 
 
 class OrderViewSetTestCase(ViewTestCase):
     _url = '/orders'
+    _view_class = OrderViewSet
 
     @classmethod
     def setUpTestData(cls):
@@ -61,6 +64,9 @@ class OrderViewSetTestCase(ViewTestCase):
         self._get(query_params)
 
         self._assert_pagination_success(OrderSerializer(self.__get_queryset(**query_params), many=True).data)
+
+    def test_pagination_class(self):
+        self._test_pagination_class(OrderPagination, 10)
 
     def test_list(self):
         self.__test_pagination_list()

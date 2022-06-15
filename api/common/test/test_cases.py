@@ -120,6 +120,7 @@ class ListSerializerTestCase(SerializerTestCase):
 
 class ViewTestCase(APITestCase):
     _url = None
+    _view_class = None
     _test_data = {}
 
     def __init__(self, *args, **kwargs):
@@ -212,6 +213,13 @@ class ViewTestCase(APITestCase):
         self.assertEqual(len(self._response_data['image']), size)
         self.assertTrue(self._response_data['image'][0].startswith(BASE_IMAGE_URL))
         self.assertIn(middle_path, self._response_data['image'][0])
+
+    def _test_pagination_class(self, pagination_class, page_size):
+        if self._view_class is None:
+            self.assertTrue(False)
+        
+        self.assertEqual(self._view_class.pagination_class, pagination_class)
+        self.assertEqual(self._view_class.pagination_class.page_size, page_size)
 
     def __assert_default_response(self, expected_status_code, expected_message):
         self.assertEqual(self._response.status_code, expected_status_code)
