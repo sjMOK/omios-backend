@@ -42,6 +42,8 @@ class IssuingTokenSerializer(TokenObtainPairSerializer):
             token['user_type'] = 'shopper'
         elif is_wholesaler(user):
             token['user_type'] = 'wholesaler'
+        elif user.is_admin:
+            token['user_type'] = 'admin'
 
         OutstandingToken.objects.filter(jti=token['jti']).update(
             token=token,

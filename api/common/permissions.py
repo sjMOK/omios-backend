@@ -1,21 +1,22 @@
-from rest_framework.permissions import IsAuthenticated, BasePermission
+from rest_framework.permissions import IsAuthenticated
 from user.models import is_shopper, is_wholesaler
 
 
 class IsAuthenticatedShopper(IsAuthenticated):
     def has_permission(self, request, view):
-        if super().has_permission(request, view) and is_shopper(request.user):
-            return True
-        return False
+        return super().has_permission(request, view) and is_shopper(request.user)
 
 
 class IsAuthenticatedWholesaler(IsAuthenticated):
     def has_permission(self, request, view):
-        if super().has_permission(request, view) and is_wholesaler(request.user):
-            return True
-        return False
+        return super().has_permission(request, view) and is_wholesaler(request.user)
 
 
-class IsAdminUser(BasePermission):
+class IsAdminUser(IsAuthenticated):
     def has_permission(self, request, view):
-        return bool(request.user.is_authenticated and request.user.is_admin)
+        return super().has_permission(request, view) and request.user.is_admin
+
+
+class IsEasyAdminUser(IsAdminUser):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.username == 'easyadmin'

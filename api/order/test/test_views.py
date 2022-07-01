@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from common.test.test_cases import ViewTestCase
 from common.utils import REQUEST_DATE_FORMAT
+from user.test.factories import UserFactory
 from product.models import Option
 from product.test.factories import OptionFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
@@ -30,6 +31,7 @@ class OrderViewSetTestCase(ViewTestCase):
 
     @classmethod
     def setUpTestData(cls):
+        cls.__easyadmin_user = UserFactory(username='easyadmin', is_admin=True)
         cls._set_shopper()
         cls.__shipping_address = ShippingAddressFactory()
         cls.__payment_completion_status = StatusFactory(id=PAYMENT_COMPLETION_STATUS)
@@ -39,6 +41,10 @@ class OrderViewSetTestCase(ViewTestCase):
         StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
 
     def setUp(self):
+        self._set_authentication()
+
+    def __easyadmin_set_up(self):
+        self._user = self.__easyadmin_user
         self._set_authentication()
 
     def __get_queryset(self, **filters):
@@ -112,6 +118,7 @@ class OrderViewSetTestCase(ViewTestCase):
         self.assertEqual(self._response_data['id'], self.__order.id)
 
     def test_confirm(self):
+        self.__easyadmin_set_up()
         self._url += '/confirm'
         expected_result = get_order_confirm_result(OrderItem.objects.all(), 200)
         self._test_data = {'order_items': sum([data for data in list(expected_result.values())], [])}
@@ -121,6 +128,7 @@ class OrderViewSetTestCase(ViewTestCase):
         self.assertDictEqual(self._response_data, expected_result)
 
     def test_delivery_request_data_size_validation(self):
+        self.__easyadmin_set_up()
         self._url += '/delivery'
         self._test_data = [''] * 51
         self._post(format='json')
@@ -128,6 +136,7 @@ class OrderViewSetTestCase(ViewTestCase):
         self._assert_failure(400, 'You can only request up to 50 at a time.')
 
     def test_delivery(self):
+        self.__easyadmin_set_up()
         self._url += '/delivery'
         order_items = OrderItem.objects.all()
         for order_item in order_items:

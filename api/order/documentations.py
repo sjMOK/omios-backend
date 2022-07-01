@@ -1,8 +1,8 @@
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.serializers import Serializer, IntegerField, ListField, ImageField, CharField, DateField
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
 
+from common.permissions import IsEasyAdminUser
 from common.documentations import get_response, get_ids_response, get_paginated_response
 from product.serializers import OptionInOrderItemSerializer
 from .serializers import (
@@ -83,12 +83,12 @@ class DecoratedOrderViewSet(OrderViewSet):
         return super().update_shipping_address(*args, **kwargs)
 
     @swagger_auto_schema(request_body=OrderItemList, **get_response(OrderConfirmResponse()), security=[], operation_description='이지어드민 기능\n발주 확인')
-    @action(['post'], False, 'confirm', permission_classes=[AllowAny])
+    @action(['post'], False, 'confirm', permission_classes=[IsEasyAdminUser])
     def confirm(self, *args, **kwargs):
         return super().confirm(*args, **kwargs)
 
     @swagger_auto_schema(request_body=DeliverySerializer(many=True), **get_response(DeliveryResponse()), security=[], operation_description='이지어드민 기능\n송장 입력')
-    @action(['post'], False, 'delivery', permission_classes=[AllowAny])
+    @action(['post'], False, 'delivery', permission_classes=[IsEasyAdminUser])
     def delivery(self, *args, **kwargs):
         return super().delivery(*args, **kwargs)
 

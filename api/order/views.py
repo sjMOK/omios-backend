@@ -6,9 +6,9 @@ from rest_framework.generics import GenericAPIView, get_object_or_404
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST
-from rest_framework.permissions import AllowAny
 
 from common.utils import get_response
+from common.permissions import IsEasyAdminUser
 from user.models import Shopper
 from product.models import ProductImage
 from .models import (
@@ -102,7 +102,7 @@ class OrderViewSet(GenericViewSet):
         return get_response(data={'id': int(order_id)})
 
     @atomic
-    @action(['post'], False, 'confirm', permission_classes=[AllowAny])
+    @action(['post'], False, 'confirm', permission_classes=[IsEasyAdminUser])
     def confirm(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -110,7 +110,7 @@ class OrderViewSet(GenericViewSet):
         return get_response(status=HTTP_201_CREATED, data=serializer.save())
 
     @atomic
-    @action(['post'], False, 'delivery', permission_classes=[AllowAny])
+    @action(['post'], False, 'delivery', permission_classes=[IsEasyAdminUser])
     def delivery(self, request):
         if len(request.data) > 50:
             return get_response(status=HTTP_400_BAD_REQUEST, message='You can only request up to 50 at a time.')
