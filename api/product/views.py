@@ -26,6 +26,7 @@ from .serializers import (
     ThemeSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
+from .paginations import ProductQuestionAnswerPagination
 
 
 def sort_keywords_by_levenshtein_distance(keywords, search_word):
@@ -434,6 +435,7 @@ class ProductQuestionAnswerViewSet(ListModelMixin, GenericViewSet):
     lookup_url_kwarg = 'question_answer_id'
     lookup_value_regex = r'[0-9]+'
     serializer_class = ProductQuestionAnswerSerializer
+    pagination_class = ProductQuestionAnswerPagination
 
     def get_queryset(self):
         product = get_object_or_404(Product, id=self.kwargs['product_id'])
