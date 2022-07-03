@@ -145,7 +145,7 @@ class ShopperCouponFactory(DjangoModelFactory):
     shopper = SubFactory(ShopperFactory)
     coupon = SubFactory(CouponFactory)
     end_date = LazyAttribute(lambda o: o.coupon.end_date)
-    is_available = Faker('pybool')
+    is_used = Faker('pybool')
 
     @lazy_attribute
     def end_date(self):

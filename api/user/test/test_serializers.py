@@ -432,7 +432,7 @@ class ShopperCouponSerializerTestCase(SerializerTestCase):
         self.assertEqual(shopper_coupon.shopper, self.__shopper)
         self.assertEqual(shopper_coupon.coupon, self.__coupon)
         self.assertEqual(shopper_coupon.end_date, self.__coupon.end_date)
-        self.assertEqual(shopper_coupon.is_available, True)
+        self.assertEqual(shopper_coupon.is_used, False)
 
     def test_create_available_period_coupon(self):
         coupon = CouponFactory(is_auto_issue=False, start_date=None, end_date=None, available_period=7, classification=self.__coupon_classification)
@@ -445,7 +445,7 @@ class ShopperCouponSerializerTestCase(SerializerTestCase):
         self.assertEqual(shopper_coupon.shopper, self.__shopper)
         self.assertEqual(shopper_coupon.coupon, coupon)
         self.assertEqual(shopper_coupon.end_date, date.today() + timedelta(days=coupon.available_period))
-        self.assertEqual(shopper_coupon.is_available, True)
+        self.assertEqual(shopper_coupon.is_used, False)
 
     def test_create_already_existing_coupon(self):
         ShopperCouponFactory(shopper=self.__shopper, coupon=self.__coupon)

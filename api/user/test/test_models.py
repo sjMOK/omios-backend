@@ -437,7 +437,6 @@ class ShopperCouponTestCase(ModelTestCase):
             'shopper': ShopperFactory(),
             'coupon': coupon,
             'end_date': coupon.end_date,
-            'is_available': True,
         }
 
     def test_create(self):
@@ -446,10 +445,4 @@ class ShopperCouponTestCase(ModelTestCase):
         self.assertEqual(shopper_coupon.shopper, self._test_data['shopper'])
         self.assertEqual(shopper_coupon.coupon, self._test_data['coupon'])
         self.assertEqual(shopper_coupon.end_date, self._test_data['end_date'])
-        self.assertEqual(shopper_coupon.is_available, self._test_data['is_available'])
-
-    def test_create_default_value(self):
-        self._test_data.pop('is_available')
-        shopper_coupon = self._get_model_after_creation()
-
-        self.assertEqual(shopper_coupon.is_available, True)
+        self.assertEqual(shopper_coupon.is_used, False)

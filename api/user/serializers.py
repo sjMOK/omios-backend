@@ -293,7 +293,7 @@ class PointHistorySerializer(ModelSerializer):
 class ShopperCouponSerializer(ModelSerializer):
     class Meta:
         model = ShopperCoupon
-        exclude = ['id', 'end_date', 'is_available', 'shopper']
+        exclude = ['id', 'end_date', 'is_used', 'shopper']
         extra_kwargs = {
             'coupon': {
                 'queryset': Coupon.objects.filter(is_auto_issue=False).filter(Q(end_date__gte=date.today()) | Q(end_date__isnull=True)),

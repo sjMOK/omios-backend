@@ -687,7 +687,7 @@ class ShopperCouponViewSetTestCase(ViewTestCase):
         cls.__coupon_classification = CouponClassificationFactory()
         coupons = CouponFactory.create_batch(2, classification=cls.__coupon_classification)
         for coupon in coupons:
-            ShopperCouponFactory(shopper=cls._user, coupon=coupon, is_available=True)
+            ShopperCouponFactory(shopper=cls._user, coupon=coupon, is_used=False)
 
     def setUp(self):
         self._set_authentication()
@@ -706,7 +706,7 @@ class ShopperCouponViewSetTestCase(ViewTestCase):
         expected_data = serializer.data
 
         coupon = CouponFactory(classification=self.__coupon_classification)
-        ShopperCouponFactory(shopper=self._user, coupon=coupon, is_available=False)
+        ShopperCouponFactory(shopper=self._user, coupon=coupon, is_used=True)
         
         self._get()
 

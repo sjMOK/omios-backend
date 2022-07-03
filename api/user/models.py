@@ -264,7 +264,7 @@ class ShopperCoupon(Model):
     shopper = ForeignKey('Shopper', DO_NOTHING)
     coupon = ForeignKey('coupon.Coupon', DO_NOTHING)
     end_date = DateField()
-    is_available = IntegerField(default=True)
+    is_used = BooleanField(default=False)
 
     class Meta:
         db_table = 'shopper_coupon'

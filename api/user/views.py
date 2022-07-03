@@ -349,7 +349,7 @@ class ShopperCouponViewSet(ListModelMixin, GenericViewSet):
 
     def get_queryset(self):
         return self.request.user.shopper.coupons.filter(
-            shoppercoupon__is_available=True, shoppercoupon__end_date__gte=date.today()
+            shoppercoupon__is_used=False, shoppercoupon__end_date__gte=date.today()
         ).order_by('-shoppercoupon__coupon')
 
     def list(self, request):
