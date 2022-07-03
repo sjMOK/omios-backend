@@ -52,9 +52,13 @@ class CouponSerializer(ModelSerializer):
         if len(value) > COUPON_PRODUCT_MAX_LENGTH:
             raise ValidationError('You can register up to 1000 products per coupon.')
 
+        return value
+
     def validate_sub_categories(self, value):
         if len(value) > COUPON_SUBCATEGORY_MAX_LENGTH:
             raise ValidationError('You can register up to 20 categories per coupon.')
+
+        return value
 
     def validate(self, attrs):
         attrs = self.__validate_classification(attrs)
@@ -109,3 +113,7 @@ class CouponSerializer(ModelSerializer):
             raise ValidationError('Both start_date and end_date must exist.')
         elif start_date > end_date:
             raise ValidationError('The start date must be before the end date.')
+
+    # todo
+    # is_auto_issue 자동 발급
+    # transaction
