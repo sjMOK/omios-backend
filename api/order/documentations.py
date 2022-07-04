@@ -103,12 +103,12 @@ class DecoratedOrderItemViewSet(OrderItemViewSet):
         return super().get_statistics(*args, **kwargs)
 
 class DecoratedClaimViewset(ClaimViewSet):
-    cancel_discription = '''
+    cancel_description = '''
         주문 취소 기능
         하나의 주문에 있는 항목들에 대해서만 취소 가능
         입금 대기, 결제 완료 상태인 주문만 취소 가능
     '''
-    @swagger_auto_schema(request_body=OrderItemList, **get_ids_response(201), operation_description=cancel_discription)
+    @swagger_auto_schema(request_body=OrderItemList, **get_ids_response(201), operation_description=cancel_description)
     @action(['post'], False)
     def cancel(self, *args, **kwargs):
         super().cancel(*args, **kwargs)
