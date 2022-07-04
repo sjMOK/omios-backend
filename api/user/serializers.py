@@ -17,8 +17,8 @@ from common.regular_expressions import (
     USERNAME_REGEX, PASSWORD_REGEX, NAME_REGEX, NICKNAME_REGEX, MOBILE_NUMBER_REGEX, PHONE_NUMBER_REGEX,
     BASIC_SPECIAL_CHARACTER_REGEX, ZIP_CODE_REGEX,
 )
+from common.serializers import MAXIMUM_NUMBER_OF_ITEMS
 from coupon.models import Coupon, CouponClassification
-from order.serializers import ORDER_MAXIMUM_NUMBER
 from .models import (
     is_shopper, is_wholesaler, OutstandingToken, BlacklistedToken, ShopperShippingAddress, Membership, User, Shopper,
     Wholesaler, PointHistory, Building, Cart, ShopperCoupon
@@ -177,8 +177,8 @@ class CartListSerializer(ListSerializer):
         if self.instance is None:
             shopper = self.context['shopper']
             options = [attr['option'] for attr in attrs]
-            if shopper.carts.exclude(option__in=options).count() + len(attrs) > ORDER_MAXIMUM_NUMBER:
-                raise ValidationError('exceeded the maximum number({}).'.format(ORDER_MAXIMUM_NUMBER))
+            if shopper.carts.exclude(option__in=options).count() + len(attrs) > MAXIMUM_NUMBER_OF_ITEMS:
+                raise ValidationError('exceeded the maximum number({}).'.format(MAXIMUM_NUMBER_OF_ITEMS))
         
         return attrs
 

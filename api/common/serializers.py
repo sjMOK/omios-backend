@@ -4,6 +4,9 @@ from rest_framework.serializers import Serializer, ModelSerializer, ImageField
 from .validators import validate_file_size
 
 
+MAXIMUM_NUMBER_OF_ITEMS = 100
+
+
 def has_duplicate_element(array):
     if len(array) != len(set(array)):
         return True

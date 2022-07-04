@@ -6,8 +6,8 @@ from rest_framework.exceptions import ValidationError
 from common.test.test_cases import FunctionTestCase, SerializerTestCase, ListSerializerTestCase
 from common.utils import gmt_to_kst, datetime_to_iso, BASE_IMAGE_URL, DEFAULT_IMAGE_URL
 from coupon.test.factories import CouponFactory, CouponClassificationFactory
+from common.serializers import MAXIMUM_NUMBER_OF_ITEMS
 from coupon.models import CouponClassification, Coupon
-from order.serializers import ORDER_MAXIMUM_NUMBER
 from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
 from .factories import (
     get_factory_password, get_factory_authentication_data, 
@@ -287,10 +287,10 @@ class CartListSerializerTestCase(ListSerializerTestCase):
 
     def test_validate_count_of_carts(self):
         product_color = ProductColorFactory(product=self.__product_1)
-        data = [{'option': OptionFactory(product_color=product_color).id, 'count': 1} for _ in range(ORDER_MAXIMUM_NUMBER)]
+        data = [{'option': OptionFactory(product_color=product_color).id, 'count': 1} for _ in range(MAXIMUM_NUMBER_OF_ITEMS)]
 
         self._test_serializer_raise_validation_error(
-            'exceeded'.format(ORDER_MAXIMUM_NUMBER),
+            'exceeded'.format(MAXIMUM_NUMBER_OF_ITEMS),
             data=data, context={'shopper': self.__shopper}
         )
 
