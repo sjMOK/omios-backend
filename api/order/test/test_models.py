@@ -70,6 +70,8 @@ class OrderItemTestCase(ModelTestCase):
             'status': self._test_data['status'].id,
             'base_discount_price': 0,
             'count': 1,
+            'shopper_coupon': None,
+            'coupon_discount_price': 0,
             'used_point': 0,
             'delivery': None,
         })

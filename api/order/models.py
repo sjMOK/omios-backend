@@ -58,11 +58,12 @@ class OrderItem(Model):
     sale_price = IntegerField()
     base_discount_price = IntegerField(default=0)
     membership_discount_price = IntegerField()
+    shopper_coupon = ForeignKey('user.ShopperCoupon', DO_NOTHING, null=True)
+    coupon_discount_price = IntegerField(default=0)
     used_point = IntegerField(default=0)
     payment_price = IntegerField()
     earned_point = IntegerField()
     delivery = ForeignKey('Delivery', DO_NOTHING, null=True)
-    # coupon
 
     class Meta:
         db_table = 'order_item'
@@ -104,6 +105,9 @@ class ShippingAddress(Model):
     class Meta:
         db_table = 'shipping_address'
 
+# todo
+# claim (취소, 환불) 설계 및 구현
+# 결제, 환불 설계 및 구현
 
 class CancellationInformation(Model):
     order_item = OneToOneField('OrderItem', DO_NOTHING, primary_key=True)
