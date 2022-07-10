@@ -74,7 +74,7 @@ class OrderItemSerializer(ModelSerializer):
 class OrderItemListSerializer(ListSerializer):
     def validate(self, attrs):
         self.__validate_options(get_list_of_single_value(attrs, 'option'))
-        self.__validate_coupons(get_list_of_single_value(attrs, 'coupon'))
+        self.__validate_shopper_coupons(get_list_of_single_value(attrs, 'shopper_coupon'))
 
         return attrs
 
@@ -82,9 +82,9 @@ class OrderItemListSerializer(ListSerializer):
         if has_duplicate_element(value):
             raise ValidationError('option is duplicated.')
 
-    def __validate_coupons(self, value):
+    def __validate_shopper_coupons(self, value):
         if has_duplicate_element(value):
-            raise ValidationError('coupon is duplicated.')
+            raise ValidationError('shopper_coupon is duplicated.')
 
     def __create_status_history(self, queryset):
         return StatusHistorySerializer().create(queryset)
@@ -163,7 +163,6 @@ class OrderItemWriteSerializer(OrderItemSerializer):
 
         return min(result, maximum_discount_price)
 
-    # toto minimum_order_price -> minimum_product_price
     def __validate_coupon(self, attrs):
         option = attrs['option']
         shopper_coupon = attrs.get('shopper_coupon', None)

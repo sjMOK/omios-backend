@@ -9,6 +9,7 @@ from coupon.test.factories import CouponFactory, CouponClassificationFactory
 from common.serializers import MAXIMUM_NUMBER_OF_ITEMS
 from coupon.models import CouponClassification, Coupon
 from product.test.factories import ProductFactory, ProductImageFactory, ProductColorFactory, OptionFactory
+from order.test.factories import create_orders_with_items, StatusFactory
 from .factories import (
     get_factory_password, get_factory_authentication_data, 
     MembershipFactory, UserFactory, ShopperFactory, WholesalerFactory, CartFactory, BuildingWithFloorFactory,
@@ -482,3 +483,21 @@ class ShopperCouponSerializerTestCase(SerializerTestCase):
             'object does not exist.',
             self._get_serializer_after_validation,
         )
+
+    def test_update_is_used(self):
+        order_items = create_orders_with_items(
+            only_product_color=True, 
+            item_kwargs={
+                'status': StatusFactory(), 
+                'shopper_coupon__is_used': False, 
+                'shopper_coupon__coupon__classification': self.__coupon_classification
+            },
+        )[0].items.all()
+        shopper_coupons = self._get_model().objects.filter(
+            id__in=[order_item.shopper_coupon_id for order_item in order_items],
+            is_used=True,
+        )
+
+        self.assertEqual(shopper_coupons.count(), 0)
+        self.assertEqual(self._get_serializer().update_is_used(order_items, True), len(order_items))
+        self.assertEqual(shopper_coupons.count(), len(order_items))

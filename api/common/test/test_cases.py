@@ -69,6 +69,9 @@ class SerializerTestCase(APITestCase):
 
         super().__init__(*args, **kwargs)
 
+    def _get_model(self):
+        return self._serializer_class.Meta.model
+
     def _get_serializer(self, *args, **kwargs):
         return self._serializer_class(*args, **kwargs)
 

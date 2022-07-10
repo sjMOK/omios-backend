@@ -233,7 +233,13 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
         cls.__order = OrderFactory(shopper=cls.__shopper)
         cls.__status = StatusFactory()
         cls.__options = create_options()
-        cls._test_data = [get_order_item_test_data(option, cls.__shopper) for option in cls.__options]
+        cls.__coupons = ShopperCouponFactory.create_batch(
+            2,
+            shopper=cls.__shopper, 
+            is_used=False, 
+            coupon__classification=CouponClassificationFactory(id=ALL_PRODUCT_COUPON_CLASSIFICATIONS[0]),
+        )
+        cls._test_data = [get_order_item_test_data(option, cls.__shopper, coupon) for option, coupon in zip(cls.__options, cls.__coupons)]
 
     def _get_serializer(self, *args, **kwargs):
         return super()._get_serializer(context={'shopper': self.__shopper}, *args, **kwargs)
@@ -253,6 +259,11 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
 
         self._test_serializer_raise_validation_error('option is duplicated.')        
 
+    def test_validate_shopper_coupons(self):
+        self._test_data = [get_order_item_test_data(option, self.__shopper, self.__coupons[0]) for option in self.__options]
+
+        self._test_serializer_raise_validation_error('shopper_coupon is duplicated.')
+
     def test_create_status_history(self):
         order_items = self.__create_order_items_by_factory()
         self._get_serializer()._OrderItemListSerializer__create_status_history(order_items)
@@ -262,7 +273,8 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
     def test_create_after_validation(self):
         self.assertRaises(DatabaseError, self._save)
 
-    def test_create(self):
+    @patch('user.serializers.ShopperCouponSerializer.update_is_used')
+    def test_create(self, mock):
         serializer = self._get_serializer_after_validation()
         add_data_in_each_element(serializer.validated_data, 'status', self.__status)
         add_data_in_each_element(serializer.validated_data, 'order', self.__order)
@@ -276,9 +288,10 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
             'used_point': 0,
             'earned_point': 0,
             'delivery': None,
-            'shopper_coupon': None,
-            'coupon_discount_price': 0,
+            'shopper_coupon': data['shopper_coupon'].id,
+            'coupon_discount_price': data['coupon_discount_price'],
         } for data in serializer.validated_data])
+        mock.assert_called_once()
         self.__assert_status_history_count(order_items)
 
     def test_update_status(self):
@@ -450,7 +463,7 @@ class OrderItemWriteSerializerTestCase(SerializerTestCase):
         price_coupon = ShopperCouponFactory(
             shopper=self.__shopper, 
             is_used=False,
-             coupon=CouponFactory(classification=self.__coupon.coupon.classification, discount_price=True)
+            coupon=CouponFactory(classification=self.__coupon.coupon.classification, discount_price=True)
         )
         self._test_data = get_order_item_test_data(self.__option, self.__shopper, price_coupon)
 
