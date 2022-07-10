@@ -5,9 +5,11 @@ from django.utils import timezone
 
 from common.test.test_cases import ViewTestCase
 from common.utils import REQUEST_DATE_FORMAT
-from user.test.factories import UserFactory
+from user.test.factories import UserFactory, ShopperCouponFactory
 from product.models import Option
 from product.test.factories import OptionFactory
+from coupon.models import ALL_PRODUCT_COUPON_CLASSIFICATIONS
+from coupon.test.factories import CouponClassificationFactory
 from .factories import StatusHistoryFactory, create_orders_with_items, OrderItemFactory, ShippingAddressFactory, StatusFactory
 from .test_serializers import (
     get_order_item_queryset, get_order_queryset, get_shipping_address_test_data, get_order_test_data, 
@@ -35,8 +37,11 @@ class OrderViewSetTestCase(ViewTestCase):
         cls._set_shopper()
         cls.__shipping_address = ShippingAddressFactory()
         cls.__payment_completion_status = StatusFactory(id=PAYMENT_COMPLETION_STATUS)
+        cls.__all_product_coupon_classification = CouponClassificationFactory(id=ALL_PRODUCT_COUPON_CLASSIFICATIONS[0])
         cls.__orders = create_orders_with_items(2, 3, False,
-            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, {'status': cls.__payment_completion_status})
+            {'shopper': cls._user, 'shipping_address': cls.__shipping_address}, 
+            {'status': cls.__payment_completion_status, 'shopper_coupon__coupon__classification': cls.__all_product_coupon_classification},
+        )
         StatusFactory(id=DELIVERY_PREPARING_STATUS)
         StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
 
@@ -95,7 +100,13 @@ class OrderViewSetTestCase(ViewTestCase):
 
     def test_create(self):
         options = Option.objects.select_related('product_color__product').all()
-        self._test_data = get_order_test_data(self.__shipping_address, options, self._user)
+        shopper_coupons = [ShopperCouponFactory(
+            shopper = self._user,
+            is_used = False,
+            coupon__classification = self.__all_product_coupon_classification,
+            coupon__discount_price = discount_price,
+        ) for discount_price in [None, True]] + [None] * (len(options) - 2)
+        self._test_data = get_order_test_data(self.__shipping_address, options, self._user, shopper_coupons)
         self._post(format='json')
 
         self._assert_success_and_serializer_class(OrderWriteSerializer)
