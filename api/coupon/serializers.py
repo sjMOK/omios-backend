@@ -27,7 +27,7 @@ class CouponSerializer(ModelSerializer):
         extra_kwargs = {
             'discount_rate': {'min_value': 0, 'max_value': 100},
             'discount_price': {'min_value': 0, 'max_value': 1000000},
-            'minimum_order_price': {'min_value': 0, 'max_value': 1000000},
+            'minimum_product_price': {'min_value': 0, 'max_value': 1000000},
             'maximum_discount_price': {'min_value': 0, 'max_value': 1000000},
             'available_period': {'min_value': 0},
         }
@@ -61,6 +61,9 @@ class CouponSerializer(ModelSerializer):
         return value
 
     def validate(self, attrs):
+        # todo
+        # 정액 할인일 경우 (discount_price) 최대 할인 금액 선택 불가능 validation
+
         attrs = self.__validate_classification(attrs)
 
         discount_rate = attrs.get('discount_rate', None)

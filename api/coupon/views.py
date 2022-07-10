@@ -74,3 +74,9 @@ class CouponViewSet(GenericViewSet):
         coupon = serializer.save()
 
         return get_response(status=HTTP_201_CREATED, data={'id': coupon.id})
+
+# permission 수정
+# coupon_owned 수정 (/shoppers/coupons 도)
+# queryset 수정 -> 필요한 데이터만으로 쿼리셋 만들기
+# related manager 네이밍 컨벤션
+# 정책 변경에 따른 수정

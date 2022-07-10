@@ -362,3 +362,5 @@ class ShopperCouponViewSet(ListModelMixin, GenericViewSet):
         serializer.save(shopper=request.user.shopper)
 
         return get_response(status=HTTP_201_CREATED, data={'coupon_id': request.data['coupon']})
+
+# 복붙..

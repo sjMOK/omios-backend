@@ -17,17 +17,17 @@ from common.serializers import (
 )
 from common.exceptions import NotExcutableValidationError
 from common.utils import DATETIME_WITHOUT_MILISECONDS_FORMAT
+from user.models import ShopperCoupon
+from user.serializers import ShopperCouponSerializer
 from product.models import Option
-from product.serializers import OptionInOrderItemSerializer
+from product.serializers import OptionInOrderItemSerializer # todo 이 페이지로 옮겨야 됨
+from coupon.models import SOME_PRODUCT_COUPON_CLASSIFICATION, SUB_CATEGORY_COUPON_CLASSIFICATION
 from .models import (
     PAYMENT_COMPLETION_STATUS, DELIVERY_PREPARING_STATUS, DELIVERY_PROGRESSING_STATUS, BEFORE_DELIVERY_STATUS, NORMAL_STATUS,
     Order, OrderItem, Status, ShippingAddress, Refund, CancellationInformation, StatusHistory,
     ExchangeInformation, Delivery
 )
 from .validators import validate_order_items
-
-
-ORDER_MAXIMUM_NUMBER = 100
 
 
 class ShippingAddressSerializer(ModelSerializer):
@@ -59,6 +59,7 @@ class ShippingAddressSerializer(ModelSerializer):
 class OrderItemSerializer(ModelSerializer):
     option = OptionInOrderItemSerializer()
     base_discount_price = IntegerField(read_only=True)
+    shopper_coupon = StringRelatedField()
     earned_point = IntegerField(read_only=True)
     used_point = IntegerField(read_only=True)
     status = StringRelatedField()
@@ -74,12 +75,17 @@ class OrderItemSerializer(ModelSerializer):
 class OrderItemListSerializer(ListSerializer):
     def validate(self, attrs):
         self.__validate_options(get_list_of_single_value(attrs, 'option'))
+        self.__validate_coupons(get_list_of_single_value(attrs, 'coupon'))
 
         return attrs
 
     def __validate_options(self, value):
         if has_duplicate_element(value):
             raise ValidationError('option is duplicated.')
+
+    def __validate_coupons(self, value):
+        if has_duplicate_element(value):
+            raise ValidationError('coupon is duplicated.')
 
     def __create_status_history(self, queryset):
         return StatusHistorySerializer().create(queryset)
@@ -89,6 +95,7 @@ class OrderItemListSerializer(ListSerializer):
         model.objects.bulk_create([model(**item) for item in validated_data])
         
         queryset = model.objects.filter(order=validated_data[0]['order'])
+        ShopperCouponSerializer().update_is_used(queryset, True)
         self.__create_status_history(queryset)
 
         return queryset
@@ -97,6 +104,7 @@ class OrderItemListSerializer(ListSerializer):
         for instance in queryset:
             instance.status_id = status_id
 
+        # todo bulk_update -> update
         self.child.Meta.model.objects.bulk_update(queryset, ['status_id'])
         self.__create_status_history(queryset)
 
@@ -106,13 +114,14 @@ class OrderItemListSerializer(ListSerializer):
 class OrderItemWriteSerializer(OrderItemSerializer):
     option = PrimaryKeyRelatedField(queryset=Option.objects.select_related('product_color__product').all())
     base_discounted_price = IntegerField(min_value=0)
+    shopper_coupon = PrimaryKeyRelatedField(queryset=ShopperCoupon.objects.select_related('coupon').all(), required=False)
 
     class Meta(OrderItemSerializer.Meta):
         extra_kwargs = {
             'count': {'max_value': 999, 'min_value': 1, 'required': True},
             'sale_price': {'min_value': 0},
             'membership_discount_price': {'min_value': 0},
-            # 'used_price': {'min_value': 0},
+            'coupon_discount_price': {'min_value': 0},
             'payment_price': {'min_value': 0},
         }
         list_serializer_class = OrderItemListSerializer
@@ -138,6 +147,45 @@ class OrderItemWriteSerializer(OrderItemSerializer):
 
         return value
 
+    def validate_shopper_coupon(self, value):
+        if value.is_used or value.end_date < timezone.now().date():
+            raise ValidationError(f'shopper_coupon {value.id} is expired or have already been used.')
+        elif value.shopper_id != self.context['shopper'].id:
+            raise ValidationError(f'shopper_coupon {value.id} belongs to someone else.')
+
+        return value
+
+    def __get_actual_coupon_discount_price(self, coupon, product, maximum_discount_price):
+        if coupon.discount_rate is not None:
+            result = product.base_discounted_price * coupon.discount_rate // 100
+            result = min(result, coupon.maximum_discount_price) if coupon.maximum_discount_price is not None else result
+        elif coupon.discount_price is not None:
+            result = coupon.discount_price
+
+        return min(result, maximum_discount_price)
+
+    # toto minimum_order_price -> minimum_product_price
+    def __validate_coupon(self, attrs):
+        option = attrs['option']
+        shopper_coupon = attrs.get('shopper_coupon', None)
+        coupon_discount_price = attrs.get('coupon_discount_price', None)
+        if shopper_coupon is None or coupon_discount_price is None:
+            raise ValidationError(f'shopper_coupon and coupon_discount_price of option {option.id} must be requested together.')
+        
+        product = option.product_color.product
+        coupon = shopper_coupon.coupon
+        median_payment_price = (attrs['base_discounted_price'] - attrs['membership_discount_price']) // attrs['count']
+        if (coupon.classification_id == SOME_PRODUCT_COUPON_CLASSIFICATION and not coupon.products.filter(id=product.id).exists()) or \
+            (coupon.classification_id == SUB_CATEGORY_COUPON_CLASSIFICATION and not coupon.sub_categories.filter(id=product.sub_category_id).exists()):
+            # todo 기획전 조건 추가
+            raise ValidationError(f'shopper_coupon {shopper_coupon.id} is not applicable to option {option.id}.')
+        elif product.base_discounted_price < coupon.minimum_product_price:
+            raise ValidationError(f'The price of option {option.id} is lower than the minimum order price of shopper_coupon {shopper_coupon.id}.')
+        elif coupon.maximum_discount_price is not None and coupon_discount_price > coupon.maximum_discount_price:
+            raise ValidationError(f'coupon_discount_price has exceeded the maximum discount price of shopper_coupon {shopper_coupon.id}')
+        elif self.__get_actual_coupon_discount_price(coupon, product, median_payment_price) != coupon_discount_price:
+            raise ValidationError(f'coupon_discount_price of option {option.id} is different from the actual price.')
+
     def __validate_price(self, attrs):
         option = attrs['option']
         product = option.product_color.product
@@ -148,8 +196,11 @@ class OrderItemWriteSerializer(OrderItemSerializer):
             raise ValidationError(f'base_discounted_price of option {option.id} is different from the actual price.')
         elif attrs['membership_discount_price'] != product.base_discounted_price * self.context['shopper'].membership.discount_rate // 100 * attrs['count']:
             raise ValidationError(f'membership_discount_price of option {option.id} is different from the actual price.')
-        # todo 쿠폰 validation
-        elif attrs['payment_price'] != attrs['base_discounted_price'] - attrs['membership_discount_price']:
+        
+        if 'shopper_coupon' in attrs or 'coupon_discount_price' in attrs:
+            self.__validate_coupon(attrs)
+        
+        if attrs['payment_price'] != attrs['base_discounted_price'] - attrs['membership_discount_price'] - attrs.get('coupon_discount_price', 0):
             raise ValidationError(f'payment_price of option {option.id} is different from the actual price.')
 
         attrs['base_discount_price'] = attrs['sale_price'] - attrs['base_discounted_price']
@@ -246,10 +297,9 @@ class OrderWriteSerializer(OrderSerializer):
         shopper.update_point(-1 * used_point, '적립금으로 결제', order.id)
 
         # todo
-        # 가격, 재고 관련 작업
+        # 가격, 재고, 쿠폰 관련 작업
         # transaction
 
-        # 교환 주문 생성 시 로직 분리
 
         return order
 
@@ -506,10 +556,5 @@ class DeliverySerializer(ModelSerializer):
             attrs['is_valid_invoice'] = None
 
 
-
-# 적림금 사용 0원일 때 history 저장 x
-# 기간 별 주문 조회, 상태별 추가 정보(클레임 정보), 주문 조회 시 페이지네이션
-# 각 상태별 주문 개수
-
-
-# DevlierySerializer 성능 개선, orderviewset으로 이동
+# 클레임 기능
+# 상태별 추가 정보(클레임 정보)

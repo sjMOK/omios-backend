@@ -312,3 +312,7 @@ class ShopperCouponSerializer(ModelSerializer):
             validated_data['end_date'] = timedelta(days=coupon.available_period) + date.today()
 
         return self.Meta.model.objects.create(**validated_data)
+
+    def update_is_used(self, order_items, is_used):
+        # todo 반품에 의한 쿠폰 복구 시, 쿠폰 만료 기한 늘려주는 기능
+        return self.Meta.model.objects.filter(id__in=[order_item.shopper_coupon_id for order_item in order_items]).update(is_used=is_used)

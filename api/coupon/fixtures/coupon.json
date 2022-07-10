@@ -5,7 +5,7 @@
         "classification": 5,
         "name": "welcome 회원가입 쿠폰팩 - 3천원",
         "discount_price": 3000,
-        "minimum_order_price": 20000,
+        "minimum_product_price": 20000,
         "maximum_discount_price": 3000,
         "available_period": 14,
         "is_auto_issue": true
@@ -17,7 +17,7 @@
         "classification": 5,
         "name": "welcom 회원가입 쿠폰팩 - 10%",
         "discount_rate": 10,
-        "minimum_order_price": 10000,
+        "minimum_product_price": 10000,
         "maximum_discount_price": 30000,
         "available_period": 14,
         "is_auto_issue": true
@@ -29,7 +29,7 @@
         "classification": 5,
         "name": "welcome 회원가입 쿠폰팩 - 50000원",
         "discount_price": 50000,
-        "minimum_order_price": 200000,
+        "minimum_product_price": 200000,
         "maximum_discount_price": 50000,
         "available_period": 14,
         "is_auto_issue": true
@@ -41,7 +41,7 @@
         "classification": 1,
         "name": "전 상품 쿠폰",
         "discount_price": 50000,
-        "minimum_order_price": 200000,
+        "minimum_product_price": 200000,
         "maximum_discount_price": 50000,
         "available_period": 14,
         "is_auto_issue": true
@@ -53,7 +53,7 @@
         "classification": 2,
         "name": "일부 상품 쿠폰",
         "discount_price": 50000,
-        "minimum_order_price": 200000,
+        "minimum_product_price": 200000,
         "maximum_discount_price": 50000,
         "available_period": 14,
         "is_auto_issue": true
@@ -65,7 +65,7 @@
         "classification": 3,
         "name": "카테고리별 쿠폰",
         "discount_price": 50000,
-        "minimum_order_price": 200000,
+        "minimum_product_price": 200000,
         "maximum_discount_price": 50000,
         "available_period": 14,
         "is_auto_issue": true
@@ -77,7 +77,7 @@
         "classification": 4,
         "name": "기획전별 쿠폰",
         "discount_price": 50000,
-        "minimum_order_price": 200000,
+        "minimum_product_price": 200000,
         "maximum_discount_price": 50000,
         "available_period": 14,
         "is_auto_issue": true

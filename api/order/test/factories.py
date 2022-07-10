@@ -1,9 +1,10 @@
-from factory import Sequence, SubFactory, LazyAttribute
+from factory import Sequence, SubFactory, LazyAttribute, SelfAttribute, lazy_attribute
 from factory.django import DjangoModelFactory
 from factory.faker import Faker
 from factory.fuzzy import FuzzyText, FuzzyInteger
 
 from product.test.factories import create_options
+from ..serializers import OrderItemWriteSerializer
 
 
 def create_orders_with_items(order_size=1, item_size=3, only_product_color=False, order_kwargs={}, item_kwargs={}):
@@ -34,10 +35,24 @@ class OrderItemFactory(DjangoModelFactory):
     status = SubFactory('order.test.factories.StatusFactory')
     count = FuzzyInteger(1, 5)
     sale_price = LazyAttribute(lambda obj: obj.option.product_color.product.sale_price * obj.count)
-    base_discount_price = LazyAttribute(lambda obj: (obj.option.product_color.product.sale_price - obj.option.product_color.product.base_discounted_price) * obj.count)
-    membership_discount_price = LazyAttribute(lambda obj: obj.option.product_color.product.base_discounted_price * obj.order.shopper.membership.discount_rate // 100 * obj.count)
-    payment_price = LazyAttribute(lambda obj: obj.sale_price - obj.base_discount_price - obj.membership_discount_price)
+    base_discount_price = LazyAttribute(lambda obj: \
+        (obj.option.product_color.product.sale_price - obj.option.product_color.product.base_discounted_price) * obj.count)
+    membership_discount_price = LazyAttribute(lambda obj: \
+        obj.option.product_color.product.base_discounted_price * obj.order.shopper.membership.discount_rate // 100 * obj.count)
+    shopper_coupon = SubFactory('user.test.factories.ShopperCouponFactory', shopper=SelfAttribute('..order.shopper'))
+    payment_price = LazyAttribute(lambda obj: obj.sale_price - obj.base_discount_price - obj.membership_discount_price - obj.coupon_discount_price)
     earned_point = LazyAttribute(lambda obj: obj.payment_price // 100)
+
+    @lazy_attribute
+    def coupon_discount_price(self):
+        if self.shopper_coupon is None:
+            return 0
+
+        median_payment_price = (self.base_discount_price - self.membership_discount_price) // self.count
+
+        return OrderItemWriteSerializer()._OrderItemWriteSerializer__get_actual_coupon_discount_price(
+            self.shopper_coupon.coupon, self.option.product_color.product, median_payment_price
+        )
 
 
 class StatusFactory(DjangoModelFactory):

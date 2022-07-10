@@ -15,10 +15,12 @@ from common.test.test_cases import SerializerTestCase, ListSerializerTestCase, F
 from common.serializers import get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element
 from common.utils import DEFAULT_DATETIME_FORMAT, DATETIME_WITHOUT_MILISECONDS_FORMAT, datetime_to_iso
 from user.models import Shopper
-from user.test.factories import ShopperFactory
+from user.test.factories import ShopperFactory, ShopperCouponFactory
 from product.models import ProductImage
 from product.serializers import OptionInOrderItemSerializer
 from product.test.factories import ProductFactory, OptionFactory, create_options
+from coupon.models import ALL_PRODUCT_COUPON_CLASSIFICATIONS, SOME_PRODUCT_COUPON_CLASSIFICATION, SUB_CATEGORY_COUPON_CLASSIFICATION
+from coupon.test.factories import CouponClassificationFactory, CouponFactory
 from .factories import (
     create_orders_with_items, ShippingAddressFactory, OrderFactory, OrderItemFactory, 
     StatusFactory, StatusHistoryFactory, DeliveryFactory,
@@ -57,7 +59,7 @@ def get_shipping_address_test_data(shipping_address):
     }
 
 
-def get_order_item_test_data(option, shopper):
+def get_order_item_test_data(option, shopper, shopper_coupon=None):
     product = option.product_color.product
     count = randint(1, 5)
 
@@ -69,6 +71,13 @@ def get_order_item_test_data(option, shopper):
         'option': option.id,
     }
     test_data['payment_price'] = test_data['base_discounted_price'] - test_data['membership_discount_price']
+
+    if shopper_coupon is not None:
+        test_data['shopper_coupon'] = shopper_coupon.id
+        test_data['coupon_discount_price'] = OrderItemWriteSerializer()._OrderItemWriteSerializer__get_actual_coupon_discount_price(
+            shopper_coupon.coupon, product, test_data['payment_price'] // count
+        )
+        test_data['payment_price'] -= test_data['coupon_discount_price']
 
     return test_data
 
@@ -193,6 +202,8 @@ class OrderItemSerializerTestCase(SerializerTestCase):
             'count': order_item.count,
             'sale_price': order_item.sale_price,
             'membership_discount_price': order_item.membership_discount_price,
+            'shopper_coupon': str(order_item.shopper_coupon),
+            'coupon_discount_price': order_item.coupon_discount_price,
             'used_point': order_item.used_point,
             'payment_price': order_item.payment_price,
             'delivery': None,
@@ -254,6 +265,8 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
             'used_point': 0,
             'earned_point': 0,
             'delivery': None,
+            'shopper_coupon': None,
+            'coupon_discount_price': 0,
         } for data in serializer.validated_data])
         self.__assert_status_history_count(order_items)
 
@@ -273,52 +286,187 @@ class OrderItemWriteSerializerTestCase(SerializerTestCase):
     def setUpTestData(cls):
         cls.__shopper = ShopperFactory()
         cls.__option = OptionFactory()
-        cls.__order_item = OrderItemFactory(order=OrderFactory(shopper=cls.__shopper), option=cls.__option, status=StatusFactory(id=PAYMENT_COMPLETION_STATUS))
+        cls.__product = cls.__option.product_color.product
+        
+        cls.__coupon = ShopperCouponFactory(
+            shopper=cls.__shopper, 
+            is_used=False, 
+            coupon=CouponFactory(classification=CouponClassificationFactory(id=ALL_PRODUCT_COUPON_CLASSIFICATIONS[0]))
+        )
+        CouponClassificationFactory(id=SOME_PRODUCT_COUPON_CLASSIFICATION)
+        CouponClassificationFactory(id=SUB_CATEGORY_COUPON_CLASSIFICATION)
 
-        cls._test_data = get_order_item_test_data(cls.__option, cls.__shopper)
+        cls.__order_item = OrderItemFactory(
+            order=OrderFactory(shopper=cls.__shopper), 
+            option=cls.__option, 
+            status=StatusFactory(id=PAYMENT_COMPLETION_STATUS), 
+            shopper_coupon = None,
+        )
+
+        cls._test_data = get_order_item_test_data(cls.__option, cls.__shopper, cls.__coupon)
 
     def _get_serializer(self, *args, **kwargs):
         return super()._get_serializer(context={'shopper': self.__shopper}, *args, **kwargs)
+
+    def __set_up_get_actual_coupon_discount_price(self, target):
+        if target in ['discount_rate', 'coupont_maximum_discount_price']:
+            self.__coupon = CouponFactory.build(maximum_discount_price=None)
+        elif target in ['discount_price', 'maximum_discount_price']:
+            self.__coupon = CouponFactory.build(discount_price=True)
+
+        self.__product = ProductFactory.build()
+        self.__maximum_discount_price = self.__product.base_discounted_price + 1
+
+    def __set_classification(self, classification_id):
+        self.__coupon.coupon.classification_id = classification_id
+        self.__coupon.coupon.save(update_fields=['classification'])
+
+    def __test_get_actual_coupon_discount_price(self, expected_result, maximum_discount_price=None):
+        result = self._get_serializer()._OrderItemWriteSerializer__get_actual_coupon_discount_price(
+            self.__coupon, self.__product, maximum_discount_price or self.__maximum_discount_price
+        )
+        
+        self.assertEqual(result, expected_result)
+
+    def __test_validate_shopper_coupon(self, update_key, expected_message):
+        self.__coupon.save(update_fields=[update_key])
+        self._test_serializer_raise_validation_error(expected_message)
 
     def __test_validate_price(self, update_key, expected_message):
         self._test_data[update_key] += 1
         self._test_serializer_raise_validation_error(expected_message)
 
-    def test_validate_sale_price(self):
+    def test_get_actual_coupon_discount_price_about_discount_rate(self):
+        self.__set_up_get_actual_coupon_discount_price('discount_rate')
+
+        self.__test_get_actual_coupon_discount_price(self.__product.base_discounted_price * self.__coupon.discount_rate // 100)
+
+    def test_get_actual_coupon_discount_price_about_coupont_maximum_discount_price(self):
+        self.__set_up_get_actual_coupon_discount_price('coupont_maximum_discount_price')
+        self.__coupon.maximum_discount_price = self.__product.base_discounted_price * self.__coupon.discount_rate // 100 - 1
+
+        self.__test_get_actual_coupon_discount_price(self.__coupon.maximum_discount_price)
+
+    def test_get_actual_coupon_discount_price_about_discount_price(self):
+        self.__set_up_get_actual_coupon_discount_price('discount_price')
+
+        self.__test_get_actual_coupon_discount_price(self.__coupon.discount_price)
+
+    def test_get_actual_coupon_discount_price_about_maximum_discount_price(self):        
+        self.__set_up_get_actual_coupon_discount_price('maximum_discount_price')
+        maximum_discount_price = self.__coupon.discount_price - 1
+
+        self.__test_get_actual_coupon_discount_price(maximum_discount_price, maximum_discount_price)
+
+    def test_validate_sale_price(self):        
         self.__test_validate_price('sale_price', f'sale_price of option {self.__option.id} is different from the actual price.')
 
-    def test_validate_base_discounted_price(self):
+    def test_validate_base_discounted_price(self):        
         self.__test_validate_price('base_discounted_price', f'base_discounted_price of option {self.__option.id} is different from the actual price.')
 
-    def test_validate_membership_discount_price(self):
+    def test_validate_membership_discount_price(self):        
         self.__test_validate_price('membership_discount_price', f'membership_discount_price of option {self.__option.id} is different from the actual price.')
 
-    def test_validate_payment_price(self):
+    def test_validate_payment_price(self):        
         self.__test_validate_price('payment_price', f'payment_price of option {self.__option.id} is different from the actual price.')
 
-    def test_validate_option_for_status(self):
-        self.__order_item.status = StatusFactory(id=1000)
-
-        self._test_serializer_raise_validation_error('This order is in a state where options cannot be changed.', self.__order_item)
-
-    def test_validate_option(self):
-        self._test_data = {'option': OptionFactory(product_color__product=ProductFactory(product=self.__option.product_color.product)).id}
-
-        self._test_serializer_raise_validation_error('It cannot be changed to an option for another product.', self.__order_item)
+    def test_validate_shopper_coupon_about_is_used(self):        
+        self.__coupon.is_used = True
         
-    def test_validate_option_included_order(self):
-        self._test_serializer_raise_validation_error('This item is already included in the order.', self.__order_item, {'option': self.__option.id})
+        self.__test_validate_shopper_coupon('is_used', f'shopper_coupon {self.__coupon.id} is expired or have already been used.')
 
-    def test_validated_data_for_create(self):
+    def test_validate_shopper_coupon_about_end_date(self):        
+        self.__coupon.end_date = timezone.now() - relativedelta(days=2)
+
+        self.__test_validate_shopper_coupon('end_date', f'shopper_coupon {self.__coupon.id} is expired or have already been used.')
+
+    def test_validate_shopper_coupon_about_shopper(self):        
+        self.__coupon.shopper = ShopperFactory(membership=self.__shopper.membership)
+
+        self.__test_validate_shopper_coupon('shopper', f'shopper_coupon {self.__coupon.id} belongs to someone else.')
+
+    def test_validate_coupon_without_shopper_coupon(self):        
+        del self._test_data['shopper_coupon']
+
+        self._test_serializer_raise_validation_error(f'shopper_coupon and coupon_discount_price of option {self.__option.id} must be requested together.')
+
+    def test_validate_coupon_without_coupon_discount_price(self):        
+        del self._test_data['coupon_discount_price']
+
+        self._test_serializer_raise_validation_error(f'shopper_coupon and coupon_discount_price of option {self.__option.id} must be requested together.')
+
+    def test_validate_coupon_about_some_product_coupon_classification(self):        
+        self.__set_classification(SOME_PRODUCT_COUPON_CLASSIFICATION)
+
+        self._test_serializer_raise_validation_error(f'shopper_coupon {self.__coupon.id} is not applicable to option {self.__option.id}.')
+
+    def test_validate_coupon_about_sub_category_coupon_classification(self):        
+        self.__set_classification(SUB_CATEGORY_COUPON_CLASSIFICATION)
+
+        self._test_serializer_raise_validation_error(f'shopper_coupon {self.__coupon.id} is not applicable to option {self.__option.id}.')
+
+    def test_validate_coupon_about_minimum_product_price(self):        
+        self.__coupon.coupon.minimum_product_price = self.__product.base_discounted_price + 1
+        self.__coupon.coupon.save(update_fields=['minimum_product_price'])
+
+        self._test_serializer_raise_validation_error(f'The price of option {self.__option.id} is lower than the minimum order price of shopper_coupon {self.__coupon.id}.')
+
+    def test_validate_coupon_about_maximum_discount_price(self):        
+        self._test_data['coupon_discount_price'] = self.__coupon.coupon.maximum_discount_price + 1
+
+        self._test_serializer_raise_validation_error(f'coupon_discount_price has exceeded the maximum discount price of shopper_coupon {self.__coupon.id}')
+
+    def test_validate_coupon_about_coupon_discount_price(self):        
+        self._test_data['coupon_discount_price'] -= 1
+
+        self._test_serializer_raise_validation_error(f'coupon_discount_price of option {self.__option.id} is different from the actual price.')
+
+    def test_validated_data_for_create(self):        
         expected_data = deepcopy(self._test_data)
         expected_data['option'] = self.__option
+        expected_data['shopper_coupon'] = self.__coupon
         expected_data['base_discount_price'] = expected_data['sale_price'] - expected_data['base_discounted_price']
         del expected_data['base_discounted_price']
 
         self._test_validated_data(expected_data)
 
-    def test_update(self):
-        option = OptionFactory(product_color__product=self.__option.product_color.product)
+    def test_validation_success_with_price_coupon(self):        
+        price_coupon = ShopperCouponFactory(
+            shopper=self.__shopper, 
+            is_used=False,
+             coupon=CouponFactory(classification=self.__coupon.coupon.classification, discount_price=True)
+        )
+        self._test_data =  get_order_item_test_data(self.__option, self.__shopper, price_coupon)
+
+        self.assertTrue(self._get_serializer_after_validation())
+
+    def test_validation_success_with_some_product_coupon_classification(self):        
+        self.__set_classification(SOME_PRODUCT_COUPON_CLASSIFICATION)
+        self.__coupon.coupon.products.add(self.__product)
+
+        self.assertTrue(self._get_serializer_after_validation())
+
+    def test_validation_success_with_sub_category_coupon_classification(self):        
+        self.__set_classification(SUB_CATEGORY_COUPON_CLASSIFICATION)
+        self.__coupon.coupon.sub_categories.add(self.__product.sub_category)
+
+        self.assertTrue(self._get_serializer_after_validation())
+
+    def test_validate_option_for_status(self):        
+        self.__order_item.status = StatusFactory(id=1000)
+
+        self._test_serializer_raise_validation_error('This order is in a state where options cannot be changed.', self.__order_item)
+
+    def test_validate_option(self):        
+        self._test_data = {'option': OptionFactory(product_color__product=ProductFactory(product=self.__product)).id}
+
+        self._test_serializer_raise_validation_error('It cannot be changed to an option for another product.', self.__order_item)
+    
+    def test_validate_option_included_order(self):        
+        self._test_serializer_raise_validation_error('This item is already included in the order.', self.__order_item, {'option': self.__option.id})
+
+    def test_update(self):        
+        option = OptionFactory(product_color__product=self.__product)
         self._test_data = {'option': option.id}
         order_item = self._save(self.__order_item, partial=True)
 
@@ -569,7 +717,12 @@ class DeliveryListSerializerTestCase(ListSerializerTestCase):
     def setUpTestData(cls):
         cls.__status = StatusFactory(id=DELIVERY_PREPARING_STATUS)
         StatusFactory(id=DELIVERY_PROGRESSING_STATUS)
-        cls.__orders = create_orders_with_items(order_size=3, only_product_color=True, order_kwargs={'shopper': ShopperFactory()}, item_kwargs={'status': cls.__status})
+        cls.__orders = create_orders_with_items(
+            order_size=3, 
+            only_product_color=True, 
+            order_kwargs={'shopper': ShopperFactory()}, 
+            item_kwargs={'status': cls.__status, 'shopper_coupon': None}
+        )
         cls._test_data = [get_delivery_test_data(order) for order in cls.__orders]
         cls.__expected_result = get_delivery_result(cls._test_data)
 

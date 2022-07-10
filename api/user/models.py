@@ -269,3 +269,6 @@ class ShopperCoupon(Model):
     class Meta:
         db_table = 'shopper_coupon'
         unique_together = (('shopper', 'coupon'),)
+
+    def __str__(self):
+        return self.coupon.name
