@@ -152,17 +152,28 @@ class ShippingAddressSerializerTestCase(SerializerTestCase):
     @classmethod
     def setUpTestData(cls):
         cls.__shipping_address = ShippingAddressFactory()
+        cls.__order = create_orders_with_items(
+            item_size = 1,
+            order_kwargs = {'shipping_address': cls.__shipping_address},
+            item_kwargs = {'status': StatusFactory(id=1000), 'shopper_coupon': None},
+        )[0]
 
     def setUp(self):
         self._test_data = get_shipping_address_test_data(self.__shipping_address)
 
-    def __get_other_shipping_address(self, order=None):
-        self._test_data['receiver_name'] += 'test'
-        context = {}
-        if order is not None:
-            context['order'] = order
+    def __get_context(self, order=True):
+        if order:
+            return {'order': self.__order}
+        else:
+            return {}
 
-        return self._get_serializer(context=context).create(self._test_data)
+    def __get_other_shipping_address(self, order=False):
+        self._test_data['receiver_name'] += 'test'
+
+        return self._get_serializer(context=self.__get_context(order)).create(self._test_data)
+
+    def test_validate_status(self):
+        self._test_serializer_raise_validation_error('The shipping address for this order cannot be changed.', context=self.__get_context())
 
     def test_model_instance_serialization(self):
         self._test_model_instance_serialization(self.__shipping_address, {
@@ -181,10 +192,10 @@ class ShippingAddressSerializerTestCase(SerializerTestCase):
         self.assertEqual(shipping_address, self.__shipping_address)
 
     def test_create_with_order(self):
-        order = OrderFactory(shipping_address=self.__shipping_address)
-        shipping_address = self.__get_other_shipping_address(order)
+        shipping_address = self.__get_other_shipping_address(True)
 
-        self.assertEqual(order.shipping_address, shipping_address)
+        self.assertTrue(self.__order.shipping_address != self.__shipping_address)
+        self.assertEqual(self.__order.shipping_address, shipping_address)
 
 
 class OrderItemSerializerTestCase(SerializerTestCase):
@@ -430,13 +441,18 @@ class OrderItemWriteSerializerTestCase(SerializerTestCase):
 
         self._test_validated_data(expected_data)
 
+    def test_validation_success_with_no_coupon(self):
+        self._test_data = get_order_item_test_data(self.__option, self.__shopper)
+
+        self.assertTrue(self._get_serializer_after_validation())
+
     def test_validation_success_with_price_coupon(self):        
         price_coupon = ShopperCouponFactory(
             shopper=self.__shopper, 
             is_used=False,
              coupon=CouponFactory(classification=self.__coupon.coupon.classification, discount_price=True)
         )
-        self._test_data =  get_order_item_test_data(self.__option, self.__shopper, price_coupon)
+        self._test_data = get_order_item_test_data(self.__option, self.__shopper, price_coupon)
 
         self.assertTrue(self._get_serializer_after_validation())
 

@@ -41,7 +41,6 @@ class ShippingAddressSerializer(ModelSerializer):
 
         return attrs
 
-    # todo test code 작성
     def __validate_status(self):
         if self.context['order'].items.exclude(status__in=BEFORE_DELIVERY_STATUS).exists():
             raise ValidationError('The shipping address for this order cannot be changed.')
