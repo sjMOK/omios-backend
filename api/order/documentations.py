@@ -65,11 +65,23 @@ class DeliveryResponse(Serializer):
 
 
 class DecoratedOrderViewSet(OrderViewSet):
+    create_description = '''
+        주문 생성
+
+        --- discont --- : 할인할 금액에 해당하는 필드
+        --- discounted --- : 할인이 적용된 금액에 해당하는 필드
+
+        shopper_coupon, coupon_discount_price 필드를 함께 보내지 않으면 에러 반환
+
+        금액 계산은 정책 명세서에 작성되어 있는 내용 기반
+        items 내의 금액 필드는 적립금 적용을 제외한 금액
+    '''
+
     @swagger_auto_schema(query_serializer=OrderQuerySerializer, **get_paginated_response(OrderResponse(many=True)), operation_description='주문 목록 조회')
     def list(self, *args, **kwargs):
         return super().list(*args, **kwargs)
 
-    @swagger_auto_schema(request_body=OrderCreateRequest, **get_response(code=201), operation_description='주문 생성')
+    @swagger_auto_schema(request_body=OrderCreateRequest, **get_response(code=201), operation_description=create_description)
     def create(self, *args, **kwargs):
         return super().create(*args, **kwargs)
 
