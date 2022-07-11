@@ -1,4 +1,3 @@
-from django.utils import timezone
 from django.forms import model_to_dict
 from django.test import TestCase
 from django.contrib.auth.models import AnonymousUser

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, date
-from decimal import Decimal
 
 from rest_framework.exceptions import ValidationError
 
@@ -80,7 +79,7 @@ class MembershipSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(membership, {
             'id': membership.id,
             'name': membership.name,
-            'discount_rate': str(membership.discount_rate),
+            'discount_rate': membership.discount_rate,
         })
 
 

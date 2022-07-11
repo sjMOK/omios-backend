@@ -2,9 +2,9 @@ import random
 from datetime import date, timedelta
 
 from factory import Sequence, LazyAttribute, SubFactory, RelatedFactoryList, post_generation, lazy_attribute
-from factory.django import DjangoModelFactory, get_model
+from factory.django import DjangoModelFactory
 from factory.faker import Faker
-from factory.fuzzy import FuzzyDecimal, FuzzyInteger
+from factory.fuzzy import FuzzyInteger
 
 from coupon.test.factories import CouponFactory
 
@@ -25,7 +25,7 @@ class MembershipFactory(DjangoModelFactory):
         model = 'user.Membership'
 
     name = Sequence(lambda num: f'membership{num}')
-    discount_rate = FuzzyDecimal(0, 5, 2)
+    discount_rate = FuzzyInteger(1, 5)
     qualification = 'qualification'
 
 
