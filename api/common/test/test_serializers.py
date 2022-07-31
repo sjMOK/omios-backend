@@ -4,13 +4,14 @@ from rest_framework.test import APISimpleTestCase
 from rest_framework.serializers import Serializer, CharField, IntegerField
 from rest_framework.exceptions import APIException
 
+from .test_cases import FunctionTestCase, SerializerTestCase
+from .factories import SettingItemFactory
 from ..serializers import (
-    SerializerMixin,
+    SerializerMixin, SettingItemSerializer,
     has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_update_attrs, get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, 
     get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element,
 )
-from .test_cases import FunctionTestCase
 
 
 list_test_data = [
@@ -234,3 +235,15 @@ class SerializerMixinTestCase(APISimpleTestCase):
             self.__test_serializer_class,
             exclude_fields=self.__exclude_fields
         )
+
+
+class SettingItemSerializerTestCase(SerializerTestCase):
+    _serializer_class = SettingItemSerializer
+
+    def test_model_instance_serialization(self):
+        setting_item = SettingItemFactory()
+
+        self._test_model_instance_serialization(setting_item, {
+            'id': setting_item.id,
+            'name': setting_item.name,
+        })
