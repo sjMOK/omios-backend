@@ -6,12 +6,12 @@ from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
-    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial, Theme,
+    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial,
     ProductQuestionAnswerClassification, ProductQuestionAnswer,
 )
 from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
-    ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
+    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
     ProductQuestionAnswerClassificationFactory,
 )
 
@@ -78,7 +78,6 @@ class ProductTestCase(ModelTestCase):
             'flexibility': FlexibilityFactory(),
             'lining': True,
             'manufacturing_country': '대한민국',
-            'theme': ThemeFactory(),
         }
 
         cls._product = cls._get_default_model_after_creation()
@@ -96,7 +95,6 @@ class ProductTestCase(ModelTestCase):
         self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
         self.assertEqual(self._product.lining, self._test_data['lining'])
         self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
-        self.assertEqual(self._product.theme, self._test_data['theme'])
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
@@ -368,19 +366,6 @@ class ProductMaterialTestCase(ModelTestCase):
         self.assertEqual(product_material.product, self._test_data['product'])
         self.assertEqual(product_material.material, self._test_data['material'])
         self.assertEqual(product_material.mixing_rate, self._test_data['mixing_rate'])
-
-
-class ThemeTestCase(ModelTestCase):
-    _model_class = Theme
-
-    def test_create(self):
-        self._test_data = {
-            'name': '파티룩',
-        }
-        theme = self._get_model_after_creation()
-
-        self.assertEqual(theme.name, self._test_data['name'])
-
 
 
 class ProductQuestionAnswerClassificationTestCase(ModelTestCase):

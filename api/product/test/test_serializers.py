@@ -13,13 +13,13 @@ from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThemeFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
-    ProductMaterialFactory, OptionFactory, ThemeFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    TagFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
+    ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
-    ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer, ThemeSerializer,
+    ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
@@ -148,19 +148,6 @@ class AgeSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(age, expected_data)
-
-
-class ThemeSerializerTestCase(SerializerTestCase):
-    _serializer_class = ThemeSerializer
-
-    def test_model_instance_serialization(self):
-        theme = ThemeFactory()
-        expected_data = {
-            'id': theme.id,
-            'name': theme.name,
-        }
-
-        self._test_model_instance_serialization(theme, expected_data)
 
 
 class StyleSerializerTestCase(SerializerTestCase):
@@ -1105,7 +1092,6 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'thickness': ThicknessSerializer(product.thickness).data,
             'see_through': SeeThroughSerializer(product.see_through).data,
             'flexibility': FlexibilitySerializer(product.flexibility).data,
-            'theme': ThemeSerializer(product.theme).data,
             'created_at': datetime_to_iso(product.created_at),
             'on_sale': product.on_sale,
             'code': product.code,
@@ -1280,7 +1266,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'flexibility': self.__product.flexibility_id,
             'lining': True,
             'manufacturing_country': self.__product.manufacturing_country,
-            'theme': self.__product.theme_id,
             'images': [
                 {
                     'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
@@ -1410,7 +1395,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.flexibility_id, data['flexibility'])
         self.assertEqual(product.lining, data['lining'])
         self.assertEqual(product.manufacturing_country, data['manufacturing_country'])
-        self.assertEqual(product.theme_id, data['theme'])
         self.assertListEqual(
             list(product.tags.all().order_by('id').values_list('id', flat=True)),
             data['tags']
@@ -1441,7 +1425,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         update_data['flexibility'] = FlexibilityFactory().id
         update_data['lining'] = not self.__product.lining
         update_data['manufacturing_country'] = self.__product.manufacturing_country + '_update'
-        update_data['theme'] = ThemeFactory().id
         serializer = self._get_serializer_after_validation(
             self.__product, data=update_data, partial=True
         )
@@ -1458,7 +1441,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.flexibility_id, update_data['flexibility'])
         self.assertEqual(product.lining, update_data['lining'])
         self.assertEqual(product.manufacturing_country, update_data['manufacturing_country'])
-        self.assertEqual(product.theme_id, update_data['theme'])
 
     def test_update_id_only_m2m_fields(self):
         tags = TagFactory.create_batch(size=2)

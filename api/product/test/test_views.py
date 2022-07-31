@@ -14,17 +14,17 @@ from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
 from .factories import (
     AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
-    ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory, ThemeFactory,
+    ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory,
     ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
-    Product, Theme, Tag, Option, ProductQuestionAnswer,
+    Product, Tag, Option, ProductQuestionAnswer,
 )
 from ..serializers import (
     FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThemeSerializer, ThicknessSerializer,
+    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThicknessSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
 )
 
@@ -195,7 +195,6 @@ class GetRegistryDataTestCase(ViewTestCase):
         MaterialFactory()
         StyleFactory()
         AgeFactory()
-        ThemeFactory()
 
         cls.__sizes = SizeFactory.create_batch(size=3)
 
@@ -205,7 +204,6 @@ class GetRegistryDataTestCase(ViewTestCase):
             'material': MaterialSerializer(Material.objects.all(), many=True).data,
             'style': StyleSerializer(Style.objects.all(), many=True).data,
             'age': AgeSerializer(Age.objects.all(), many=True).data,
-            'theme': ThemeSerializer(Theme.objects.all(), many=True).data,
         }
         self._get()
 
@@ -649,7 +647,6 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'flexibility': self._product.flexibility.id,
             'lining': True,
             'manufacturing_country': '대한민국',
-            'theme': self._product.theme.id,
             'images': [
                 {
                     'image_url': BASE_IMAGE_URL + image_url_list.pop(),

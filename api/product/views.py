@@ -17,13 +17,13 @@ from coupon.models import  Coupon
 from user.models import is_shopper, is_wholesaler, ProductLike
 from .models import (
     Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, Theme, ProductQuestionAnswer, ProductQuestionAnswerClassification,
+    Style, Keyword, Product, Tag, Age, Thickness, ProductQuestionAnswer, ProductQuestionAnswerClassification,
 )
 from .serializers import (
     ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
     ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ThemeSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
+    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
 from .paginations import ProductQuestionAnswerPagination
@@ -133,7 +133,6 @@ def get_common_registry_data():
         'material': MaterialSerializer(Material.objects.all(), many=True).data,
         'style': StyleSerializer(Style.objects.all(), many=True).data,
         'age': AgeSerializer(Age.objects.all(), many=True).data,
-        'theme': ThemeSerializer(Theme.objects.all(), many=True).data,
     }
 
     return response_data
@@ -252,8 +251,7 @@ class ProductViewSet(GenericViewSet):
 
             if self.action == 'retrieve':
                 queryset = queryset.select_related(
-                    'sub_category__main_category', 'style', 'age', 'thickness', 'see_through',
-                    'flexibility', 'theme'
+                    'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
                 ).annotate(total_like=Count('like_shoppers'))
             
         return queryset

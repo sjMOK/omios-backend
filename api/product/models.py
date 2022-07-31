@@ -70,7 +70,6 @@ class Product(Model):
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
     manufacturing_country = CharField(max_length=20)
-    theme = ForeignKey('Theme', DO_NOTHING)
     like_shoppers = ManyToManyField('user.Shopper', through='user.ProductLike')
 
     class Meta:
@@ -282,18 +281,6 @@ class ProductMaterial(Model):
 
     class Meta:
         db_table = 'product_material'
-
-
-class Theme(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        db_table = 'theme'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
 
 
 class ProductQuestionAnswerClassification(Model):

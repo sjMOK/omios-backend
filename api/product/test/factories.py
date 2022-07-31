@@ -73,13 +73,6 @@ class FlexibilityFactory(DjangoModelFactory):
     name = Sequence(lambda num: 'flex_{0}'.format(num))
 
 
-class ThemeFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Theme'
-    
-    name = Sequence(lambda num: 'theme_{0}'.format(num))
-
-
 class ProductFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Product'
@@ -98,13 +91,12 @@ class ProductFactory(DjangoModelFactory):
     flexibility = SubFactory(FlexibilityFactory)
     lining = True
     manufacturing_country = Faker('country', locale='ko-KR')
-    theme = SubFactory(ThemeFactory)
         
     @classmethod
     def _generate(cls, strategy, params):
         if 'product' in params:
             product = params.pop('product')
-            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'theme']
+            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility']
             for field in copy_fields:
                 if field not in params:
                     params[field] = getattr(product, field, None)

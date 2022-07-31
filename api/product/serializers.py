@@ -18,7 +18,7 @@ from common.serializers import (
 )
 from .models import (
     Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, Theme, ProductQuestionAnswer, Material,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, ProductQuestionAnswer, Material,
 )
 
 
@@ -63,7 +63,6 @@ class SizeSerializer(ModelSerializer):
         extra_kwargs = {
             'name': {'read_only': True},
         }
-        
 
 class LaundryInformationSerializer(ModelSerializer):
     class Meta:
@@ -104,15 +103,6 @@ class FlexibilitySerializer(ModelSerializer):
 class AgeSerializer(ModelSerializer):
     class Meta:
         model = Age
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class ThemeSerializer(ModelSerializer):
-    class Meta:
-        model = Theme
         fields = '__all__'
         extra_kwargs = {
             'name': {'read_only': True},
@@ -670,7 +660,6 @@ class ProductReadSerializer(ProductSerializer):
     thickness = ThicknessSerializer(read_only=True)
     see_through = SeeThroughSerializer(read_only=True)
     flexibility = FlexibilitySerializer(read_only=True)
-    theme = ThemeSerializer(read_only=True)
     created_at = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
@@ -715,7 +704,6 @@ class ProductWriteSerializer(ProductSerializer):
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
     see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
-    theme = PrimaryKeyRelatedField(queryset=Theme.objects.all())
 
     __price_multiple_num_data = [
         {'min_price': 0, 'multiple': 2.3},
