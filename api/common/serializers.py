@@ -1,6 +1,7 @@
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import Serializer, ModelSerializer, ImageField
 
+from .models import SettingItem
 from .validators import validate_file_size
 
 
@@ -133,3 +134,10 @@ class DynamicFieldsModelSerializer(SerializerMixin, ModelSerializer):
 
 class ImageSerializer(Serializer):
     image = ImageField(max_length=200, validators=[validate_file_size])
+
+
+class SettingItemSerializer(ModelSerializer):
+    class Meta:
+        model = SettingItem
+        fields = ['id', 'name']
+        read_only_fiels = fields
