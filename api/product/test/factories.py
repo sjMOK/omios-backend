@@ -104,6 +104,16 @@ class ProductFactory(DjangoModelFactory):
         return super()._generate(strategy, params)
 
 
+class ProductAdditionalInformationFactory(DjangoModelFactory):
+    class Meta:
+        model = 'product.ProductAdditionalInformation'
+
+    thickness = SubFactory('common.test.factories.SettingItemFactory')
+    see_through = SubFactory('common.test.factories.SettingItemFactory')
+    flexibility = SubFactory('common.test.factories.SettingItemFactory')
+    lining = SubFactory('common.test.factories.SettingItemFactory')
+
+
 class TagFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Tag'

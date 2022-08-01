@@ -69,6 +69,7 @@ class Product(Model):
     see_through = ForeignKey('SeeThrough', DO_NOTHING)
     flexibility = ForeignKey('Flexibility', DO_NOTHING)
     lining = BooleanField()
+    additional_information = ForeignKey('ProductAdditionalInformation', DO_NOTHING, null=True)
     manufacturing_country = CharField(max_length=20)
     like_shoppers = ManyToManyField('user.Shopper', through='user.ProductLike')
 
@@ -85,6 +86,17 @@ class Product(Model):
         Option.objects.filter(product_color__product=self).update(on_sale=False)
         self.on_sale = False
         self.save(update_fields=('on_sale',))
+
+
+class ProductAdditionalInformation(Model):
+    id = AutoField(primary_key=True)
+    thickness = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_additional_information_thickness')
+    see_through = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_additional_information_see_through')
+    flexibility = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_additional_information_flexibility')
+    lining = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_additional_information_lining')
+
+    class Meta:
+        db_table = 'product_additional_information'
 
 
 class Age(Model):

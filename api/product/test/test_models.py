@@ -3,16 +3,17 @@ from django.forms import model_to_dict
 from freezegun import freeze_time
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS
+from common.test.factories import SettingItemFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
     Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial,
-    ProductQuestionAnswerClassification, ProductQuestionAnswer,
+    ProductQuestionAnswerClassification, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
     ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
-    ProductQuestionAnswerClassificationFactory,
+    ProductQuestionAnswerClassificationFactory, ProductAdditionalInformationFactory,
 )
 
 
@@ -95,6 +96,7 @@ class ProductTestCase(ModelTestCase):
         self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
         self.assertEqual(self._product.lining, self._test_data['lining'])
         self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
+        self.assertIsNone(self._product.additional_information)
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):
@@ -117,6 +119,27 @@ class ProductTestCase(ModelTestCase):
         self.assertTrue(not self._product.colors.filter(on_sale=True).exists())
         self.assertTrue(not Option.objects.filter(product_color__product=self._product, on_sale=True).exists())
 
+
+class ProductAdditionalInformationTestCase(ModelTestCase):
+    _model_class = ProductAdditionalInformation
+
+    def setUp(self):
+        self._test_data = {
+            'thickness': SettingItemFactory(),
+            'see_through': SettingItemFactory(),
+            'flexibility': SettingItemFactory(),
+            'lining': SettingItemFactory(),
+        }
+
+    def test_create(self):
+        product_additional_information = self._get_model_after_creation()
+        
+        self.assertDictEqual(model_to_dict(product_additional_information, exclude=['id']), {
+            'thickness': self._test_data['thickness'].id,
+            'see_through': self._test_data['see_through'].id,
+            'flexibility': self._test_data['flexibility'].id,
+            'lining': self._test_data['lining'].id,
+        })
 
 class AgeTestCase(ModelTestCase):
     _model_class = Age
