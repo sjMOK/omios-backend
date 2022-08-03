@@ -31,6 +31,8 @@ class MainCategoryTestCase(ModelTestCase):
         
         self.assertEqual(main_category.name, self._test_data['name'])
         self.assertEqual(main_category.image_url.name, self._test_data['image_url'])
+        self.assertEqual(main_category.product_additional_information_required, True)
+        self.assertEqual(main_category.laundry_information_required, True)
 
 
 class SubCategoryTestCase(ModelTestCase):
