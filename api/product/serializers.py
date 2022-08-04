@@ -1,8 +1,8 @@
 from django.core.validators import URLValidator
-from django.db.models import Sum
+from django.db.models import Sum, Q
 
 from rest_framework.serializers import (
-    Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, ImageField, DateTimeField,
+    Serializer, ListSerializer, ModelSerializer, IntegerField, CharField, DateTimeField,
     PrimaryKeyRelatedField, BooleanField, RegexField,
 )
 from rest_framework.exceptions import ValidationError, APIException
@@ -10,15 +10,16 @@ from rest_framework.exceptions import ValidationError, APIException
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
 from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX, IMAGE_URL_REGEX
 from common.validators import validate_all_required_fields_included, validate_image_url
+from common.models import SettingItem
 from common.serializers import (
-    has_duplicate_element ,is_create_data, is_update_data, is_delete_data, get_create_attrs, get_update_attrs,
+    has_duplicate_element ,is_create_data, is_update_data, get_create_attrs, get_update_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     get_separated_data_by_create_update_delete,
-    DynamicFieldsSerializer, DynamicFieldsModelSerializer,
+    DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer,
 )
 from .models import (
     Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, ProductQuestionAnswer, Material,
+    SeeThrough, Flexibility, ProductMaterial, ProductColor, ProductQuestionAnswer, Material, ProductAdditionalInformation,
 )
 
 
@@ -63,6 +64,42 @@ class SizeSerializer(ModelSerializer):
         extra_kwargs = {
             'name': {'read_only': True},
         }
+
+
+class ProductAdditionalInformationSerializer(ModelSerializer):
+    thickness = SettingItemSerializer()
+    see_through = SettingItemSerializer()
+    flexibility = SettingItemSerializer()
+    lining = SettingItemSerializer()
+
+    class Meta:
+        model = ProductAdditionalInformation
+        exclude = ['id']
+
+
+class ProductAdditionalInformationWriteSerializer(ProductAdditionalInformationSerializer):
+    thickness = IntegerField()
+    see_through = IntegerField()
+    flexibility = IntegerField()
+    lining = IntegerField()
+    
+    class Meta(ProductAdditionalInformationSerializer.Meta):
+        pass
+
+    def validate(self, attrs):
+        conditions = Q()
+        for key, value in attrs.items():
+            conditions |= Q(id=value, group__main_key='additional_information', group__sub_key=key)
+        
+        sub_keys = set(SettingItem.objects.select_related('group').filter(conditions).values_list('group__sub_key', flat=True))
+        if len(sub_keys) != len(attrs):
+            raise ValidationError(f'{", ".join(set(attrs.keys())-sub_keys)} of additional_information is invalid.')
+    
+        return attrs
+
+    def create(self, validated_data):
+        return self.Meta.model.objects.get_or_create(**dict([(key+'_id', value) for key, value in validated_data.items()]))[0]
+
 
 class LaundryInformationSerializer(ModelSerializer):
     class Meta:

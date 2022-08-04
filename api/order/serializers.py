@@ -48,6 +48,7 @@ class ShippingAddressSerializer(ModelSerializer):
     def create(self, validated_data):
         instance = self.Meta.model.objects.get_or_create(**validated_data)[0]
 
+        # todo order serializer로 로직 이동
         if 'order' in self.context:
             self.context['order'].shipping_address = instance
             self.context['order'].save(update_fields=['shipping_address'])

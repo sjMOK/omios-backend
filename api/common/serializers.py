@@ -140,4 +140,4 @@ class SettingItemSerializer(ModelSerializer):
     class Meta:
         model = SettingItem
         fields = ['id', 'name']
-        read_only_fiels = fields
+        read_only_fields = fields

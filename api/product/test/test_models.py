@@ -13,7 +13,8 @@ from ..models import (
 from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
     ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
-    ProductQuestionAnswerClassificationFactory, ProductAdditionalInformationFactory,
+    ProductQuestionAnswerClassificationFactory,
+    create_product_additional_information,
 )
 
 
@@ -76,6 +77,7 @@ class ProductTestCase(ModelTestCase):
             'base_discounted_price': 63000,
             'style': StyleFactory(),
             'age': AgeFactory(),
+            'additional_information': create_product_additional_information(),
             'thickness': ThicknessFactory(),
             'see_through': SeeThroughFactory(),
             'flexibility': FlexibilityFactory(),
@@ -93,12 +95,12 @@ class ProductTestCase(ModelTestCase):
         self.assertEqual(self._product.base_discount_rate, self._test_data['base_discount_rate'])
         self.assertEqual(self._product.age, self._test_data['age'])
         self.assertEqual(self._product.style, self._test_data['style'])
+        self.assertEqual(self._product.additional_information, self._test_data['additional_information'])
         self.assertEqual(self._product.thickness, self._test_data['thickness'])
         self.assertEqual(self._product.see_through, self._test_data['see_through'])
         self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
         self.assertEqual(self._product.lining, self._test_data['lining'])
         self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
-        self.assertIsNone(self._product.additional_information)
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
     def test_create_default_values(self):

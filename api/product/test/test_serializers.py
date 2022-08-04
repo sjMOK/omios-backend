@@ -7,23 +7,27 @@ from django.forms import model_to_dict
 from rest_framework.exceptions import ValidationError
 
 from common.models import TemporaryImage
+from common.serializers import SettingItemSerializer
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
+from common.test.factories import SettingItemFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
     TagFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    create_product_additional_information,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
     ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
+    ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
-from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer, ProductImage
+from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):
@@ -98,6 +102,55 @@ class LaundryInformationSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(laundry_information, expected_data)
+
+
+class ProductAdditionalInformationSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductAdditionalInformationSerializer
+
+    def test_model_instance_serialization(self):
+        product_additional_information = create_product_additional_information()
+
+        self._test_model_instance_serialization(product_additional_information, {
+            'thickness': SettingItemSerializer(product_additional_information.thickness).data,
+            'see_through': SettingItemSerializer(product_additional_information.see_through).data,
+            'flexibility': SettingItemSerializer(product_additional_information.flexibility).data,
+            'lining': SettingItemSerializer(product_additional_information.lining).data,
+        })
+
+
+class ProductAdditionalInformationWriteSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductAdditionalInformationWriteSerializer
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.__product_additional_information = create_product_additional_information(True)
+
+        cls._test_data = {
+            'thickness': cls.__product_additional_information.thickness.id,
+            'see_through': cls.__product_additional_information.see_through.id,
+            'flexibility': cls.__product_additional_information.flexibility.id,
+            'lining': cls.__product_additional_information.lining.id,
+        }
+
+    def test_validation_success(self):
+        self.assertTrue(self._get_serializer_after_validation())
+
+    def test_validate(self):
+        self._test_data['see_through'] = self._test_data['thickness']
+        self._test_data['lining'] = self._test_data['flexibility']
+
+        self._test_serializer_raise_validation_error('of additional_information is invalid.')
+
+    def test_create_with_existing_data(self):
+        product_additional_information = self._get_serializer().create(self._test_data)
+
+        self.assertEqual(product_additional_information, self.__product_additional_information)
+
+    def test_create(self):
+        self._test_data['thickness'] = SettingItemFactory(group=self.__product_additional_information.thickness.group).id
+        product_additional_information = self._get_serializer().create(self._test_data)
+
+        self.assertTrue(product_additional_information != self.__product_additional_information)
 
 
 class ThicknessSerializerTestCase(SerializerTestCase):

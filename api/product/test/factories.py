@@ -7,6 +7,7 @@ from factory import Sequence, LazyAttribute, SubFactory, Faker, LazyFunction, la
 from factory.django import DjangoModelFactory
 from factory.fuzzy import FuzzyInteger
 
+from common.test.factories import SettingGroupFactory, SettingItemFactory
 from common.utils import IMAGE_DATETIME_FORMAT
 from user.test.factories import WholesalerFactory, ShopperFactory
 
@@ -18,6 +19,17 @@ def create_options(size=2, only_product_color=False):
         return [option] + [OptionFactory(product_color=option.product_color) for _ in range(size-1)]
     else:
         return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
+
+
+def create_product_additional_information(for_validation=False):
+    sub_keys = ['thickness', 'see_through', 'flexibility', 'lining']
+    if for_validation:
+        setting_items = {sub_key: SettingItemFactory(group__main_key='additional_information', group__sub_key=sub_key) for sub_key in sub_keys}
+    else:
+        setting_group = SettingGroupFactory()
+        setting_items = {sub_key: SettingItemFactory(group=setting_group) for sub_key in sub_keys}
+
+    return ProductAdditionalInformationFactory(**setting_items)
 
 
 class MainCategoryFactory(DjangoModelFactory):
@@ -96,7 +108,7 @@ class ProductFactory(DjangoModelFactory):
     def _generate(cls, strategy, params):
         if 'product' in params:
             product = params.pop('product')
-            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility']
+            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'additional_information']
             for field in copy_fields:
                 if field not in params:
                     params[field] = getattr(product, field, None)
