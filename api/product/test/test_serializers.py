@@ -1271,7 +1271,11 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     @classmethod
     def setUpTestData(cls):
         cls.__image_url_list = list(TemporaryImage.objects.all().values_list('image_url', flat=True))
-        cls.__product = ProductFactory()
+        cls.__sub_category_for_main_category_validation = SubCategoryFactory(
+            main_category__product_additional_information_required=False,
+            main_category__laundry_informations_required=False,
+        )
+        cls.__product = ProductFactory(additional_information=create_product_additional_information(True))
         ProductMaterialFactory.create_batch(size=cls.__batch_size, product=cls.__product, mixing_rate=50)
 
         cls.__product_colors = [
@@ -1316,6 +1320,12 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 },
             ],
             'laundry_informations': laundry_information_id_list,
+            'additional_information': {
+                'thickness': self.__product.additional_information.thickness_id,
+                'see_through': self.__product.additional_information.see_through_id,
+                'flexibility': self.__product.additional_information.flexibility_id,
+                'lining': self.__product.additional_information.lining_id,
+            },
             'thickness': self.__product.thickness_id,
             'see_through': self.__product.see_through_id,
             'flexibility': self.__product.flexibility_id,
@@ -1416,6 +1426,45 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             expected_message, instance=self.__product, data={'colors': data}, partial=True
         )
 
+    def test_validate_no_additional_information(self):
+        data = self.__get_input_data()
+        data['sub_category'] = self.__product.sub_category
+        del data['additional_information']
+        
+        self._test_serializer_raise_validation_error(
+            'This category requires additional_information.', data,
+            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+        )
+
+    def test_validate_additional_information(self):
+        data = self.__get_input_data()
+        data['sub_category'] = self.__sub_category_for_main_category_validation
+        
+        self._test_serializer_raise_validation_error(
+            'This category cannot contain additional_information.', data,
+            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+        )
+
+    def test_validate_no_laundry_informations(self):
+        data = self.__get_input_data()
+        data['sub_category'] = self.__product.sub_category
+        del data['laundry_informations']
+
+        self._test_serializer_raise_validation_error(
+            'This category requires laundry_informations', data,
+            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+        )
+
+    def test_validate_laundry_informations(self):
+        data = self.__get_input_data()
+        data['sub_category'] = self.__sub_category_for_main_category_validation
+        del data['additional_information']
+
+        self._test_serializer_raise_validation_error(
+            'This category cannot contain laundry_informations', data,
+            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+        )
+
     def test_make_price_data(self):
         price = 50000
         base_discount_rate = 20
@@ -1445,6 +1494,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.sub_category_id, data['sub_category'])
         self.assertEqual(product.style_id, data['style'])
         self.assertEqual(product.age_id, data['age'])
+        self.assertEqual(product.additional_information, self.__product.additional_information)
         self.assertEqual(product.thickness_id, data['thickness'])
         self.assertEqual(product.see_through_id, data['see_through'])
         self.assertEqual(product.flexibility_id, data['flexibility'])

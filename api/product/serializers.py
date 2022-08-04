@@ -733,14 +733,15 @@ class ProductReadSerializer(ProductSerializer):
 
 
 class ProductWriteSerializer(ProductSerializer):
-    sub_category = PrimaryKeyRelatedField( queryset=SubCategory.objects.all())
+    sub_category = PrimaryKeyRelatedField(queryset=SubCategory.objects.select_related('main_category').all())
     style = PrimaryKeyRelatedField(queryset=Style.objects.all())
     age = PrimaryKeyRelatedField(queryset=Age.objects.all())
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)
-    laundry_informations = PrimaryKeyRelatedField(many=True, queryset=LaundryInformation.objects.all(), allow_empty=False)
+    laundry_informations = PrimaryKeyRelatedField(many=True, queryset=LaundryInformation.objects.all(), allow_empty=False, required=False)
     thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
-    see_through = PrimaryKeyRelatedField( queryset=SeeThrough.objects.all())
+    see_through = PrimaryKeyRelatedField(queryset=SeeThrough.objects.all())
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
+    additional_information = ProductAdditionalInformationWriteSerializer(required=False)
 
     __price_multiple_num_data = [
         {'min_price': 0, 'multiple': 2.3},
@@ -758,8 +759,24 @@ class ProductWriteSerializer(ProductSerializer):
         if self.instance is not None and not self.partial:
             raise APIException('This serializer must have a partial=True parameter when update')
 
+        if self.instance is None:
+            self.__validate_main_category(attrs)
+
         return attrs
 
+    def __validate_main_category(self, attrs):
+        main_category = attrs['sub_category'].main_category
+        
+        if main_category.product_additional_information_required and 'additional_information' not in attrs:
+            raise ValidationError('This category requires additional_information.')
+        elif not main_category.product_additional_information_required and 'additional_information' in attrs:
+            raise ValidationError('This category cannot contain additional_information.')
+
+        if main_category.laundry_informations_required and 'laundry_informations' not in attrs:
+            raise ValidationError('This category requires laundry_informations.')
+        elif not main_category.laundry_informations_required and 'laundry_informations' in attrs:
+            raise ValidationError('This category cannot contain laundry_informations.')
+        
     def __get_price_multiple(self, price):
         index = 0
         for i in range(len(self.__price_multiple_num_data)):
@@ -802,6 +819,9 @@ class ProductWriteSerializer(ProductSerializer):
 
         sale_price = self.__get_sale_price(validated_data['price'])
         base_discounted_price = self.__get_base_discounted_price(sale_price, validated_data['base_discount_rate'])
+
+        if 'additional_information' in validated_data:
+            validated_data['additional_information'] = self.fields['additional_information'].create(validated_data['additional_information'])
 
         product = Product.objects.create(
             sale_price=sale_price, base_discounted_price=base_discounted_price, 
