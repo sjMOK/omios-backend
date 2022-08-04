@@ -53,6 +53,8 @@ class MainCategorySerializerTestCase(SerializerTestCase):
                 {'id': sub_category.id, 'name': sub_category.name} 
                 for sub_category in main_category.sub_categories.all()
             ],
+            'product_additional_information_required': True,
+            'laundry_informations_required': True,
         }
 
         self._test_model_instance_serialization(main_category, expected_data)

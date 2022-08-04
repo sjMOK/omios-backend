@@ -26,7 +26,7 @@ class MainCategory(Model):
     name = CharField(unique=True, max_length=20)
     image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
     product_additional_information_required = BooleanField(default=True)
-    laundry_information_required = BooleanField(default=True)
+    laundry_informations_required = BooleanField(default=True)
 
     class Meta:
         db_table = 'main_category'
