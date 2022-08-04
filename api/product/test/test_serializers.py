@@ -1289,26 +1289,18 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         for i in range(cls.__batch_size):
             ProductImageFactory(product=cls.__product, image_url=cls.__image_url_list.pop(), sequence=i+1)
 
-        laundry_informations = LaundryInformationFactory.create_batch(size=cls.__batch_size)
-        tags = TagFactory.create_batch(size=cls.__batch_size)
-        cls.__product.laundry_informations.add(*laundry_informations)
-        cls.__product.tags.add(*tags)
+        cls.__product.laundry_informations.add(*LaundryInformationFactory.create_batch(size=cls.__batch_size))
+        cls.__product.tags.add(*TagFactory.create_batch(size=cls.__batch_size))
 
-    def __get_input_data(self):
-        tag_id_list = [tag.id for tag in TagFactory.create_batch(size=self.__batch_size)]
-        laundry_information_id_list = [
-            laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)
-        ]
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
-
-        data = {
+        cls._test_data = {
             'name': 'name',
             'price': 50000,
             'base_discount_rate': 10,
-            'sub_category': self.__product.sub_category_id,
-            'style': self.__product.style_id,
-            'age': self.__product.age_id,
-            'tags': tag_id_list,
+            'sub_category': cls.__product.sub_category_id,
+            'style': cls.__product.style_id,
+            'age': cls.__product.age_id,
+            'tags': [tag.id for tag in TagFactory.create_batch(size=cls.__batch_size)],
             'materials': [
                 {
                     'material': '가죽',
@@ -1319,29 +1311,29 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'mixing_rate': 20,
                 },
             ],
-            'laundry_informations': laundry_information_id_list,
+            'laundry_informations': [laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)],
             'additional_information': {
-                'thickness': self.__product.additional_information.thickness_id,
-                'see_through': self.__product.additional_information.see_through_id,
-                'flexibility': self.__product.additional_information.flexibility_id,
-                'lining': self.__product.additional_information.lining_id,
+                'thickness': cls.__product.additional_information.thickness_id,
+                'see_through': cls.__product.additional_information.see_through_id,
+                'flexibility': cls.__product.additional_information.flexibility_id,
+                'lining': cls.__product.additional_information.lining_id,
             },
-            'thickness': self.__product.thickness_id,
-            'see_through': self.__product.see_through_id,
-            'flexibility': self.__product.flexibility_id,
+            'thickness': cls.__product.thickness_id,
+            'see_through': cls.__product.see_through_id,
+            'flexibility': cls.__product.flexibility_id,
             'lining': True,
-            'manufacturing_country': self.__product.manufacturing_country,
+            'manufacturing_country': cls.__product.manufacturing_country,
             'images': [
                 {
-                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + cls.__image_url_list.pop(),
                     'sequence': 1
                 },
                 {
-                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + cls.__image_url_list.pop(),
                     'sequence': 2
                 },
                 {
-                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + cls.__image_url_list.pop(),
                     'sequence': 3
                 }
             ],
@@ -1353,7 +1345,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + cls.__image_url_list.pop(),
                 },
                 {
                     'color': color_id_list[1],
@@ -1362,19 +1354,34 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                         {'size': 'Free'},
                         {'size': 'S'}
                     ],
-                    'image_url': BASE_IMAGE_URL + self.__image_url_list.pop(),
+                    'image_url': BASE_IMAGE_URL + cls.__image_url_list.pop(),
                 }
             ]
         }
 
-        return data
+    def __set_up_main_category_validation_data(self, default=True):
+        if default:
+            self._test_data = {
+                'sub_category': self.__product.sub_category,
+                'additional_information': True,
+                'laundry_informations': True,
+            }
+        else:
+            self._test_data = {
+                'sub_category': self.__sub_category_for_main_category_validation,
+            }
+
+    def __assert_validate_main_category(self, expected_message):
+        self._test_serializer_raise_validation_error(
+            expected_message, self._test_data,
+            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+        )
 
     def test_validation_price(self):
-        data = self.__get_input_data()
-        data['price'] = 50010
+        self._test_data['price'] = 50010
         expected_message = 'The price must be a multiple of 100.'
 
-        self._test_serializer_raise_validation_error(expected_message, data=data)
+        self._test_serializer_raise_validation_error(expected_message)
 
     def test_raise_validation_error_color_length_more_than_limit(self):
         product_colors = [
@@ -1427,52 +1434,36 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         )
 
     def test_validate_no_additional_information(self):
-        data = self.__get_input_data()
-        data['sub_category'] = self.__product.sub_category
-        del data['additional_information']
-        
-        self._test_serializer_raise_validation_error(
-            'This category requires additional_information.', data,
-            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
-        )
+        self.__set_up_main_category_validation_data()
+        del self._test_data['additional_information']
+
+        self.__assert_validate_main_category('This category requires additional_information.')
 
     def test_validate_additional_information(self):
-        data = self.__get_input_data()
-        data['sub_category'] = self.__sub_category_for_main_category_validation
+        self.__set_up_main_category_validation_data(False)
+        self._test_data['additional_information'] = True
         
-        self._test_serializer_raise_validation_error(
-            'This category cannot contain additional_information.', data,
-            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
-        )
+        self.__assert_validate_main_category('This category cannot contain additional_information.')
 
     def test_validate_no_laundry_informations(self):
-        data = self.__get_input_data()
-        data['sub_category'] = self.__product.sub_category
-        del data['laundry_informations']
+        self.__set_up_main_category_validation_data()
+        del self._test_data['laundry_informations']
 
-        self._test_serializer_raise_validation_error(
-            'This category requires laundry_informations', data,
-            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
-        )
+        self.__assert_validate_main_category('This category requires laundry_informations')
 
     def test_validate_laundry_informations(self):
-        data = self.__get_input_data()
-        data['sub_category'] = self.__sub_category_for_main_category_validation
-        del data['additional_information']
+        self.__set_up_main_category_validation_data(False)
+        self._test_data['laundry_informations'] = True
 
-        self._test_serializer_raise_validation_error(
-            'This category cannot contain laundry_informations', data,
-            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
-        )
+        self.__assert_validate_main_category('This category cannot contain laundry_informations')
 
     def test_make_price_data(self):
         price = 50000
         base_discount_rate = 20
-        data = self.__get_input_data()
-        data['price'] = price
-        data['base_discount_rate'] = base_discount_rate
+        self._test_data['price'] = price
+        self._test_data['base_discount_rate'] = base_discount_rate
         
-        serializer = self._get_serializer_after_validation(data=data, context={'wholesaler': WholesalerFactory()})
+        serializer = self._get_serializer_after_validation(context={'wholesaler': WholesalerFactory()})
         product = serializer.save()
 
         expected_sale_price = 50000 * 2
@@ -1482,54 +1473,52 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(expected_base_discounted_price, product.base_discounted_price)
 
     def test_create(self):
-        data = self.__get_input_data()
         serializer = self._get_serializer_after_validation(
-            data=data, context={'wholesaler': WholesalerFactory()}
+            context={'wholesaler': WholesalerFactory()}
         )
         product = serializer.save()
 
         self.assertTrue(Product.objects.filter(id=product.id).exists())
-        self.assertEqual(product.name, data['name'])
-        self.assertEqual(product.price, data['price'])
-        self.assertEqual(product.sub_category_id, data['sub_category'])
-        self.assertEqual(product.style_id, data['style'])
-        self.assertEqual(product.age_id, data['age'])
+        self.assertEqual(product.name, self._test_data['name'])
+        self.assertEqual(product.price, self._test_data['price'])
+        self.assertEqual(product.sub_category_id, self._test_data['sub_category'])
+        self.assertEqual(product.style_id, self._test_data['style'])
+        self.assertEqual(product.age_id, self._test_data['age'])
         self.assertEqual(product.additional_information, self.__product.additional_information)
-        self.assertEqual(product.thickness_id, data['thickness'])
-        self.assertEqual(product.see_through_id, data['see_through'])
-        self.assertEqual(product.flexibility_id, data['flexibility'])
-        self.assertEqual(product.lining, data['lining'])
-        self.assertEqual(product.manufacturing_country, data['manufacturing_country'])
+        self.assertEqual(product.thickness_id, self._test_data['thickness'])
+        self.assertEqual(product.see_through_id, self._test_data['see_through'])
+        self.assertEqual(product.flexibility_id, self._test_data['flexibility'])
+        self.assertEqual(product.lining, self._test_data['lining'])
+        self.assertEqual(product.manufacturing_country, self._test_data['manufacturing_country'])
         self.assertListEqual(
-            list(product.tags.all().order_by('id').values_list('id', flat=True)),
-            data['tags']
+            list(product.tags.all().order_by('id').values_list('id', flat=True)), 
+            self._test_data['tags'],
         )
         self.assertListEqual(
-            list(
-                product.laundry_informations.all().order_by('id').values_list('id', flat=True)
-            ),
-            data['laundry_informations']
+            list(product.laundry_informations.all().order_by('id').values_list('id', flat=True)), 
+            self._test_data['laundry_informations'],
         )
-        self.assertEqual(product.images.all().count(), len(data['images']))
-        self.assertEqual(product.materials.all().count(), len(data['materials']))
-        self.assertEqual(product.colors.all().count(), len(data['colors']))
+        self.assertEqual(product.images.all().count(), len(self._test_data['images']))
+        self.assertEqual(product.materials.all().count(), len(self._test_data['materials']))
+        self.assertEqual(product.colors.all().count(), len(self._test_data['colors']))
         self.assertEqual(
-            Option.objects.filter(product_color__product=product).count(),
-            sum([len(color_data['options']) for color_data in data['colors']])
+            Option.objects.filter(product_color__product=product).count(), 
+            sum([len(color_data['options']) for color_data in self._test_data['colors']]),
         )
 
     def test_update_product_attribute(self):
-        update_data = {}
-        update_data['name'] = self.__product.name + '_update'
-        update_data['price'] = self.__product.price + 10000
-        update_data['sub_category'] = SubCategoryFactory().id
-        update_data['style'] = StyleFactory().id
-        update_data['age'] = AgeFactory().id
-        update_data['thickness'] = ThicknessFactory().id
-        update_data['see_through'] = SeeThroughFactory().id
-        update_data['flexibility'] = FlexibilityFactory().id
-        update_data['lining'] = not self.__product.lining
-        update_data['manufacturing_country'] = self.__product.manufacturing_country + '_update'
+        update_data = {
+            'name': self.__product.name + '_update',
+            'price': self.__product.price + 10000,
+            'sub_category': SubCategoryFactory().id,
+            'style': StyleFactory().id,
+            'age': AgeFactory().id,
+            'thickness': ThicknessFactory().id,
+            'see_through': SeeThroughFactory().id,
+            'flexibility': FlexibilityFactory().id,
+            'lining': not self.__product.lining,
+            'manufacturing_country': self.__product.manufacturing_country + '_update',
+        }
         serializer = self._get_serializer_after_validation(
             self.__product, data=update_data, partial=True
         )
@@ -1604,13 +1593,11 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         self.assertTrue(not ProductMaterial.objects.filter(id__in=deleted_id_list).exists())
         self.assertListEqual(
-            list(ProductMaterial.objects.filter(product=product).exclude(id__in=updated_id_list)
-            .values('material', 'mixing_rate')),
+            list(ProductMaterial.objects.filter(product=product).exclude(id__in=updated_id_list).values('material', 'mixing_rate')),
             create_data
         )
         self.assertListEqual(
-            list(ProductMaterial.objects.filter(id__in=updated_id_list)
-            .values('id', 'material', 'mixing_rate')),
+            list(ProductMaterial.objects.filter(id__in=updated_id_list).values('id', 'material', 'mixing_rate')),
             update_data
         )
 
@@ -1632,14 +1619,10 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
     def test_create_product_colors_in_update(self):
         existing_color_id_list = list(self.__product.colors.all().values_list('id', flat=True))
-        create_color_data = self.__get_input_data()['colors']
-        create_option_data = [
-            option_data for color_data in create_color_data for option_data in color_data['options']
-        ]
+        create_color_data = self._test_data['colors']
+        create_option_data = [option_data for color_data in create_color_data for option_data in color_data['options']]
         data = {'colors': create_color_data}
-        serializer = self._get_serializer_after_validation(
-            self.__product, data=data, partial=True
-        )
+        serializer = self._get_serializer_after_validation(self.__product, data=data, partial=True)
         serializer.save()
 
         self.assertListEqual(
@@ -1750,7 +1733,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.price, update_data['price'])
         self.assertEqual(product.sale_price, expected_sale_price)
         self.assertEqual(product.base_discounted_price, expected_base_discounted_price)
-        
 
     def test_delete_option(self):
         update_color_obj = self.__product.colors.latest('id')
