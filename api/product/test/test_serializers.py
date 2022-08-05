@@ -1359,7 +1359,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             ]
         }
 
-    def __set_up_main_category_validation_data(self, default=True):
+    def __set_up_main_category_validation_data(self, default=True, validation_for_update=False):
         if default:
             self._test_data = {
                 'sub_category': self.__product.sub_category,
@@ -1371,10 +1371,13 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 'sub_category': self.__sub_category_for_main_category_validation,
             }
 
-    def __assert_validate_main_category(self, expected_message):
+        if validation_for_update:
+            self.__product.sub_category = self.__sub_category_for_main_category_validation
+
+    def __assert_validate_main_category(self, expected_message, validation_for_update=False):
         self._test_serializer_raise_validation_error(
             expected_message, self._test_data,
-            function=self._get_serializer()._ProductWriteSerializer__validate_main_category,
+            function=self._get_serializer(self.__product if validation_for_update else None)._ProductWriteSerializer__validate_main_category,
         )
 
     def test_validation_price(self):
@@ -1439,6 +1442,12 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
 
         self.__assert_validate_main_category('This category requires additional_information.')
 
+    def test_validate_no_additional_information_with_instance(self):
+        self.__set_up_main_category_validation_data(validation_for_update=True)
+        del self._test_data['additional_information']
+
+        self.__assert_validate_main_category('This category requires additional_information.', True)
+
     def test_validate_additional_information(self):
         self.__set_up_main_category_validation_data(False)
         self._test_data['additional_information'] = True
@@ -1450,6 +1459,12 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         del self._test_data['laundry_informations']
 
         self.__assert_validate_main_category('This category requires laundry_informations')
+
+    def test_validate_no_laundry_informations_with_instance(self):
+        self.__set_up_main_category_validation_data(validation_for_update=True)
+        del self._test_data['laundry_informations']
+
+        self.__assert_validate_main_category('This category requires laundry_informations.', True)
 
     def test_validate_laundry_informations(self):
         self.__set_up_main_category_validation_data(False)
@@ -1509,8 +1524,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
     def test_update_product_attribute(self):
         update_data = {
             'name': self.__product.name + '_update',
-            'price': self.__product.price + 10000,
-            'sub_category': SubCategoryFactory().id,
+            'price': self.__product.price - 100,
+            'sub_category': self.__sub_category_for_main_category_validation.id,
             'style': StyleFactory().id,
             'age': AgeFactory().id,
             'thickness': ThicknessFactory().id,

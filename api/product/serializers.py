@@ -743,6 +743,8 @@ class ProductWriteSerializer(ProductSerializer):
     flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     additional_information = ProductAdditionalInformationWriteSerializer(required=False)
 
+    __validation_fields_related_to_main_category = {'sub_category', 'product_additional_information', 'laundry_informations'}
+
     __price_multiple_num_data = [
         {'min_price': 0, 'multiple': 2.3},
         {'min_price': 40000, 'multiple': 2},
@@ -759,22 +761,27 @@ class ProductWriteSerializer(ProductSerializer):
         if self.instance is not None and not self.partial:
             raise APIException('This serializer must have a partial=True parameter when update')
 
-        if self.instance is None:
+        if self.__validation_fields_related_to_main_category & set(attrs.keys()):
             self.__validate_main_category(attrs)
 
         return attrs
 
     def __validate_main_category(self, attrs):
-        main_category = attrs['sub_category'].main_category
-        
-        if main_category.product_additional_information_required and 'additional_information' not in attrs:
-            raise ValidationError('This category requires additional_information.')
-        elif not main_category.product_additional_information_required and 'additional_information' in attrs:
+        requested_main_category = attrs.get('sub_category', self.instance.sub_category if self.instance else None).main_category
+        original_main_category = self.instance.sub_category.main_category if self.instance else None
+
+        if requested_main_category.product_additional_information_required:
+            if  (self.instance is None or not original_main_category.product_additional_information_required) \
+                and 'additional_information' not in attrs:
+                raise ValidationError('This category requires additional_information.')
+        elif 'additional_information' in attrs:
             raise ValidationError('This category cannot contain additional_information.')
 
-        if main_category.laundry_informations_required and 'laundry_informations' not in attrs:
-            raise ValidationError('This category requires laundry_informations.')
-        elif not main_category.laundry_informations_required and 'laundry_informations' in attrs:
+        if requested_main_category.laundry_informations_required:
+            if  (self.instance is None or not original_main_category.laundry_informations_required) \
+                and 'laundry_informations' not in attrs:
+                raise ValidationError('This category requires laundry_informations.')
+        elif 'laundry_informations' in attrs:
             raise ValidationError('This category cannot contain laundry_informations.')
         
     def __get_price_multiple(self, price):
