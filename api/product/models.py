@@ -20,7 +20,6 @@ class ProductColorManager(Manager):
         return ProductColorQueyset(self.model, using=self._db)
 
 
-
 class MainCategory(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
@@ -67,10 +66,6 @@ class Product(Model):
     base_discount_rate = IntegerField(default=0)
     base_discounted_price = IntegerField()
     on_sale = BooleanField(default=True)
-    thickness = ForeignKey('Thickness', DO_NOTHING)
-    see_through = ForeignKey('SeeThrough', DO_NOTHING)
-    flexibility = ForeignKey('Flexibility', DO_NOTHING)
-    lining = BooleanField()
     additional_information = ForeignKey('ProductAdditionalInformation', DO_NOTHING, null=True)
     manufacturing_country = CharField(max_length=20)
     like_shoppers = ManyToManyField('user.Shopper', through='user.ProductLike')
@@ -107,42 +102,6 @@ class Age(Model):
 
     class Meta:
         db_table = 'age'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
-
-
-class Thickness(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(max_length=10)
-
-    class Meta:
-        db_table = 'thickness'
-        ordering = ['id']
-        
-    def __str__(self):
-        return self.name
-
-
-class SeeThrough(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(max_length=10)
-
-    class Meta:
-        db_table = 'see_through'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
-
-
-class Flexibility(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(max_length=10)
-
-    class Meta:
-        db_table = 'flexibility'
         ordering = ['id']
 
     def __str__(self):

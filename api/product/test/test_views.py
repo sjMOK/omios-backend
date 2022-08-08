@@ -13,18 +13,19 @@ from coupon.models import Coupon
 from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
 from .factories import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, ProductColorFactory, ProductFactory, 
-    ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, SubCategoryFactory, KeyWordFactory, TagFactory,
-    ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, 
+    ProductColorFactory, ProductFactory, ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, 
+    SubCategoryFactory, KeyWordFactory, TagFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    create_product_additional_information,
 )
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
-    Flexibility, LaundryInformation, MainCategory, SeeThrough, SubCategory, Keyword, Color, Material, Style, Age, Thickness,
+    LaundryInformation, MainCategory, SubCategory, Keyword, Color, Material, Style, Age,
     Product, Tag, Option, ProductQuestionAnswer,
 )
 from ..serializers import (
-    FlexibilitySerializer, LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SeeThroughSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer, ThicknessSerializer,
+    LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SizeSerializer, 
+    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
 )
 
@@ -218,10 +219,6 @@ class GetRegistryDataTestCase(ViewTestCase):
         sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
-            'thickness': [],
-            'see_through': [],
-            'flexibility': [],
-            'lining': [],
             'laundry_information': []
         }
         self._get({'sub_category': sub_category.id})
@@ -237,13 +234,6 @@ class GetRegistryDataTestCase(ViewTestCase):
         sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
-            'thickness': ThicknessSerializer(Thickness.objects.all(), many=True).data,
-            'see_through': SeeThroughSerializer(SeeThrough.objects.all(), many=True).data,
-            'flexibility': FlexibilitySerializer(Flexibility.objects.all(), many=True).data,
-            'lining': [
-                {'name': '있음', 'value': True},
-                {'name': '없음', 'value': False},
-            ],
             'laundry_information': []
         }
         self._get({'sub_category': sub_category.id})
@@ -259,10 +249,6 @@ class GetRegistryDataTestCase(ViewTestCase):
         sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
-            'thickness': [],
-            'see_through': [],
-            'flexibility': [],
-            'lining': [],
             'laundry_information': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
         }
         self._get({'sub_category': sub_category.id})
@@ -275,13 +261,6 @@ class GetRegistryDataTestCase(ViewTestCase):
         sub_category.sizes.add(*self.__sizes)
         expected_response_data = {
             'size': SizeSerializer(sub_category.sizes.all(), many=True).data,
-            'thickness': ThicknessSerializer(Thickness.objects.all(), many=True).data,
-            'see_through': SeeThroughSerializer(SeeThrough.objects.all(), many=True).data,
-            'flexibility': FlexibilitySerializer(Flexibility.objects.all(), many=True).data,
-            'lining': [
-                {'name': '있음', 'value': True},
-                {'name': '없음', 'value': False},
-            ],
             'laundry_information': LaundryInformationSerializer(LaundryInformation.objects.all(), many=True).data,
         }
         self._get({'sub_category': sub_category.id})
@@ -316,7 +295,7 @@ class ProductViewSetTestCase(ViewTestCase):
     def setUpTestData(cls):
         wholesaler = cls._user if isinstance(cls._user, Wholesaler) else WholesalerFactory()
 
-        cls._product = ProductFactory(wholesaler=wholesaler)
+        cls._product = ProductFactory(wholesaler=wholesaler, additional_information=create_product_additional_information(True))
         cls._sub_categories = SubCategoryFactory.create_batch(size=cls._batch_size)
         cls._colors = ColorFactory.create_batch(size=cls._batch_size)
 
@@ -642,10 +621,12 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                 },
             ],
             'laundry_informations': laundry_information_id_list,
-            'thickness': self._product.thickness.id,
-            'see_through': self._product.see_through.id,
-            'flexibility': self._product.flexibility.id,
-            'lining': True,
+            'additional_information': {
+                'thickness': self._product.additional_information.thickness.id,
+                'see_through': self._product.additional_information.see_through.id,
+                'flexibility': self._product.additional_information.flexibility.id,
+                'lining': self._product.additional_information.lining_id,
+            },
             'manufacturing_country': '대한민국',
             'images': [
                 {

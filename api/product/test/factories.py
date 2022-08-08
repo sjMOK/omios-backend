@@ -64,27 +64,6 @@ class AgeFactory(DjangoModelFactory):
     name = name = Sequence(lambda num: 'age_{0}'.format(num))
 
 
-class ThicknessFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Thickness'
-
-    name = Sequence(lambda num: 'thick_{0}'.format(num))
-    
-
-class SeeThroughFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.SeeThrough'
-
-    name = Sequence(lambda num: 'see_th_{0}'.format(num))
-
-
-class FlexibilityFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Flexibility'
-
-    name = Sequence(lambda num: 'flex_{0}'.format(num))
-
-
 class ProductFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Product'
@@ -98,17 +77,13 @@ class ProductFactory(DjangoModelFactory):
     sale_price = LazyAttribute(lambda obj: obj.price * 2)
     base_discount_rate = FuzzyInteger(0, 50)
     base_discounted_price = LazyAttribute(lambda obj: obj.sale_price - int(obj.sale_price * obj.base_discount_rate / 100) // 100 * 100)
-    thickness = SubFactory(ThicknessFactory)
-    see_through = SubFactory(SeeThroughFactory)
-    flexibility = SubFactory(FlexibilityFactory)
-    lining = True
     manufacturing_country = Faker('country', locale='ko-KR')
         
     @classmethod
     def _generate(cls, strategy, params):
         if 'product' in params:
             product = params.pop('product')
-            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'thickness', 'see_through', 'flexibility', 'additional_information']
+            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'additional_information']
             for field in copy_fields:
                 if field not in params:
                     params[field] = getattr(product, field, None)

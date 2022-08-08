@@ -14,14 +14,14 @@ from common.test.factories import SettingItemFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
-    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, LaundryInformationFactory, 
-    TagFactory, ThicknessFactory, SeeThroughFactory, FlexibilityFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
+    ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, 
+    LaundryInformationFactory, TagFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 from ..serializers import (
-    ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, LaundryInformationSerializer, 
-    ThicknessSerializer, SeeThroughSerializer, ProductColorSerializer, FlexibilitySerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
+    ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, 
+    LaundryInformationSerializer, ProductColorSerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer,
@@ -151,45 +151,6 @@ class ProductAdditionalInformationWriteSerializerTestCase(SerializerTestCase):
         product_additional_information = self._get_serializer().create(self._test_data)
 
         self.assertTrue(product_additional_information != self.__product_additional_information)
-
-
-class ThicknessSerializerTestCase(SerializerTestCase):
-    _serializer_class = ThicknessSerializer
-
-    def test_model_instance_serialization(self):
-        thickness = ThicknessFactory()
-        expected_data = {
-            'id': thickness.id,
-            'name': thickness.name,
-        }
-
-        self._test_model_instance_serialization(thickness, expected_data)
-
-
-class SeeThroughSerializerTestCase(SerializerTestCase):
-    _serializer_class = SeeThroughSerializer
-
-    def test_model_instance_serialization(self):
-        see_through = SeeThroughFactory()
-        expected_data = {
-            'id': see_through.id,
-            'name': see_through.name,
-        }
-
-        self._test_model_instance_serialization(see_through, expected_data)
-
-
-class FlexibilitySerializerTestCase(SerializerTestCase):
-    _serializer_class = FlexibilitySerializer
-
-    def test_model_instance_serialization(self):
-        flexibility = FlexibilityFactory()
-        expected_data = {
-            'id': flexibility.id,
-            'name': flexibility.name,
-        }
-
-        self._test_model_instance_serialization(flexibility, expected_data)
 
 
 class AgeSerializerTestCase(SerializerTestCase):
@@ -1131,7 +1092,6 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'sale_price': product.sale_price,
             'base_discount_rate': product.base_discount_rate,
             'base_discounted_price': product.base_discounted_price,
-            'lining': product.lining,
             'materials': ProductMaterialSerializer(product.materials.all(), many=True).data,
             'colors': ProductColorSerializer(product.colors.all(), many=True).data,
             'images': ProductImageSerializer(product.images.all(), many=True).data,
@@ -1144,9 +1104,6 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'age': AgeSerializer(product.age).data,
             'tags': TagSerializer(product.tags.all(), many=True).data,
             'laundry_informations': LaundryInformationSerializer(product.laundry_informations.all(), many=True).data,
-            'thickness': ThicknessSerializer(product.thickness).data,
-            'see_through': SeeThroughSerializer(product.see_through).data,
-            'flexibility': FlexibilitySerializer(product.flexibility).data,
             'created_at': datetime_to_iso(product.created_at),
             'on_sale': product.on_sale,
             'code': product.code,
@@ -1318,10 +1275,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                 'flexibility': cls.__product.additional_information.flexibility_id,
                 'lining': cls.__product.additional_information.lining_id,
             },
-            'thickness': cls.__product.thickness_id,
-            'see_through': cls.__product.see_through_id,
-            'flexibility': cls.__product.flexibility_id,
-            'lining': True,
             'manufacturing_country': cls.__product.manufacturing_country,
             'images': [
                 {
@@ -1510,10 +1463,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.style_id, self._test_data['style'])
         self.assertEqual(product.age_id, self._test_data['age'])
         self.assertEqual(product.additional_information, self.__product.additional_information)
-        self.assertEqual(product.thickness_id, self._test_data['thickness'])
-        self.assertEqual(product.see_through_id, self._test_data['see_through'])
-        self.assertEqual(product.flexibility_id, self._test_data['flexibility'])
-        self.assertEqual(product.lining, self._test_data['lining'])
         self.assertEqual(product.manufacturing_country, self._test_data['manufacturing_country'])
         self.assertListEqual(
             list(product.tags.all().order_by('id').values_list('id', flat=True)), 
@@ -1538,10 +1487,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'sub_category': self.__sub_category_for_main_category_validation.id,
             'style': StyleFactory().id,
             'age': AgeFactory().id,
-            'thickness': ThicknessFactory().id,
-            'see_through': SeeThroughFactory().id,
-            'flexibility': FlexibilityFactory().id,
-            'lining': not self.__product.lining,
             'manufacturing_country': self.__product.manufacturing_country + '_update',
         }
         serializer = self._get_serializer_after_validation(
@@ -1557,10 +1502,6 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.age_id, update_data['age'])
         self.assertIsNone(product.additional_information)
         self.assertEqual(product.laundry_informations.count(), 0)
-        self.assertEqual(product.thickness_id, update_data['thickness'])
-        self.assertEqual(product.see_through_id, update_data['see_through'])
-        self.assertEqual(product.flexibility_id, update_data['flexibility'])
-        self.assertEqual(product.lining, update_data['lining'])
         self.assertEqual(product.manufacturing_country, update_data['manufacturing_country'])
 
     def test_update_id_only_m2m_fields(self):

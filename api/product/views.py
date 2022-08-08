@@ -13,17 +13,16 @@ from rest_framework.mixins import ListModelMixin
 from common.utils import get_response, querydict_to_dict, levenshtein, check_integer_format
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedWholesaler
-from coupon.models import  Coupon
+from coupon.models import Coupon
 from user.models import is_shopper, is_wholesaler, ProductLike
 from .models import (
-    Flexibility, MainCategory, SeeThrough, SubCategory, Color, Material, LaundryInformation, 
-    Style, Keyword, Product, Tag, Age, Thickness, ProductQuestionAnswer, ProductQuestionAnswerClassification,
+    MainCategory, SubCategory, Color, Material, LaundryInformation, Style, Keyword, Product, Tag, Age, 
+    ProductQuestionAnswer, ProductQuestionAnswerClassification,
 )
 from .serializers import (
-    ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer,
-    AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer,
-    ColorSerializer, TagSerializer, ThicknessSerializer, SeeThroughSerializer, FlexibilitySerializer,
-    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
+    ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer, 
+    AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer, ColorSerializer, 
+    TagSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
 from .paginations import ProductQuestionAnswerPagination
@@ -145,24 +144,6 @@ def get_dynamic_registry_data(sub_category_id):
     response_data = {}
     response_data['size'] = SizeSerializer(sizes, many=True).data
 
-    if sub_category.require_product_additional_information:
-        thickness = Thickness.objects.all()
-        see_through = SeeThrough.objects.all()
-        flexibility = Flexibility.objects.all()
-
-        response_data['thickness'] = ThicknessSerializer(thickness, many=True).data
-        response_data['see_through'] = SeeThroughSerializer(see_through, many=True).data
-        response_data['flexibility'] = FlexibilitySerializer(flexibility, many=True).data
-        response_data['lining'] = [
-            {'name': '있음', 'value': True}, 
-            {'name': '없음', 'value': False},
-        ]
-    else:
-        response_data['thickness'] = []
-        response_data['see_through'] = []
-        response_data['flexibility'] = []
-        response_data['lining'] = []
-
     if sub_category.require_laundry_information:
         laundry_information = LaundryInformation.objects.all()
         response_data['laundry_information'] = LaundryInformationSerializer(laundry_information, many=True).data
@@ -251,7 +232,9 @@ class ProductViewSet(GenericViewSet):
 
             if self.action == 'retrieve':
                 queryset = queryset.select_related(
-                    'sub_category__main_category', 'style', 'age', 'thickness', 'see_through', 'flexibility'
+                    'sub_category__main_category', 'style', 'age', 
+                    'additional_information__thickness', 'additional_information__see_through',
+                    'additional_information__flexibility', 'additional_information__lining',
                 ).annotate(total_like=Count('like_shoppers'))
             
         return queryset
@@ -453,7 +436,6 @@ class ProductQuestionAnswerViewSet(ListModelMixin, GenericViewSet):
     def list(self, request, product_id):
         response = super().list(request, product_id)
         return get_response(data=response.data)
-
 
     @transaction.atomic
     def create(self, request, product_id):

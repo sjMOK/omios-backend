@@ -18,8 +18,8 @@ from common.serializers import (
     DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer,
 )
 from .models import (
-    Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age, Thickness,
-    SeeThrough, Flexibility, ProductMaterial, ProductColor, ProductQuestionAnswer, Material, ProductAdditionalInformation,
+    Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
+    ProductMaterial, ProductColor, ProductQuestionAnswer, Material, ProductAdditionalInformation,
 )
 
 
@@ -104,33 +104,6 @@ class ProductAdditionalInformationWriteSerializer(ProductAdditionalInformationSe
 class LaundryInformationSerializer(ModelSerializer):
     class Meta:
         model = LaundryInformation
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class ThicknessSerializer(ModelSerializer):
-    class Meta:
-        model = Thickness
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class SeeThroughSerializer(ModelSerializer):
-    class Meta:
-        model = SeeThrough
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class FlexibilitySerializer(ModelSerializer):
-    class Meta:
-        model = Flexibility
         fields = '__all__'
         extra_kwargs = {
             'name': {'read_only': True},
@@ -666,7 +639,6 @@ class ProductSerializer(DynamicFieldsSerializer):
     sale_price = IntegerField(read_only=True)
     base_discount_rate = IntegerField(default=0)
     base_discounted_price = IntegerField(read_only=True)
-    lining = BooleanField()
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
     colors = ProductColorSerializer(allow_empty=False, many=True)
     images = ProductImageSerializer(allow_empty=False, many=True, source='related_images')
@@ -694,9 +666,6 @@ class ProductReadSerializer(ProductSerializer):
     age = AgeSerializer(read_only=True)
     tags = TagSerializer(read_only=True, many=True)
     laundry_informations = LaundryInformationSerializer(read_only=True, many=True)
-    thickness = ThicknessSerializer(read_only=True)
-    see_through = SeeThroughSerializer(read_only=True)
-    flexibility = FlexibilitySerializer(read_only=True)
     created_at = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
@@ -738,9 +707,6 @@ class ProductWriteSerializer(ProductSerializer):
     age = PrimaryKeyRelatedField(queryset=Age.objects.all())
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)
     laundry_informations = PrimaryKeyRelatedField(many=True, queryset=LaundryInformation.objects.all(), allow_empty=False, required=False)
-    thickness = PrimaryKeyRelatedField(queryset=Thickness.objects.all())
-    see_through = PrimaryKeyRelatedField(queryset=SeeThrough.objects.all())
-    flexibility = PrimaryKeyRelatedField(queryset=Flexibility.objects.all())
     additional_information = ProductAdditionalInformationWriteSerializer(required=False)
 
     __validation_fields_related_to_main_category = {'sub_category', 'product_additional_information', 'laundry_informations'}

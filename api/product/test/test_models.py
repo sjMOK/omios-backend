@@ -6,14 +6,13 @@ from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_
 from common.test.factories import SettingItemFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
-    MainCategory, SubCategory, Product, Age, SubCategorySize, Thickness, SeeThrough, Flexibility, ProductImage,
-    Tag, Color, ProductColor, Size, Option, Keyword, Style, LaundryInformation, Material, ProductMaterial,
+    MainCategory, SubCategory, Product, Age, SubCategorySize, ProductImage, Tag, Color, ProductColor, Size,
+    Option, Keyword, Style, LaundryInformation, Material, ProductMaterial,
     ProductQuestionAnswerClassification, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 from .factories import (
     AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
-    ThicknessFactory, SeeThroughFactory, FlexibilityFactory, ColorFactory, ProductColorFactory, SizeFactory,
-    ProductQuestionAnswerClassificationFactory,
+    ColorFactory, ProductColorFactory, SizeFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 
@@ -78,10 +77,6 @@ class ProductTestCase(ModelTestCase):
             'style': StyleFactory(),
             'age': AgeFactory(),
             'additional_information': create_product_additional_information(),
-            'thickness': ThicknessFactory(),
-            'see_through': SeeThroughFactory(),
-            'flexibility': FlexibilityFactory(),
-            'lining': True,
             'manufacturing_country': '대한민국',
         }
 
@@ -96,10 +91,6 @@ class ProductTestCase(ModelTestCase):
         self.assertEqual(self._product.age, self._test_data['age'])
         self.assertEqual(self._product.style, self._test_data['style'])
         self.assertEqual(self._product.additional_information, self._test_data['additional_information'])
-        self.assertEqual(self._product.thickness, self._test_data['thickness'])
-        self.assertEqual(self._product.see_through, self._test_data['see_through'])
-        self.assertEqual(self._product.flexibility, self._test_data['flexibility'])
-        self.assertEqual(self._product.lining, self._test_data['lining'])
         self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
 
     @freeze_time(FREEZE_TIME, auto_tick_seconds=FREEZE_TIME_AUTO_TICK_SECONDS)
@@ -157,48 +148,6 @@ class AgeTestCase(ModelTestCase):
         style = self._get_model_after_creation()
 
         self.assertEqual(style.name, self._test_data['name'])
-
-
-class ThicknessTestCase(ModelTestCase):
-    _model_class = Thickness
-
-    def setUp(self):
-        self._test_data = {
-            'name': '두꺼움',
-        }
-    
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])
-
-
-class SeeThroughTestCase(ModelTestCase):
-    _model_class = SeeThrough
-
-    def setUp(self):
-        self._test_data = {
-            'name': '비침',
-        }
-    
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])
-
-
-class FlexibilityTestCase(ModelTestCase):
-    _model_class = Flexibility
-
-    def setUp(self):
-        self._test_data = {
-            'name': '높음',
-        }
-    
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])        
 
 
 class ProductImagesTestCase(ModelTestCase):
