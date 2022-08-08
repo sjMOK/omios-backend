@@ -774,15 +774,21 @@ class ProductWriteSerializer(ProductSerializer):
             if  (self.instance is None or not original_main_category.product_additional_information_required) \
                 and 'additional_information' not in attrs:
                 raise ValidationError('This category requires additional_information.')
-        elif 'additional_information' in attrs:
-            raise ValidationError('This category cannot contain additional_information.')
+        else:
+            if 'additional_information' in attrs:
+                raise ValidationError('This category cannot contain additional_information.')
+            elif self.instance is not None and original_main_category.product_additional_information_required:
+                attrs['additional_information'] = None
 
         if requested_main_category.laundry_informations_required:
             if  (self.instance is None or not original_main_category.laundry_informations_required) \
                 and 'laundry_informations' not in attrs:
                 raise ValidationError('This category requires laundry_informations.')
-        elif 'laundry_informations' in attrs:
-            raise ValidationError('This category cannot contain laundry_informations.')
+        else:
+            if 'laundry_informations' in attrs:
+                raise ValidationError('This category cannot contain laundry_informations.')
+            elif self.instance is not None and original_main_category.laundry_informations_required:
+                attrs['laundry_informations'] = []
         
     def __get_price_multiple(self, price):
         index = 0
@@ -844,31 +850,28 @@ class ProductWriteSerializer(ProductSerializer):
         return product
 
     def update(self, instance, validated_data):
-        laundry_informations_data = validated_data.pop('laundry_informations', None)
-        tags_data = validated_data.pop('tags', None)
-        materials = validated_data.pop('materials', None)
-        colors = validated_data.pop('colors', None)
-        images = validated_data.pop('related_images', None)
+        if 'additional_information' in validated_data and validated_data['additional_information']:
+            validated_data['additional_information'] = self.fields['additional_information'].create(validated_data['additional_information'])
 
-        self.__update_price_data(instance, validated_data)            
+        if 'laundry_informations' in validated_data:
+            self.__update_id_only_m2m_fields(instance.laundry_informations, validated_data.pop('laundry_informations'))
+            
+        if 'tags' in validated_data:
+            self.__update_id_only_m2m_fields(instance.tags, validated_data.pop('tags'))
+
+        if 'related_images' in validated_data:
+            self.fields['images'].update(validated_data.pop('related_images'), instance)
+
+        if 'materials' in validated_data:
+            self.fields['materials'].update(validated_data.pop('materials'), instance)
+
+        if 'colors' in validated_data:
+            self.fields['colors'].update(validated_data.pop('colors'), instance)
+
+        self.__update_price_data(instance, validated_data) 
 
         for key, value in validated_data.items():
             setattr(instance, key, value)
-
-        if tags_data is not None:
-            self.__update_id_only_m2m_fields(instance.tags, tags_data)
-
-        if laundry_informations_data is not None:
-            self.__update_id_only_m2m_fields(instance.laundry_informations, laundry_informations_data)
-
-        if images is not None:
-            self.fields['images'].update(images, instance)
-
-        if materials is not None:
-            self.fields['materials'].update(materials, instance)
-
-        if colors is not None:
-            self.fields['colors'].update(colors, instance)
 
         instance.save(update_fields=validated_data.keys())
 

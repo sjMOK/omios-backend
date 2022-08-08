@@ -1487,6 +1487,16 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(expected_sale_price, product.sale_price)
         self.assertEqual(expected_base_discounted_price, product.base_discounted_price)
 
+    def test_validated_data_for_update(self):
+        self._test_data = {'sub_category': self.__sub_category_for_main_category_validation.id}
+
+        self._test_validated_data({
+            **self._test_data,
+            'sub_category': self.__sub_category_for_main_category_validation,
+            'additional_information': None,
+            'laundry_informations': [],
+        }, self.__product, partial=True)
+
     def test_create(self):
         serializer = self._get_serializer_after_validation(
             context={'wholesaler': WholesalerFactory()}
@@ -1545,6 +1555,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.sub_category_id, update_data['sub_category'])
         self.assertEqual(product.style_id, update_data['style'])
         self.assertEqual(product.age_id, update_data['age'])
+        self.assertIsNone(product.additional_information)
+        self.assertEqual(product.laundry_informations.count(), 0)
         self.assertEqual(product.thickness_id, update_data['thickness'])
         self.assertEqual(product.see_through_id, update_data['see_through'])
         self.assertEqual(product.flexibility_id, update_data['flexibility'])
