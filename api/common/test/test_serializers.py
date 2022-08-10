@@ -2,12 +2,15 @@ from copy import deepcopy
 
 from rest_framework.test import APISimpleTestCase
 from rest_framework.serializers import Serializer, CharField, IntegerField
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException 
 
-from .test_cases import FunctionTestCase, SerializerTestCase
-from .factories import SettingItemFactory
+from factory import RelatedFactoryList
+
+from .test_cases import FunctionTestCase, ListSerializerTestCase, SerializerTestCase
+from .factories import SettingGroupFactory, SettingItemFactory
+from ..models import SettingGroup
 from ..serializers import (
-    SerializerMixin, SettingItemSerializer,
+    SerializerMixin, SettingItemSerializer, SettingGroupSerializer,
     has_duplicate_element, is_create_data, is_update_data, is_delete_data, get_create_attrs,
     get_update_attrs, get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, 
     get_list_of_single_value, get_sum_of_single_value, add_data_in_each_element,
@@ -247,3 +250,43 @@ class SettingItemSerializerTestCase(SerializerTestCase):
             'id': setting_item.id,
             'name': setting_item.name,
         })
+
+
+class SettingGroupListSerializerTestCase(ListSerializerTestCase):
+    _child_serializer_class = SettingGroupSerializer
+
+    def test_model_instance_serialization(self):
+        default_setting_group = SettingGroupFactory(
+            main_key='default', items=RelatedFactoryList(SettingItemFactory, 'group')
+        )
+        same_main_key_setting_groups = SettingGroupFactory.create_batch(
+            2, main_key='same_main_key', items=RelatedFactoryList(SettingItemFactory, 'group')
+        )
+        sub_key_setting_groups = []
+        for i in range(2):
+            sub_key_setting_groups.append(SettingGroupFactory.create(
+                main_key='using_sub_key', sub_key=f'sub_key{i}', items=RelatedFactoryList(SettingItemFactory, 'group')
+            ))
+
+        self._test_model_instance_serialization(SettingGroup.objects.prefetch_related('items').all(), {
+            **{default_setting_group.main_key: SettingGroupSerializer(default_setting_group).data},
+            **{same_main_key_setting_groups[0].main_key: [
+                SettingGroupSerializer(setting_group).data 
+            for setting_group in same_main_key_setting_groups]},
+            **{sub_key_setting_groups[0].main_key: {
+                setting_group.sub_key: SettingGroupSerializer(setting_group).data
+            for setting_group in sub_key_setting_groups}}
+        })
+
+
+class SettingGroupSerializerTestCase(SerializerTestCase):
+    _serializer_class = SettingGroupSerializer
+
+    def test_model_instance_serialization(self):
+        setting_group = SettingGroupFactory(items=RelatedFactoryList(SettingItemFactory, 'group'))
+
+        self._test_model_instance_serialization(setting_group, {
+            'name': setting_group.name,
+            'items': SettingItemSerializer(setting_group.items, many=True).data,
+        })
+        

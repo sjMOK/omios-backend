@@ -1,7 +1,9 @@
-from rest_framework.exceptions import APIException
-from rest_framework.serializers import Serializer, ModelSerializer, ImageField
+from collections import defaultdict
 
-from .models import SettingItem
+from rest_framework.exceptions import APIException
+from rest_framework.serializers import Serializer, ListSerializer, ModelSerializer, ImageField
+
+from .models import SettingGroup, SettingItem
 from .validators import validate_file_size
 
 
@@ -141,3 +143,34 @@ class SettingItemSerializer(ModelSerializer):
         model = SettingItem
         fields = ['id', 'name']
         read_only_fields = fields
+
+
+class SettingGroupListSerializer(ListSerializer):
+    @property
+    def data(self):
+        return super(ListSerializer, self).data
+
+    def to_representation(self, instances):
+        result = defaultdict(list)
+        for instance in instances:
+            if instance.sub_key:
+                result.setdefault(instance.main_key, {})
+                result[instance.main_key][instance.sub_key] = self.child.to_representation(instance)
+            else:
+                result[instance.main_key].append(self.child.to_representation(instance))
+
+        for key, value in result.items():
+            if isinstance(value, list) and len(value) == 1:
+                result[key] = value[0]
+
+        return result
+
+
+class SettingGroupSerializer(ModelSerializer):
+    items = SettingItemSerializer(many=True)
+
+    class Meta:
+        model = SettingGroup
+        fields = ['name', 'items']
+        read_only_fields = fields
+        list_serializer_class = SettingGroupListSerializer
