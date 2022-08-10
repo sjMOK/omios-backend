@@ -75,7 +75,7 @@ class CartFactory(DjangoModelFactory):
     
     @lazy_attribute
     def count(self):
-        return random.randint(1, 100)
+        return random.randint(1, 50)
 
 
 class FloorFactory(DjangoModelFactory):
