@@ -134,7 +134,8 @@ class Tag(Model):
 class Color(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True, max_length=20)
-    image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
+    default_image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
+    checked_image_url = ImageField(max_length=200, storage=storage.ClientSVGStorage)
 
     class Meta:
         db_table = 'color'

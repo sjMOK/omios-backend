@@ -188,14 +188,16 @@ class ColorTestCase(ModelTestCase):
     def setUp(self):
         self._test_data = {
             'name': '블랙',
-            'image_url': 'color/black.svg',
+            'default_image_url': 'color/black.svg',
+            'checked_image_url': 'color/check_black.svg'
         }
 
     def test_create(self):
         color = self._get_model_after_creation()
 
         self.assertEqual(color.name, self._test_data['name'])
-        self.assertEqual(color.image_url.name, self._test_data['image_url'])
+        self.assertEqual(color.default_image_url.name, self._test_data['default_image_url'])
+        self.assertEqual(color.checked_image_url.name, self._test_data['checked_image_url'])
 
 
 class ProductColorTestCase(ModelTestCase):

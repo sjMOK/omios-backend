@@ -50,10 +50,10 @@ class MainCategorySerializer(DynamicFieldsModelSerializer):
 class ColorSerializer(ModelSerializer):
     class Meta:
         model = Color
-        fields = '__all__'
+        exclude = ['checked_image_url']
         extra_kwargs = {
             'name': {'read_only': True},
-            'image_url': {'read_only': True}
+            'default_image_url': {'read_only': True}
         }
 
 

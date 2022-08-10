@@ -113,7 +113,8 @@ class ColorFactory(DjangoModelFactory):
         model = 'product.Color'
 
     name = Sequence(lambda num: 'color_{0}'.format(num))
-    image_url = LazyAttribute(lambda obj: 'color/{0}.svg'.format(obj.name))
+    default_image_url = LazyAttribute(lambda obj: f'color/{obj.name}.svg')
+    checked_image_url = LazyAttribute(lambda obj: f'color/check_{obj.name}.svg')
 
 
 class SizeFactory(DjangoModelFactory):

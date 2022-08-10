@@ -85,7 +85,7 @@ class ColorSerializerTestCase(SerializerTestCase):
         expected_data = {
             'id': color.id,
             'name': color.name,
-            'image_url': color.image_url.url,
+            'default_image_url': color.default_image_url.url,
         }
 
         self._test_model_instance_serialization(color, expected_data)
