@@ -15,7 +15,7 @@ from common.serializers import (
     has_duplicate_element ,is_create_data, is_update_data, get_create_attrs, get_update_attrs,
     get_delete_attrs, get_create_or_update_attrs, get_update_or_delete_attrs, get_list_of_single_value,
     get_separated_data_by_create_update_delete,
-    DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer,
+    DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer, SettingGroupSerializer,
 )
 from .models import (
     Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
@@ -880,3 +880,11 @@ class ProductQuestionAnswerSerializer(ModelSerializer):
         result['username'] = self.__get_username(instance.shopper.username)
 
         return result
+
+
+class ProductRegistrationSerializer(Serializer):
+    main_categories = MainCategorySerializer(many=True, exclude_fields=['id', 'image_url'])
+    colors = ColorSerializer(many=True)
+
+    def to_representation(self, instance):
+        return dict(super().to_representation(instance), **SettingGroupSerializer(many=True).to_representation(instance['setting_groups']))

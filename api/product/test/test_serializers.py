@@ -6,11 +6,14 @@ from django.forms import model_to_dict
 
 from rest_framework.exceptions import ValidationError
 
-from common.models import TemporaryImage
-from common.serializers import SettingItemSerializer
+from factory import RelatedFactoryList
+
+from common.models import TemporaryImage, SettingGroup
+from common.serializers import SettingItemSerializer, SettingGroupSerializer
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
 from common.test.factories import SettingItemFactory
+from common.test.test_serializers import  get_setting_groups_test_data
 from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
@@ -24,10 +27,20 @@ from ..serializers import (
     LaundryInformationSerializer, ProductColorSerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
-    ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer,
+    ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer, ProductRegistrationSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer
+
+
+def get_product_registration_test_data(setting_group_kwargs={}):
+    get_setting_groups_test_data(**setting_group_kwargs)
+    
+    return {
+        'main_categories': [MainCategoryFactory(sub_categoies=RelatedFactoryList(SubCategoryFactory, 'main_category'))],
+        'colors': ColorFactory.create_batch(2),
+        'setting_groups': SettingGroup.objects.prefetch_related('items').all(),
+    }
 
 
 class SubCategorySerializerTestCase(SerializerTestCase):
@@ -1788,3 +1801,17 @@ class ProductQuestionAnswerSerializerTestCase(SerializerTestCase):
         self.assertEqual(question_answer.question, data['question'])
         self.assertEqual(question_answer.is_secret, data['is_secret'])
         self.assertEqual(question_answer.classification.id, data['classification'])
+
+
+class ProductRegistrationSerializerTestCase(SerializerTestCase):
+    _serializer_class = ProductRegistrationSerializer
+
+    def test_model_instance_serialization(self):
+        instances = get_product_registration_test_data()
+
+        self._test_model_instance_serialization(instances, {
+            'main_categories': MainCategorySerializer(instances['main_categories'], exclude_fields=['id', 'image_url'], many=True).data,
+            'colors': ColorSerializer(instances['colors'], many=True).data,
+            **SettingGroupSerializer(instances['setting_groups'], many=True).data
+        })
+        

@@ -7,17 +7,19 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg.openapi import Parameter, IN_QUERY, TYPE_STRING
 
 from common.documentations import Image, get_response
+from common.serializers import SettingGroupSerializer
 from .serializers import (
-    SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer, ThicknessSerializer,
-    SeeThroughSerializer, FlexibilitySerializer, AgeSerializer, ColorSerializer, StyleSerializer,
+    SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer,
+    AgeSerializer, ColorSerializer, StyleSerializer, ProductAdditionalInformationSerializer,
     MaterialSerializer, TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
     ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer, ProductQuestionAnswerSerializer,
-    ProductQuestionAnswerClassificationSerializer,
+    ProductQuestionAnswerClassificationSerializer, ProductRegistrationSerializer
 )
 from .views import (
     ProductViewSet, ProductQuestionAnswerViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
     upload_product_image, get_related_search_words, get_registry_data, get_product_question_answer_classification,
+    get_product_registration_data,
 )
 
 
@@ -86,6 +88,31 @@ class SearchBoxResponse(Serializer):
     keyword = ListField(child=CharField())
 
 
+class MainCategoryForProductRegistration(MainCategorySerializer):
+    class Meta(MainCategorySerializer.Meta):
+        fields = None
+        exclude = ['id', 'image_url']
+
+
+class ProductAdditionalInformationRegistrationSerializer(ProductAdditionalInformationSerializer):
+    thickness = SettingGroupSerializer()
+    see_through = SettingGroupSerializer()
+    flexibility = SettingGroupSerializer()
+    lining = SettingGroupSerializer()
+
+    class Meta(ProductAdditionalInformationSerializer.Meta):
+        ref_name = None    
+
+
+class ProductRegistrationDataSerializer(ProductRegistrationSerializer):
+    main_categories = MainCategoryForProductRegistration(many=True)
+    sizes = SettingGroupSerializer(many=True)
+    additional_information = ProductAdditionalInformationRegistrationSerializer()
+    laundry_information = SettingGroupSerializer()
+    style = SettingGroupSerializer()
+    target_age_group = SettingGroupSerializer()
+
+
 class RegistryCommonResponse(Serializer):
     color = ColorSerializer(many=True)
     material = MaterialSerializer(many=True)
@@ -99,9 +126,6 @@ class RegistryDynamicResponse(Serializer):
         value = BooleanField()
 
     size = SizeSerializer(many=True)
-    thickness = ThicknessSerializer(many=True, allow_empty=True)
-    see_through = SeeThroughSerializer(many=True, allow_empty=True)
-    flexibility = FlexibilitySerializer(many=True, allow_empty=True)
     lining = LinigResponse(many=True, allow_empty=True)
     laundry_information = LaundryInformationSerializer(many=True, allow_empty=True)
 
@@ -116,9 +140,6 @@ class RegistryDataResponse(Serializer):
     style = StyleSerializer(many=True, required=False)
     age = AgeSerializer(many=True, required=False)
     size = SizeSerializer(many=True, required=False)
-    thickness = ThicknessSerializer(many=True, required=False, allow_empty=True)
-    see_through = SeeThroughSerializer(many=True, required=False, allow_empty=True)
-    flexibility = FlexibilitySerializer(many=True, required=False, allow_empty=True)
     lining = LinigResponse(many=True, required=False, allow_empty=True)
     laundry_information = LaundryInformationSerializer(many=True, required=False, allow_empty=True)
 
@@ -273,6 +294,10 @@ decorated_get_related_search_words_view = swagger_auto_schema(
 decorated_get_registry_data_view = swagger_auto_schema(
     method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
 )(get_registry_data)
+
+decorated_get_product_registration_data_view = swagger_auto_schema(
+    method='GET', **get_response(ProductRegistrationDataSerializer()), operation_description='상품 등록 시 필요한 데이터 목록'
+)(get_product_registration_data)
 
 decorated_get_product_question_answer_classification = swagger_auto_schema(
     method='GET', **get_response(ProductQuestionAnswerClassificationSerializer(many=True)), security=[], operation_description='상품 Q&A 분류 리스트 조회'

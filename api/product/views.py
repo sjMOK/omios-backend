@@ -13,6 +13,7 @@ from rest_framework.mixins import ListModelMixin
 from common.utils import get_response, querydict_to_dict, levenshtein, check_integer_format
 from common.views import upload_image_view
 from common.permissions import IsAuthenticatedWholesaler
+from common.models import SettingGroup
 from coupon.models import Coupon
 from user.models import is_shopper, is_wholesaler, ProductLike
 from .models import (
@@ -20,7 +21,7 @@ from .models import (
     ProductQuestionAnswer, ProductQuestionAnswerClassification,
 )
 from .serializers import (
-    ProductReadSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer, 
+    ProductReadSerializer, ProductRegistrationSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer, 
     AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer, ColorSerializer, 
     TagSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
@@ -165,6 +166,18 @@ def get_registry_data(request):
         return get_response(status=HTTP_400_BAD_REQUEST, message='Query parameter sub_category must be id format.')
 
     return get_response(data=get_dynamic_registry_data(sub_category_id))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedWholesaler])
+def get_product_registration_data(request):
+    instances = {
+        'main_categories': MainCategory.objects.prefetch_related('sub_categories').all(),
+        'colors': Color.objects.all(),
+        'setting_groups': SettingGroup.objects.prefetch_related('items').filter(app='product')
+    }
+
+    return get_response(data=ProductRegistrationSerializer(instances).data)
 
 
 @api_view(['GET'])

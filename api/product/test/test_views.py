@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
+from common.test.factories import SettingItemFactory
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
 from coupon.models import Coupon
@@ -18,6 +19,7 @@ from .factories import (
     SubCategoryFactory, KeyWordFactory, TagFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
+from .test_serializers import get_product_registration_test_data
 from ..views import sort_keywords_by_levenshtein_distance
 from ..models import (
     LaundryInformation, MainCategory, SubCategory, Keyword, Color, Material, Style, Age,
@@ -27,6 +29,7 @@ from ..serializers import (
     LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SizeSerializer, 
     SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
+    ProductRegistrationSerializer,
 )
 
 
@@ -271,6 +274,21 @@ class GetRegistryDataTestCase(ViewTestCase):
     def test_get_with_invalid_sub_category_format(self):
         self._get({'sub_category': 'aa'})
         self._assert_failure(400, 'Query parameter sub_category must be id format.')
+
+
+class GetProductRegistrationTestCase(ViewTestCase):
+    _url = '/products/registration-datas'
+
+    def test(self):
+        self._set_wholesaler()
+        self._set_authentication()
+        SettingItemFactory(group__app='not_product')
+        instances = get_product_registration_test_data({'app': 'product'})
+        instances['setting_groups'] = instances['setting_groups'].filter(app='product')
+        self._get()
+
+        self._assert_success()
+        self.assertDictEqual(self._response_data, ProductRegistrationSerializer(instances).data)
 
 
 class GetProductQuestionAnswerClassificationTestCase(ViewTestCase):

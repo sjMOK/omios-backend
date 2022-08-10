@@ -25,6 +25,22 @@ list_test_data = [
 ]
 
 
+def get_setting_groups_test_data(**kwargs):
+    default_setting_group = SettingGroupFactory(
+        main_key='default', items=RelatedFactoryList(SettingItemFactory, 'group'), **kwargs,
+    )
+    same_main_key_setting_groups = SettingGroupFactory.create_batch(
+        2, main_key='same_main_key', items=RelatedFactoryList(SettingItemFactory, 'group'), **kwargs,
+    )
+    using_sub_key_setting_groups = []
+    for i in range(2):
+        using_sub_key_setting_groups.append(SettingGroupFactory.create(
+            main_key='using_sub_key', sub_key=f'sub_key{i}', items=RelatedFactoryList(SettingItemFactory, 'group'), **kwargs
+        ))
+
+    return default_setting_group, same_main_key_setting_groups, using_sub_key_setting_groups
+
+
 class HasDuplicateElementTestCase(FunctionTestCase):
     _function = has_duplicate_element
 
@@ -256,26 +272,16 @@ class SettingGroupListSerializerTestCase(ListSerializerTestCase):
     _child_serializer_class = SettingGroupSerializer
 
     def test_model_instance_serialization(self):
-        default_setting_group = SettingGroupFactory(
-            main_key='default', items=RelatedFactoryList(SettingItemFactory, 'group')
-        )
-        same_main_key_setting_groups = SettingGroupFactory.create_batch(
-            2, main_key='same_main_key', items=RelatedFactoryList(SettingItemFactory, 'group')
-        )
-        sub_key_setting_groups = []
-        for i in range(2):
-            sub_key_setting_groups.append(SettingGroupFactory.create(
-                main_key='using_sub_key', sub_key=f'sub_key{i}', items=RelatedFactoryList(SettingItemFactory, 'group')
-            ))
+        default_setting_group, same_main_key_setting_groups, using_sub_key_setting_groups = get_setting_groups_test_data()
 
         self._test_model_instance_serialization(SettingGroup.objects.prefetch_related('items').all(), {
             **{default_setting_group.main_key: SettingGroupSerializer(default_setting_group).data},
             **{same_main_key_setting_groups[0].main_key: [
                 SettingGroupSerializer(setting_group).data 
             for setting_group in same_main_key_setting_groups]},
-            **{sub_key_setting_groups[0].main_key: {
+            **{using_sub_key_setting_groups[0].main_key: {
                 setting_group.sub_key: SettingGroupSerializer(setting_group).data
-            for setting_group in sub_key_setting_groups}}
+            for setting_group in using_sub_key_setting_groups}}
         })
 
 
