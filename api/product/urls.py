@@ -6,7 +6,7 @@ from .documentations import (
     DecoratedProductQuestionAnswerViewSet,
     decorated_get_all_categories_view, decorated_get_main_categories_view, decorated_get_sub_categories_by_main_category_view,
     decorated_get_colors_view, decorated_get_tag_search_result_view, decorated_upload_product_image_view,
-    decorated_get_related_search_words_view, decorated_get_registry_data_view, decorated_get_product_question_answer_classification,
+    decorated_get_related_search_words_view, decorated_get_product_question_answer_classification,
     decorated_get_product_registration_data_view,
 )
 
@@ -24,7 +24,6 @@ urlpatterns = [
     path('/tags', decorated_get_tag_search_result_view),
     path('/images', decorated_upload_product_image_view),
     path('/related-search-words', decorated_get_related_search_words_view),
-    path('/registry-data', decorated_get_registry_data_view),
     path('/question-answers/classifications', decorated_get_product_question_answer_classification),
     path('/registration-datas', decorated_get_product_registration_data_view),
 ]

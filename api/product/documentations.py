@@ -18,16 +18,8 @@ from .serializers import (
 from .views import (
     ProductViewSet, ProductQuestionAnswerViewSet,
     get_all_categories, get_main_categories, get_sub_categories_by_main_category, get_colors, get_tag_search_result, 
-    upload_product_image, get_related_search_words, get_registry_data, get_product_question_answer_classification,
-    get_product_registration_data,
+    upload_product_image, get_related_search_words, get_product_registration_data, get_product_question_answer_classification,
 )
-
-
-get_registry_data_view_operation_description = '''상품 등록시 필요한 데이터 가져오기
-sub_category 쿼리스트링을 넘기지 않을 경우 공통 데이터("color", "material", "style", "age")를 반환
-sub_category 쿼리스트링을 넘길 경우 동적 데이터("size", "thickness", "see_through", "flexibility", "lining", "laundry_information")를 반환
-동적 데이터는 sub_category에 따라 각 데이터(배열)의 길이가 달라지며 빈 배열일 수 있음
-'''
 
 
 class RegistryDynamicQuerySerializer(Serializer):
@@ -88,60 +80,27 @@ class SearchBoxResponse(Serializer):
     keyword = ListField(child=CharField())
 
 
-class MainCategoryForProductRegistration(MainCategorySerializer):
-    class Meta(MainCategorySerializer.Meta):
-        fields = None
-        exclude = ['id', 'image_url']
-
-
-class ProductAdditionalInformationRegistrationSerializer(ProductAdditionalInformationSerializer):
-    thickness = SettingGroupSerializer()
-    see_through = SettingGroupSerializer()
-    flexibility = SettingGroupSerializer()
-    lining = SettingGroupSerializer()
-
-    class Meta(ProductAdditionalInformationSerializer.Meta):
-        ref_name = None    
-
-
 class ProductRegistrationDataSerializer(ProductRegistrationSerializer):
+    class MainCategoryForProductRegistration(MainCategorySerializer):
+        class Meta(MainCategorySerializer.Meta):
+            fields = None
+            exclude = ['id', 'image_url']
+
+    class ProductAdditionalInformationRegistrationSerializer(ProductAdditionalInformationSerializer):
+        thickness = SettingGroupSerializer()
+        see_through = SettingGroupSerializer()
+        flexibility = SettingGroupSerializer()
+        lining = SettingGroupSerializer()
+
+        class Meta(ProductAdditionalInformationSerializer.Meta):
+            ref_name = None    
+
     main_categories = MainCategoryForProductRegistration(many=True)
     sizes = SettingGroupSerializer(many=True)
     additional_information = ProductAdditionalInformationRegistrationSerializer()
     laundry_information = SettingGroupSerializer()
     style = SettingGroupSerializer()
     target_age_group = SettingGroupSerializer()
-
-
-class RegistryCommonResponse(Serializer):
-    color = ColorSerializer(many=True)
-    material = MaterialSerializer(many=True)
-    style = StyleSerializer(many=True)
-    age = AgeSerializer(many=True)
-
-
-class RegistryDynamicResponse(Serializer):
-    class LinigResponse(Serializer):
-        name = CharField()
-        value = BooleanField()
-
-    size = SizeSerializer(many=True)
-    lining = LinigResponse(many=True, allow_empty=True)
-    laundry_information = LaundryInformationSerializer(many=True, allow_empty=True)
-
-
-class RegistryDataResponse(Serializer):
-    class LinigResponse(Serializer):
-        name = CharField()
-        value = BooleanField()
-
-    color = ColorSerializer(many=True, required=False)
-    material = MaterialSerializer(many=True, required=False)
-    style = StyleSerializer(many=True, required=False)
-    age = AgeSerializer(many=True, required=False)
-    size = SizeSerializer(many=True, required=False)
-    lining = LinigResponse(many=True, required=False, allow_empty=True)
-    laundry_information = LaundryInformationSerializer(many=True, required=False, allow_empty=True)
 
 
 class ProductListResponse(Serializer):
@@ -290,10 +249,6 @@ decorated_upload_product_image_view = swagger_auto_schema(
 decorated_get_related_search_words_view = swagger_auto_schema(
     method='GET', query_serializer=SearchQuerySerializer, **get_response(SearchBoxResponse()), security=[], operation_description='검색어(문자열)와 유사한 메인 카테고리, 서브 카테고리, 키워드 데이터 GET\nquery 필수, 빈 문자열 허용하지 않음.'
 )(get_related_search_words)
-
-decorated_get_registry_data_view = swagger_auto_schema(
-    method='GET', **get_response(RegistryDataResponse()), security=[], operation_description=get_registry_data_view_operation_description
-)(get_registry_data)
 
 decorated_get_product_registration_data_view = swagger_auto_schema(
     method='GET', **get_response(ProductRegistrationDataSerializer()), operation_description='상품 등록 시 필요한 데이터 목록'
