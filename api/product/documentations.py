@@ -9,9 +9,8 @@ from drf_yasg.openapi import Parameter, IN_QUERY, TYPE_STRING
 from common.documentations import Image, get_response
 from common.serializers import SettingGroupSerializer
 from .serializers import (
-    SubCategorySerializer, MainCategorySerializer, SizeSerializer, LaundryInformationSerializer,
-    AgeSerializer, ColorSerializer, StyleSerializer, ProductAdditionalInformationSerializer,
-    MaterialSerializer, TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
+    SubCategorySerializer, MainCategorySerializer, ColorSerializer,ProductAdditionalInformationSerializer,
+    TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
     ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer, ProductQuestionAnswerSerializer,
     ProductQuestionAnswerClassificationSerializer, ProductRegistrationSerializer
 )

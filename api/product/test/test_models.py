@@ -7,7 +7,7 @@ from common.test.factories import SettingItemFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
     MainCategory, SubCategory, Product, Age, SubCategorySize, ProductImage, Tag, Color, ProductColor, Size,
-    Option, Keyword, Style, LaundryInformation, Material, ProductMaterial,
+    Option, Keyword, Style, LaundryInformation, ProductMaterial,
     ProductQuestionAnswerClassification, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 from .factories import (
@@ -306,20 +306,6 @@ class LaundryInformationTestCase(ModelTestCase):
     def setUp(self):
         self._test_data = {
             'name': '다림질 금지',
-        }
-
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])
-
-
-class MaterialTestCase(ModelTestCase):
-    _model_class = Material
-
-    def setUp(self):
-        self._test_data = {
-            'name': '나일론',
         }
 
     def test_create(self):

@@ -16,14 +16,10 @@ from common.permissions import IsAuthenticatedWholesaler
 from common.models import SettingGroup
 from coupon.models import Coupon
 from user.models import is_shopper, is_wholesaler, ProductLike
-from .models import (
-    MainCategory, SubCategory, Color, Material, LaundryInformation, Style, Keyword, Product, Tag, Age, 
-    ProductQuestionAnswer, ProductQuestionAnswerClassification,
-)
+from .models import MainCategory, SubCategory, Color, Keyword, Product, Tag, ProductQuestionAnswer, ProductQuestionAnswerClassification
 from .serializers import (
     ProductReadSerializer, ProductRegistrationSerializer, ProductWriteSerializer, MainCategorySerializer, SubCategorySerializer, 
-    AgeSerializer, StyleSerializer, MaterialSerializer, SizeSerializer, LaundryInformationSerializer, ColorSerializer, 
-    TagSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
+    ColorSerializer, TagSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer,
 )
 from .permissions import ProductPermission, ProductQuestionAnswerPermission
 from .paginations import ProductQuestionAnswerPagination

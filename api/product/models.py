@@ -238,15 +238,6 @@ class ProductLaundryInformation(Model):
         unique_together = (('product', 'laundry_information'),)
 
 
-class Material(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        db_table = 'material'
-        ordering = ['id']
-
-
 class ProductMaterial(Model):
     id = AutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING, related_name='materials')

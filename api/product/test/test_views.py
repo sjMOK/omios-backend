@@ -14,20 +14,16 @@ from coupon.models import Coupon
 from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
 from .factories import (
-    AgeFactory, ColorFactory, LaundryInformationFactory, MainCategoryFactory, MaterialFactory, OptionFactory, 
-    ProductColorFactory, ProductFactory, ProductImageFactory, ProductMaterialFactory, SizeFactory, StyleFactory, 
-    SubCategoryFactory, KeyWordFactory, TagFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    ColorFactory, LaundryInformationFactory, MainCategoryFactory, OptionFactory, ProductColorFactory,
+    ProductFactory, ProductImageFactory, ProductMaterialFactory, SubCategoryFactory,
+    KeyWordFactory, TagFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 from .test_serializers import get_product_registration_test_data
 from ..views import sort_keywords_by_levenshtein_distance
-from ..models import (
-    LaundryInformation, MainCategory, SubCategory, Keyword, Color, Material, Style, Age,
-    Product, Tag, Option, ProductQuestionAnswer,
-)
+from ..models import MainCategory, SubCategory, Keyword, Color, Product, Tag, Option, ProductQuestionAnswer
 from ..serializers import (
-    LaundryInformationSerializer, MainCategorySerializer, ProductReadSerializer, SizeSerializer, 
-    SubCategorySerializer, ColorSerializer, MaterialSerializer, StyleSerializer, AgeSerializer, TagSerializer,
+    MainCategorySerializer, ProductReadSerializer, SubCategorySerializer, ColorSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, ProductWriteSerializer,
     ProductRegistrationSerializer,
 )

@@ -18,13 +18,13 @@ from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, 
-    LaundryInformationFactory, TagFactory, AgeFactory, StyleFactory, MaterialFactory, ProductImageFactory,
+    LaundryInformationFactory, TagFactory, AgeFactory, StyleFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, 
-    LaundryInformationSerializer, ProductColorSerializer, AgeSerializer, StyleSerializer, MaterialSerializer, 
+    LaundryInformationSerializer, ProductColorSerializer, AgeSerializer, StyleSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer, ProductRegistrationSerializer,
@@ -190,19 +190,6 @@ class StyleSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(style, expected_data)
-
-
-class MaterialSerializerTestCase(SerializerTestCase):
-    _serializer_class = MaterialSerializer
-
-    def test_model_instance_serialization(self):
-        material = MaterialFactory()
-        expected_data = {
-            'id': material.id,
-            'name': material.name,
-        }
-
-        self._test_model_instance_serialization(material, expected_data)
 
 
 class TagSerializerTestCase(SerializerTestCase):

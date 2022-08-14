@@ -19,7 +19,7 @@ from common.serializers import (
 )
 from .models import (
     Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
-    ProductMaterial, ProductColor, ProductQuestionAnswer, Material, ProductAdditionalInformation,
+    ProductMaterial, ProductColor, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 
 
@@ -122,15 +122,6 @@ class AgeSerializer(ModelSerializer):
 class StyleSerializer(ModelSerializer):
     class Meta:
         model = Style
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class MaterialSerializer(ModelSerializer):
-    class Meta:
-        model = Material
         fields = '__all__'
         extra_kwargs = {
             'name': {'read_only': True},

@@ -160,13 +160,6 @@ class LaundryInformationFactory(DjangoModelFactory):
     name = Sequence(lambda num: 'laundry_info_{0}'.format(num))
 
 
-class MaterialFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Material'
-
-    name = Sequence(lambda num: 'material{0}'.format(num))
-
-
 class ProductMaterialFactory(DjangoModelFactory):
     class Meta:
         model = 'product.ProductMaterial'
