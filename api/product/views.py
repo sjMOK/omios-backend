@@ -200,7 +200,7 @@ class ProductViewSet(GenericViewSet):
 
             if self.action == 'retrieve':
                 queryset = queryset.select_related(
-                    'sub_category__main_category', 'style', 'age', 
+                    'sub_category__main_category', 'style', 'target_age_group', 
                     'additional_information__thickness', 'additional_information__see_through',
                     'additional_information__flexibility', 'additional_information__lining',
                 ).annotate(total_like=Count('like_shoppers'))

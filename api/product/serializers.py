@@ -18,7 +18,7 @@ from common.serializers import (
     DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer, SettingGroupSerializer,
 )
 from .models import (
-    Size, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
+    Size, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage,
     ProductMaterial, ProductColor, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 
@@ -99,24 +99,6 @@ class ProductAdditionalInformationWriteSerializer(ProductAdditionalInformationSe
 
     def create(self, validated_data):
         return self.Meta.model.objects.get_or_create(**dict([(key+'_id', value) for key, value in validated_data.items()]))[0]
-
-
-class AgeSerializer(ModelSerializer):
-    class Meta:
-        model = Age
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
-
-
-class StyleSerializer(ModelSerializer):
-    class Meta:
-        model = Style
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
 
 
 class TagSerializer(ModelSerializer):
@@ -644,8 +626,8 @@ class ProductSerializer(DynamicFieldsSerializer):
 class ProductReadSerializer(ProductSerializer):
     main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', exclude_fields=('sub_categories',))
     sub_category = SubCategorySerializer(read_only=True)
-    style = StyleSerializer(read_only=True)
-    age = AgeSerializer(read_only=True)
+    style = SettingItemSerializer(read_only=True)
+    target_age_group = SettingItemSerializer(read_only=True)
     tags = TagSerializer(read_only=True, many=True)
     laundry_informations = SettingItemSerializer(read_only=True, many=True)
     created_at = DateTimeField(read_only=True)
@@ -685,8 +667,8 @@ class ProductReadSerializer(ProductSerializer):
 
 class ProductWriteSerializer(ProductSerializer):
     sub_category = PrimaryKeyRelatedField(queryset=SubCategory.objects.select_related('main_category').all())
-    style = PrimaryKeyRelatedField(queryset=Style.objects.all())
-    age = PrimaryKeyRelatedField(queryset=Age.objects.all())
+    style = PrimaryKeyRelatedField(queryset=SettingItem.objects.filter(group__main_key='style'))
+    target_age_group = PrimaryKeyRelatedField(queryset=SettingItem.objects.filter(group__main_key='target_age_group'))
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)
     laundry_informations = PrimaryKeyRelatedField(many=True, queryset=SettingItem.objects.filter(group__main_key='laundry_information'), allow_empty=False, required=False)
     additional_information = ProductAdditionalInformationWriteSerializer(required=False)

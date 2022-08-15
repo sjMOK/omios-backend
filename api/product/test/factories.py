@@ -50,28 +50,14 @@ class SubCategoryFactory(DjangoModelFactory):
     require_laundry_information = True
 
 
-class StyleFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Style'
-
-    name = Sequence(lambda num: 'test_style_{0}'.format(num))
-
-
-class AgeFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Age'
-
-    name = name = Sequence(lambda num: 'age_{0}'.format(num))
-
-
 class ProductFactory(DjangoModelFactory):
     class Meta:
         model = 'product.Product'
 
     wholesaler = SubFactory(WholesalerFactory)
     sub_category = SubFactory(SubCategoryFactory)
-    style = SubFactory(StyleFactory)
-    age = SubFactory(AgeFactory)
+    style = SubFactory(SettingItemFactory, group__main_key='style')
+    target_age_group = SubFactory(SettingItemFactory, group__main_key='target_age_group')
     name = Sequence(lambda num: 'product_{0}'.format(num))
     price = FuzzyInteger(10000, 5000000, 100)
     sale_price = LazyAttribute(lambda obj: obj.price * 2)
@@ -83,7 +69,7 @@ class ProductFactory(DjangoModelFactory):
     def _generate(cls, strategy, params):
         if 'product' in params:
             product = params.pop('product')
-            copy_fields = ['wholesaler', 'sub_category', 'style', 'age', 'additional_information']
+            copy_fields = ['wholesaler', 'sub_category', 'style', 'target_age_group', 'additional_information']
             for field in copy_fields:
                 if field not in params:
                     params[field] = getattr(product, field, None)

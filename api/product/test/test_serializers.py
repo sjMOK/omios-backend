@@ -18,16 +18,16 @@ from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, 
-    TagFactory, AgeFactory, StyleFactory, ProductImageFactory,
-    ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
+    TagFactory, ProductImageFactory, ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, 
+    ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, 
-    ProductColorSerializer, AgeSerializer, StyleSerializer, 
-    ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
-    ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
-    ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer, ProductRegistrationSerializer,
+    ProductColorSerializer, ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, 
+    ProductWriteSerializer, TagSerializer, ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, 
+    OptionInOrderItemSerializer, ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer, 
+    ProductRegistrationSerializer,
     PRODUCT_IMAGE_MAX_LENGTH, PRODUCT_COLOR_MAX_LENGTH,
 )
 from ..models import Product, ProductColor, Color, Option, ProductMaterial, ProductQuestionAnswer
@@ -151,32 +151,6 @@ class ProductAdditionalInformationWriteSerializerTestCase(SerializerTestCase):
         product_additional_information = self._get_serializer().create(self._test_data)
 
         self.assertTrue(product_additional_information != self.__product_additional_information)
-
-
-class AgeSerializerTestCase(SerializerTestCase):
-    _serializer_class = AgeSerializer
-
-    def test_model_instance_serialization(self):
-        age = AgeFactory()
-        expected_data = {
-            'id': age.id,
-            'name': age.name,
-        }
-
-        self._test_model_instance_serialization(age, expected_data)
-
-
-class StyleSerializerTestCase(SerializerTestCase):
-    _serializer_class = StyleSerializer
-
-    def test_model_instance_serialization(self):
-        style = StyleFactory()
-        expected_data = {
-            'id': style.id,
-            'name': style.name,
-        }
-
-        self._test_model_instance_serialization(style, expected_data)
 
 
 class TagSerializerTestCase(SerializerTestCase):
@@ -1087,8 +1061,8 @@ class ProductReadSerializerTestCase(SerializerTestCase):
                 product.sub_category.main_category, exclude_fields=('sub_categories',)
                 ).data,
             'sub_category': SubCategorySerializer(product.sub_category).data,
-            'style': StyleSerializer(product.style).data,
-            'age': AgeSerializer(product.age).data,
+            'style': SettingItemSerializer(product.style).data,
+            'target_age_group': SettingItemSerializer(product.target_age_group).data,
             'tags': TagSerializer(product.tags.all(), many=True).data,
             'laundry_informations': SettingItemSerializer(product.laundry_informations.all(), many=True).data,
             'created_at': datetime_to_iso(product.created_at),
@@ -1243,7 +1217,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'base_discount_rate': 10,
             'sub_category': cls.__product.sub_category_id,
             'style': cls.__product.style_id,
-            'age': cls.__product.age_id,
+            'target_age_group': cls.__product.target_age_group_id,
             'tags': [tag.id for tag in TagFactory.create_batch(size=cls.__batch_size)],
             'materials': [
                 {
@@ -1448,7 +1422,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.price, self._test_data['price'])
         self.assertEqual(product.sub_category_id, self._test_data['sub_category'])
         self.assertEqual(product.style_id, self._test_data['style'])
-        self.assertEqual(product.age_id, self._test_data['age'])
+        self.assertEqual(product.target_age_group_id, self._test_data['target_age_group'])
         self.assertEqual(product.additional_information, self.__product.additional_information)
         self.assertEqual(product.manufacturing_country, self._test_data['manufacturing_country'])
         self.assertListEqual(
@@ -1472,8 +1446,8 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
             'name': self.__product.name + '_update',
             'price': self.__product.price - 100,
             'sub_category': self.__sub_category_for_main_category_validation.id,
-            'style': StyleFactory().id,
-            'age': AgeFactory().id,
+            'style': SettingItemFactory(group=self.__product.style.group).id,
+            'target_age_group': SettingItemFactory(group=self.__product.target_age_group.group).id,
             'manufacturing_country': self.__product.manufacturing_country + '_update',
         }
         serializer = self._get_serializer_after_validation(
@@ -1486,7 +1460,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         self.assertEqual(product.price, update_data['price'])
         self.assertEqual(product.sub_category_id, update_data['sub_category'])
         self.assertEqual(product.style_id, update_data['style'])
-        self.assertEqual(product.age_id, update_data['age'])
+        self.assertEqual(product.target_age_group_id, update_data['target_age_group'])
         self.assertIsNone(product.additional_information)
         self.assertEqual(product.laundry_informations.count(), 0)
         self.assertEqual(product.manufacturing_country, update_data['manufacturing_country'])

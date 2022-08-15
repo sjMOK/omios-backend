@@ -538,7 +538,7 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
             'price': 50000,
             'sub_category': self._product.sub_category.id,
             'style': self._product.style.id,
-            'age': self._product.age.id,
+            'target_age_group': self._product.target_age_group.id,
             'tags': tag_id_list,
             'materials': [
                 {

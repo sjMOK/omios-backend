@@ -3,15 +3,15 @@ from django.forms import model_to_dict
 from freezegun import freeze_time
 
 from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_TICK_SECONDS
-from common.test.factories import SettingItemFactory
+from common.test.factories import SettingItemFactory, SettingGroupFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
-    MainCategory, SubCategory, Product, Age, SubCategorySize, ProductImage, Tag, Color, ProductColor, Size,
-    Option, Keyword, Style, ProductMaterial, ProductLaundryInformation,
+    MainCategory, SubCategory, Product, SubCategorySize, ProductImage, Tag, Color, ProductColor, Size,
+    Option, Keyword, ProductMaterial, ProductLaundryInformation,
     ProductQuestionAnswerClassification, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 from .factories import (
-    AgeFactory, MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, StyleFactory, SubCategoryFactory, ProductFactory,
+    MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, SubCategoryFactory, ProductFactory,
     ColorFactory, ProductColorFactory, SizeFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
@@ -66,6 +66,8 @@ class ProductTestCase(ModelTestCase):
 
     @classmethod
     def setUpTestData(cls):
+        setting_group = SettingGroupFactory()
+
         cls._test_data = {
             'wholesaler': WholesalerFactory(),
             'sub_category': SubCategoryFactory(),
@@ -74,8 +76,8 @@ class ProductTestCase(ModelTestCase):
             'sale_price': 70000,
             'base_discount_rate': 10,
             'base_discounted_price': 63000,
-            'style': StyleFactory(),
-            'age': AgeFactory(),
+            'style': SettingItemFactory(group=setting_group),
+            'target_age_group': SettingItemFactory(group=setting_group),
             'additional_information': create_product_additional_information(),
             'manufacturing_country': '대한민국',
         }
@@ -88,7 +90,7 @@ class ProductTestCase(ModelTestCase):
         self.assertEqual(self._product.sub_category, self._test_data['sub_category'])
         self.assertEqual(self._product.price, self._test_data['price'])
         self.assertEqual(self._product.base_discount_rate, self._test_data['base_discount_rate'])
-        self.assertEqual(self._product.age, self._test_data['age'])
+        self.assertEqual(self._product.target_age_group, self._test_data['target_age_group'])
         self.assertEqual(self._product.style, self._test_data['style'])
         self.assertEqual(self._product.additional_information, self._test_data['additional_information'])
         self.assertEqual(self._product.manufacturing_country, self._test_data['manufacturing_country'])
@@ -135,19 +137,6 @@ class ProductAdditionalInformationTestCase(ModelTestCase):
             'flexibility': self._test_data['flexibility'].id,
             'lining': self._test_data['lining'].id,
         })
-
-class AgeTestCase(ModelTestCase):
-    _model_class = Age
-
-    def setUp(self):
-        self._test_data = {
-            'name': '20대 중반',
-        }
-    
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])
 
 
 class ProductImagesTestCase(ModelTestCase):
@@ -284,20 +273,6 @@ class KeywordTestCase(ModelTestCase):
         keyword = self._get_model_after_creation()
 
         self.assertEqual(keyword.name, self._test_data['name'])
-
-
-class StyleTestCase(ModelTestCase):
-    _model_class = Style
-    
-    def setUp(self):
-        self._test_data = {
-            'name': '로맨틱',
-        }
-
-    def test_create(self):
-        style = self._get_model_after_creation()
-
-        self.assertEqual(style.name, self._test_data['name'])
 
 
 class ProductLaundryInformationTestCase(ModelTestCase):

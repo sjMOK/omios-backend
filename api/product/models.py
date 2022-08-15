@@ -54,10 +54,10 @@ class Product(Model):
     id = BigAutoField(primary_key=True)
     wholesaler = ForeignKey('user.Wholesaler', DO_NOTHING)
     sub_category = ForeignKey('SubCategory', DO_NOTHING)
-    style = ForeignKey('Style', DO_NOTHING)
-    age = ForeignKey('Age', DO_NOTHING)
+    style = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_style')
+    target_age_group = ForeignKey('common.SettingItem', DO_NOTHING, related_name='product_target_age_group')
     tags = ManyToManyField('Tag', db_table='product_tag')
-    laundry_informations = ManyToManyField('common.SettingItem', through='ProductLaundryInformation')
+    laundry_informations = ManyToManyField('common.SettingItem', through='ProductLaundryInformation', related_name='product_laundry_information')
     name = CharField(max_length=100)
     code = CharField(max_length=12, default='AA')
     created_at = DateTimeField(auto_now_add=True)
@@ -94,18 +94,6 @@ class ProductAdditionalInformation(Model):
 
     class Meta:
         db_table = 'product_additional_information'
-
-
-class Age(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(max_length=10)
-
-    class Meta:
-        db_table = 'age'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
 
 
 class ProductImage(Model):
@@ -202,18 +190,6 @@ class Keyword(Model):
 
     class Meta:
         db_table = 'keyword'
-
-
-class Style(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        db_table = 'style'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
 
 
 class ProductLaundryInformation(Model):
