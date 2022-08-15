@@ -12,19 +12,19 @@ from common.models import TemporaryImage, SettingGroup
 from common.serializers import SettingItemSerializer, SettingGroupSerializer
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL, datetime_to_iso
 from common.test.test_cases import SerializerTestCase, ListSerializerTestCase
-from common.test.factories import SettingItemFactory
+from common.test.factories import SettingItemFactory, SettingGroupFactory
 from common.test.test_serializers import  get_setting_groups_test_data
 from user.test.factories import WholesalerFactory, ShopperFactory
 from user.models import ProductLike
 from .factories import (
     ProductColorFactory, ProductFactory, SubCategoryFactory, MainCategoryFactory, ColorFactory, SizeFactory, 
-    LaundryInformationFactory, TagFactory, AgeFactory, StyleFactory, ProductImageFactory,
+    TagFactory, AgeFactory, StyleFactory, ProductImageFactory,
     ProductMaterialFactory, OptionFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 from ..serializers import (
     ProductMaterialSerializer, SubCategorySerializer, MainCategorySerializer, ColorSerializer, SizeSerializer, 
-    LaundryInformationSerializer, ProductColorSerializer, AgeSerializer, StyleSerializer, 
+    ProductColorSerializer, AgeSerializer, StyleSerializer, 
     ProductImageSerializer, OptionSerializer, ProductSerializer, ProductReadSerializer, ProductWriteSerializer, TagSerializer,
     ProductQuestionAnswerSerializer, ProductQuestionAnswerClassificationSerializer, OptionInOrderItemSerializer,
     ProductAdditionalInformationSerializer, ProductAdditionalInformationWriteSerializer, ProductRegistrationSerializer,
@@ -102,19 +102,6 @@ class SizeSerializerTestCase(SerializerTestCase):
         }
 
         self._test_model_instance_serialization(size, expected_data)
-
-
-class LaundryInformationSerializerTestCase(SerializerTestCase):
-    _serializer_class = LaundryInformationSerializer
-
-    def test_model_instance_serialization(self):
-        laundry_information = LaundryInformationFactory()
-        expected_data = {
-            'id': laundry_information.id,
-            'name': laundry_information.name,
-        }
-
-        self._test_model_instance_serialization(laundry_information, expected_data)
 
 
 class ProductAdditionalInformationSerializerTestCase(SerializerTestCase):
@@ -1079,7 +1066,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
         ProductMaterialFactory(product=cls.__product)
         ProductColorFactory(product=cls.__product)
         ProductImageFactory.create_batch(size=3, product=cls.__product)
-        laundry_informations = LaundryInformationFactory.create_batch(size=3)
+        laundry_informations = SettingItemFactory.create_batch(size=3, group=SettingGroupFactory())
         tags = TagFactory.create_batch(size=3)
         cls.__product.laundry_informations.add(*laundry_informations)
         cls.__product.tags.add(*tags)
@@ -1103,7 +1090,7 @@ class ProductReadSerializerTestCase(SerializerTestCase):
             'style': StyleSerializer(product.style).data,
             'age': AgeSerializer(product.age).data,
             'tags': TagSerializer(product.tags.all(), many=True).data,
-            'laundry_informations': LaundryInformationSerializer(product.laundry_informations.all(), many=True).data,
+            'laundry_informations': SettingItemSerializer(product.laundry_informations.all(), many=True).data,
             'created_at': datetime_to_iso(product.created_at),
             'on_sale': product.on_sale,
             'code': product.code,
@@ -1246,7 +1233,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
         for i in range(cls.__batch_size):
             ProductImageFactory(product=cls.__product, image_url=cls.__image_url_list.pop(), sequence=i+1)
 
-        cls.__product.laundry_informations.add(*LaundryInformationFactory.create_batch(size=cls.__batch_size))
+        cls.__product.laundry_informations.add(*SettingItemFactory.create_batch(size=cls.__batch_size, group=SettingGroupFactory(main_key='laundry_information')))
         cls.__product.tags.add(*TagFactory.create_batch(size=cls.__batch_size))
 
         color_id_list = [color.id for color in ColorFactory.create_batch(size=2)]
@@ -1268,7 +1255,7 @@ class ProductWriteSerializerTestCase(SerializerTestCase):
                     'mixing_rate': 20,
                 },
             ],
-            'laundry_informations': [laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=3)],
+            'laundry_informations' : [laundry_information.id for laundry_information in cls.__product.laundry_informations.all()],
             'additional_information': {
                 'thickness': cls.__product.additional_information.thickness_id,
                 'see_through': cls.__product.additional_information.see_through_id,

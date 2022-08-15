@@ -57,7 +57,7 @@ class Product(Model):
     style = ForeignKey('Style', DO_NOTHING)
     age = ForeignKey('Age', DO_NOTHING)
     tags = ManyToManyField('Tag', db_table='product_tag')
-    laundry_informations = ManyToManyField('LaundryInformation', through='ProductLaundryInformation')
+    laundry_informations = ManyToManyField('common.SettingItem', through='ProductLaundryInformation')
     name = CharField(max_length=100)
     code = CharField(max_length=12, default='AA')
     created_at = DateTimeField(auto_now_add=True)
@@ -216,22 +216,10 @@ class Style(Model):
         return self.name
 
 
-class LaundryInformation(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=20)
-
-    class Meta:
-        db_table = 'laundry_information'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
-
-
 class ProductLaundryInformation(Model):
     id = BigAutoField(primary_key=True)
     product = ForeignKey('Product', DO_NOTHING)
-    laundry_information = ForeignKey('LaundryInformation', DO_NOTHING)        
+    laundry_information = ForeignKey('common.SettingItem', DO_NOTHING)  
 
     class Meta:
         db_table = 'product_laundry_information'

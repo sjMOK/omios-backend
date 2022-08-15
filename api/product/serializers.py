@@ -18,7 +18,7 @@ from common.serializers import (
     DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer, SettingGroupSerializer,
 )
 from .models import (
-    Size, LaundryInformation, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
+    Size, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage, Style, Age,
     ProductMaterial, ProductColor, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 
@@ -99,15 +99,6 @@ class ProductAdditionalInformationWriteSerializer(ProductAdditionalInformationSe
 
     def create(self, validated_data):
         return self.Meta.model.objects.get_or_create(**dict([(key+'_id', value) for key, value in validated_data.items()]))[0]
-
-
-class LaundryInformationSerializer(ModelSerializer):
-    class Meta:
-        model = LaundryInformation
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
-        }
 
 
 class AgeSerializer(ModelSerializer):
@@ -656,7 +647,7 @@ class ProductReadSerializer(ProductSerializer):
     style = StyleSerializer(read_only=True)
     age = AgeSerializer(read_only=True)
     tags = TagSerializer(read_only=True, many=True)
-    laundry_informations = LaundryInformationSerializer(read_only=True, many=True)
+    laundry_informations = SettingItemSerializer(read_only=True, many=True)
     created_at = DateTimeField(read_only=True)
     on_sale = BooleanField(read_only=True)
     code = CharField(read_only=True)
@@ -697,7 +688,7 @@ class ProductWriteSerializer(ProductSerializer):
     style = PrimaryKeyRelatedField(queryset=Style.objects.all())
     age = PrimaryKeyRelatedField(queryset=Age.objects.all())
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)
-    laundry_informations = PrimaryKeyRelatedField(many=True, queryset=LaundryInformation.objects.all(), allow_empty=False, required=False)
+    laundry_informations = PrimaryKeyRelatedField(many=True, queryset=SettingItem.objects.filter(group__main_key='laundry_information'), allow_empty=False, required=False)
     additional_information = ProductAdditionalInformationWriteSerializer(required=False)
 
     __validation_fields_related_to_main_category = {'sub_category', 'product_additional_information', 'laundry_informations'}

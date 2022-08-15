@@ -7,14 +7,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
-from common.test.factories import SettingItemFactory
+from common.test.factories import SettingItemFactory, SettingGroupFactory
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
 from coupon.models import Coupon
 from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
 from .factories import (
-    ColorFactory, LaundryInformationFactory, MainCategoryFactory, OptionFactory, ProductColorFactory,
+    ColorFactory, MainCategoryFactory, OptionFactory, ProductColorFactory,
     ProductFactory, ProductImageFactory, ProductMaterialFactory, SubCategoryFactory,
     KeyWordFactory, TagFactory, ProductQuestionAnswerFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
@@ -238,7 +238,7 @@ class ProductViewSetTestCase(ViewTestCase):
         ProductFactory(product=cls._product, on_sale=False, wholesaler=WholesalerFactory())
 
         cls._product.tags.add(TagFactory())
-        cls._product.laundry_informations.add(LaundryInformationFactory())
+        cls._product.laundry_informations.add(SettingItemFactory(group__main_key='laundry_information'))
         OptionFactory(product_color=ProductColorFactory(product=cls._product))
         ProductImageFactory(product=cls._product)
         ProductMaterialFactory(product=cls._product)
@@ -527,7 +527,9 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
     def test_create(self):
         tag_id_list = [tag.id for tag in TagFactory.create_batch(size=self._batch_size)]
         laundry_information_id_list = [
-            laundry_information.id for laundry_information in LaundryInformationFactory.create_batch(size=self._batch_size)
+            laundry_information.id for laundry_information in SettingItemFactory.create_batch(
+                size=self._batch_size, group=SettingGroupFactory(main_key='laundry_information')
+            )
         ]
         image_url_list = list(TemporaryImage.objects.all()[:5].values_list('image_url', flat=True))
         

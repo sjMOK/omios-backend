@@ -153,13 +153,6 @@ class OptionFactory(DjangoModelFactory):
     size = Sequence(lambda num: 'size{0}'.format(num))
 
 
-class LaundryInformationFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.LaundryInformation'
-
-    name = Sequence(lambda num: 'laundry_info_{0}'.format(num))
-
-
 class ProductMaterialFactory(DjangoModelFactory):
     class Meta:
         model = 'product.ProductMaterial'
