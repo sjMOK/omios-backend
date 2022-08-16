@@ -9,8 +9,8 @@ from rest_framework.exceptions import APIException
 
 from .test_cases import FunctionTestCase
 from ..utils import (
-    get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein,
-    check_integer_format,
+    BASE_IMAGE_URL, get_response_body, get_response, querydict_to_dict, gmt_to_kst, datetime_to_iso, levenshtein,
+    check_integer_format, get_full_image_url,
 )
 
 
@@ -165,3 +165,12 @@ class CheckIdFormatTestCase(FunctionTestCase):
         value = 'a1b'
 
         self.assertTrue(not self._call_function(value))
+
+
+class GetFullImageUrlTestCase(FunctionTestCase):
+    _function = get_full_image_url
+
+    def test(self):
+        test_data = 'test.png'
+
+        self.assertTrue(self._call_function(test_data), BASE_IMAGE_URL+test_data)

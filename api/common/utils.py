@@ -109,3 +109,7 @@ def check_integer_format(value):
             return False
 
     return True
+
+
+def get_full_image_url(image_url):
+    return BASE_IMAGE_URL + image_url
