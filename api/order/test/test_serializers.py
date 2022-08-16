@@ -281,7 +281,7 @@ class OrderItemListSerializerTestCase(ListSerializerTestCase):
         serializer = self._get_serializer_after_validation()
         add_data_in_each_element(serializer.validated_data, 'status', self.__status)
         add_data_in_each_element(serializer.validated_data, 'order', self.__order)
-        order_items = serializer.save()
+        order_items = serializer.save(earned_point=0)
 
         self.assertListEqual([model_to_dict(order_item, exclude=['id']) for order_item in order_items], [{
             **data,
