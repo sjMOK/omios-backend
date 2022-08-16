@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from faker import Faker
 
 from common.test.test_cases import ViewTestCase, FunctionTestCase
-from common.test.factories import SettingItemFactory, SettingGroupFactory
+from common.test.factories import FuzzyRandomLengthText, SettingItemFactory, SettingGroupFactory
 from common.utils import levenshtein, BASE_IMAGE_URL
 from common.models import TemporaryImage
 from coupon.models import Coupon
@@ -33,9 +33,9 @@ class SortKeywordsByLevenshteinDistanceTestCase(FunctionTestCase):
     _function = sort_keywords_by_levenshtein_distance
 
     def test(self):
-        fake = Faker()
-        keywords = [fake.word() for _ in range(10)]
-        search_word = fake.word()
+        fake = FuzzyRandomLengthText()
+        keywords = [fake.fuzz() for _ in range(10)]
+        search_word = fake.fuzz()
 
         keywords_leven_distances = [levenshtein(keyword, search_word) for keyword in keywords]
         keywords_leven_distances.sort()
@@ -115,13 +115,13 @@ class GetTagSearchResultTest(ViewTestCase):
     _url = '/products/tags'
 
     def test_get(self):
-        fake = Faker()
-        search_word = fake.word()
+        fake = FuzzyRandomLengthText()
+        search_word = fake.fuzz()
         TagFactory.create_batch(size=3)
         TagFactory(name=search_word)
-        TagFactory(name=(fake.word() + search_word))
-        TagFactory(name=(search_word + fake.word()))
-        TagFactory(name=(fake.word() + search_word + fake.word()))
+        TagFactory(name=(fake.fuzz() + search_word))
+        TagFactory(name=(search_word + fake.fuzz()))
+        TagFactory(name=(fake.fuzz() + search_word + fake.fuzz()))
 
         self._get({'search_word': search_word})
         tags = Tag.objects.filter(name__contains=search_word).alias(cnt=Count('product')).order_by('-cnt')
@@ -148,18 +148,18 @@ class GetRelatedSearchWordsTestCase(ViewTestCase):
 
     @classmethod
     def setUpTestData(cls):
-        fake = Faker()
+        fake = FuzzyRandomLengthText()
 
-        cls.__search_query = fake.word()
+        cls.__search_query = fake.fuzz()
         main_category = MainCategoryFactory(name=cls.__search_query)
 
         for i in range(3):
             SubCategoryFactory(
-                main_category=main_category, name=fake.word() + cls.__search_query + str(i)
+                main_category=main_category, name=fake.fuzz() + cls.__search_query + str(i)
             )
 
         for i in range(3):
-            KeyWordFactory(name=fake.word() + cls.__search_query + str(i))
+            KeyWordFactory(name=fake.fuzz() + cls.__search_query + str(i))
 
     def test_success(self):
         self._get({'search_word': self.__search_query})
@@ -279,14 +279,14 @@ class ProductViewSetForShopperTestCase(ProductViewSetTestCase):
         self.assertEqual(self._response_data['count'], queryset.count())
 
     def test_search(self):
-        fake = Faker()
-        search_word = fake.word()
+        fake = FuzzyRandomLengthText()
+        search_word = fake.fuzz()
 
         for _ in range(3):
-            ProductFactory(product=self._product, name=search_word + fake.word())
+            ProductFactory(product=self._product, name=search_word + fake.fuzz())
 
         for i in range(3):
-            tag = TagFactory(name=fake.word() + search_word + str(i))
+            tag = TagFactory(name=fake.fuzz() + search_word + str(i))
             product = Product.objects.order_by('?').first()
             product.tags.add(tag)
 
