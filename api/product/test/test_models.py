@@ -6,13 +6,13 @@ from common.test.test_cases import ModelTestCase, FREEZE_TIME, FREEZE_TIME_AUTO_
 from common.test.factories import SettingItemFactory, SettingGroupFactory
 from user.test.factories import WholesalerFactory, ShopperFactory
 from ..models import (
-    MainCategory, SubCategory, Product, SubCategorySize, ProductImage, Tag, Color, ProductColor, Size,
+    MainCategory, SubCategory, Product, ProductImage, Tag, Color, ProductColor,
     Option, Keyword, ProductMaterial, ProductLaundryInformation,
     ProductQuestionAnswerClassification, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 from .factories import (
     MainCategoryFactory, OptionFactory, ProductQuestionAnswerFactory, SubCategoryFactory, ProductFactory,
-    ColorFactory, ProductColorFactory, SizeFactory, ProductQuestionAnswerClassificationFactory,
+    ColorFactory, ProductColorFactory, ProductQuestionAnswerClassificationFactory,
     create_product_additional_information,
 )
 
@@ -42,8 +42,6 @@ class SubCategoryTestCase(ModelTestCase):
         self._test_data = {
             'main_category': MainCategoryFactory(),
             'name': '가디건',
-            'require_product_additional_information': True,
-            'require_laundry_information': True,
         }
 
     def test_create(self):
@@ -51,14 +49,6 @@ class SubCategoryTestCase(ModelTestCase):
         
         self.assertEqual(sub_category.name, self._test_data['name'])
         self.assertEqual(sub_category.main_category, self._test_data['main_category'])
-        self.assertEqual(
-            sub_category.require_product_additional_information, 
-            self._test_data['require_product_additional_information']
-        )
-        self.assertEqual(
-            sub_category.require_laundry_information,
-            self._test_data['require_laundry_information']
-        )
 
 
 class ProductTestCase(ModelTestCase):
@@ -216,47 +206,18 @@ class ProductColorTestCase(ModelTestCase):
         self.assertTrue(product_color.on_sale)
 
 
-class SizeTestCase(ModelTestCase):
-    _model_class = Size
-
-    def setUp(self):
-        self._test_data = {
-            'name': 'XS',
-        }
-
-    def test_create(self):
-        size = self._get_model_after_creation()
-
-        self.assertEqual(size.name, self._test_data['name'])
-
-
-class SubCategorySizeTestCase(ModelTestCase):
-    _model_class = SubCategorySize
-
-    def setUp(self):
-        self._test_data = {
-            'sub_category': SubCategoryFactory(),
-            'size': SizeFactory(),
-        }
-
-    def test_create(self):
-        sub_category_size = self._get_model_after_creation()
-
-        self.assertEqual(sub_category_size.sub_category, self._test_data['sub_category'])
-        self.assertEqual(sub_category_size.size, self._test_data['size'])
-
-
 class OptionTestCase(ModelTestCase):
     _model_class = Option
 
     def setUp(self):
         self._test_data = {
             'product_color': ProductColorFactory(),
-            'size': 'Free'
+            'size': SettingItemFactory(),
         }
 
     def test_create(self):
         option = self._get_model_after_creation()
+
         self.assertEqual(option.product_color, self._test_data['product_color'])
         self.assertEqual(option.size, self._test_data['size'])
 

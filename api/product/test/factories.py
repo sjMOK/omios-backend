@@ -13,12 +13,14 @@ from user.test.factories import WholesalerFactory, ShopperFactory
 
 
 def create_options(size=2, only_product_color=False):
-    option = OptionFactory()
+    size_group = SettingGroupFactory(main_key='sizes')
+    option = OptionFactory(size__group=size_group)
+    
 
     if only_product_color:
-        return [option] + [OptionFactory(product_color=option.product_color) for _ in range(size-1)]
+        return [option] + [OptionFactory(product_color=option.product_color, size__group=size_group) for _ in range(size-1)]
     else:
-        return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product)) for _ in range(size-1)]
+        return [option] + [OptionFactory(product_color__product=ProductFactory(product=option.product_color.product), size__group=size_group) for _ in range(size-1)]
 
 
 def create_product_additional_information(for_validation=False):
@@ -46,8 +48,8 @@ class SubCategoryFactory(DjangoModelFactory):
 
     main_category = SubFactory(MainCategoryFactory)
     name = Sequence(lambda num: 'sub_category_{0}'.format(num))
-    require_product_additional_information = True
-    require_laundry_information = True
+    # require_product_additional_information = True
+    # require_laundry_information = True
 
 
 class ProductFactory(DjangoModelFactory):
@@ -103,13 +105,6 @@ class ColorFactory(DjangoModelFactory):
     checked_image_url = LazyAttribute(lambda obj: f'color/check_{obj.name}.svg')
 
 
-class SizeFactory(DjangoModelFactory):
-    class Meta:
-        model = 'product.Size'
-
-    name = Sequence(lambda num: 'size{0}'.format(num))
-
-
 class ProductColorFactory(DjangoModelFactory):
     class Meta:
         model = 'product.ProductColor'
@@ -136,7 +131,7 @@ class OptionFactory(DjangoModelFactory):
         model = 'product.option'
 
     product_color = SubFactory(ProductColorFactory)
-    size = Sequence(lambda num: 'size{0}'.format(num))
+    size = SubFactory(SettingItemFactory, group__main_key='sizes')
 
 
 class ProductMaterialFactory(DjangoModelFactory):

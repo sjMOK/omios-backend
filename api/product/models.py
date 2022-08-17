@@ -38,11 +38,8 @@ class MainCategory(Model):
 class SubCategory(Model):
     id = AutoField(primary_key=True)
     main_category = ForeignKey('MainCategory', related_name='sub_categories', on_delete=DO_NOTHING)
-    sizes = ManyToManyField('Size', through='SubCategorySize')
     name = CharField(max_length=20)
-    require_product_additional_information = BooleanField()
-    require_laundry_information = BooleanField()
-    
+
     class Meta:
         db_table = 'sub_category'
 
@@ -152,32 +149,10 @@ class ProductColor(Model):
         super().save(*args, **kwargs)
 
 
-class Size(Model):
-    id = AutoField(primary_key=True)
-    name = CharField(unique=True, max_length=10)
-
-    class Meta:
-        db_table = 'size'
-        ordering = ['id']
-
-    def __str__(self):
-        return self.name
-
-
-class SubCategorySize(Model):
-    id = AutoField(primary_key=True)
-    sub_category = ForeignKey('SubCategory', DO_NOTHING)
-    size = ForeignKey('Size', DO_NOTHING)
-
-    class Meta:
-        db_table = 'sub_category_size'
-        unique_together = (('sub_category', 'size'),)
-
-
 class Option(Model):
     id = BigAutoField(primary_key=True)
     product_color = ForeignKey('ProductColor', DO_NOTHING, related_name='options')
-    size = CharField(max_length=20)
+    size = ForeignKey('common.SettingItem', DO_NOTHING, related_name='options')
     on_sale = BooleanField(default=True)
 
     class Meta:

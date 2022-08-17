@@ -9,7 +9,7 @@ from faker import Faker
 from common.test.test_cases import ViewTestCase, FunctionTestCase
 from common.test.factories import FuzzyRandomLengthText, SettingItemFactory, SettingGroupFactory
 from common.utils import levenshtein, BASE_IMAGE_URL
-from common.models import TemporaryImage
+from common.models import TemporaryImage, SettingGroup
 from coupon.models import Coupon
 from user.test.factories import WholesalerFactory
 from user.models import Wholesaler
@@ -239,7 +239,7 @@ class ProductViewSetTestCase(ViewTestCase):
 
         cls._product.tags.add(TagFactory())
         cls._product.laundry_informations.add(SettingItemFactory(group__main_key='laundry_information'))
-        OptionFactory(product_color=ProductColorFactory(product=cls._product))
+        OptionFactory(product_color=ProductColorFactory(product=cls._product), size__group=SettingGroupFactory(main_key='sizes'))
         ProductImageFactory(product=cls._product)
         ProductMaterialFactory(product=cls._product)
 
@@ -576,19 +576,13 @@ class ProductViewSetForWholesalerTestCase(ProductViewSetTestCase):
                 {
                     'color': self._colors[0].id,
                     'display_color_name': '다크',
-                    'options': [
-                        {'size': 'Free'},
-                        {'size': 'S'},
-                    ],
+                    'options': [{'size': SettingItemFactory(group=SettingGroup.objects.filter(main_key='sizes').first()).id} for _ in range(2)],
                     'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 },
                 {
                     'color': self._colors[1].id,
                     'display_color_name': '블랙',
-                    'options': [
-                        {'size': 'Free'},
-                        {'size': 'S'},
-                    ],
+                    'options': [{'size': SettingItemFactory(group=SettingGroup.objects.filter(main_key='sizes').first()).id} for _ in range(2)],
                     'image_url': BASE_IMAGE_URL + image_url_list.pop(),
                 }
             ]

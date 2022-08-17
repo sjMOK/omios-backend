@@ -8,7 +8,7 @@ from rest_framework.serializers import (
 from rest_framework.exceptions import ValidationError, APIException
 
 from common.utils import DEFAULT_IMAGE_URL, BASE_IMAGE_URL
-from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, SIZE_REGEX, IMAGE_URL_REGEX
+from common.regular_expressions import BASIC_SPECIAL_CHARACTER_REGEX, ENG_OR_KOR_REGEX, IMAGE_URL_REGEX
 from common.validators import validate_all_required_fields_included, validate_image_url
 from common.models import SettingItem
 from common.serializers import (
@@ -18,7 +18,7 @@ from common.serializers import (
     DynamicFieldsSerializer, DynamicFieldsModelSerializer, SettingItemSerializer, SettingGroupSerializer,
 )
 from .models import (
-    Size, SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage,
+    SubCategory, MainCategory, Color, Option, Tag, Product, ProductImage,
     ProductMaterial, ProductColor, ProductQuestionAnswer, ProductAdditionalInformation,
 )
 
@@ -30,7 +30,7 @@ PRODUCT_COLOR_MAX_LENGTH = 10
 class SubCategorySerializer(ModelSerializer):
     class Meta:
         model = SubCategory
-        exclude = ['main_category', 'sizes', 'require_product_additional_information', 'require_laundry_information']
+        exclude = ['main_category']
         extra_kwargs = {
             'name': {'read_only': True},
         }
@@ -54,15 +54,6 @@ class ColorSerializer(ModelSerializer):
         extra_kwargs = {
             'name': {'read_only': True},
             'default_image_url': {'read_only': True}
-        }
-
-
-class SizeSerializer(ModelSerializer):
-    class Meta:
-        model = Size
-        fields = '__all__'
-        extra_kwargs = {
-            'name': {'read_only': True},
         }
 
 
@@ -341,16 +332,26 @@ class ProductMaterialSerializer(ModelSerializer):
             validate_all_required_fields_included(attrs, self.fields)
 
 
+class OptionSerializer(ModelSerializer):
+    id = IntegerField(required=False)
+    size = SettingItemSerializer(read_only=True)
+
+    class Meta:
+        model = Option
+        exclude = ['product_color']
+        extra_kwargs = {
+            'on_sale': {'read_only': True},
+        }
+
+
 class OptionListSerializer(ListSerializer):
     def validate(self, attrs):
-        self.__validate_size_is_duplicated(attrs)
+        self.__validate_sizes(get_list_of_single_value(attrs, 'size'))
 
         return attrs
 
-    def __validate_size_is_duplicated(self, attrs):
-        sizes = get_list_of_single_value(attrs, 'size')
-
-        if has_duplicate_element(sizes):
+    def __validate_sizes(self, value):
+        if has_duplicate_element(value):
             raise ValidationError('Size is duplicated.')
 
     def create(self, validated_data, product_color):
@@ -369,16 +370,10 @@ class OptionListSerializer(ListSerializer):
         self.create(create_data, product_color)
 
 
-class OptionSerializer(ModelSerializer):
-    id = IntegerField(required=False)
-    size = RegexField(SIZE_REGEX, max_length=20)
+class OptionWriteSerializer(OptionSerializer):
+    size = PrimaryKeyRelatedField(queryset=SettingItem.objects.filter(group__main_key='sizes'))
 
-    class Meta:
-        model = Option
-        exclude = ['product_color']
-        extra_kwargs = {
-            'on_sale': {'read_only': True},
-        }
+    class Meta(OptionSerializer.Meta):
         list_serializer_class = OptionListSerializer
 
     def validate(self, attrs):
@@ -402,7 +397,7 @@ class OptionSerializer(ModelSerializer):
 
 class OptionInOrderItemSerializer(Serializer):
     id = IntegerField(read_only=True)
-    size = CharField(read_only=True)
+    size = CharField(read_only=True, source='size.name')
     display_color_name = CharField(read_only=True, source='product_color.display_color_name')
     product_id = IntegerField(read_only=True, source='product_color.product.id')
     product_name = CharField(read_only=True, source='product_color.product.name')
@@ -415,6 +410,26 @@ class OptionInOrderItemSerializer(Serializer):
             result['product_image_url'] = BASE_IMAGE_URL + instance.product_color.product.images.all()[0].image_url
         else:
             result['product_image_url'] = DEFAULT_IMAGE_URL
+
+        return result
+
+
+class ProductColorSerializer(ModelSerializer):
+    id = IntegerField(required=False)
+    options = OptionSerializer(many=True)
+    image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
+
+    class Meta:
+        model = ProductColor
+        exclude = ['product']
+        extra_kwargs = {
+            'on_sale': {'read_only': True},
+        }
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        
+        result['image_url'] = BASE_IMAGE_URL + result['image_url']
 
         return result
 
@@ -510,17 +525,11 @@ class ProductColorListSerializer(ListSerializer):
             if options is not None:
                 self.child.fields['options'].create(options, product_color)
 
-class ProductColorSerializer(ModelSerializer):
-    id = IntegerField(required=False)
-    options = OptionSerializer(allow_empty=False, many=True)
-    image_url = RegexField(IMAGE_URL_REGEX, max_length=200, validators=[URLValidator])
 
-    class Meta:
-        model = ProductColor
-        exclude = ['product']
-        extra_kwargs = {
-            'on_sale': {'read_only': True},
-        }
+class ProductColorWriteSerializer(ProductColorSerializer):
+    options = OptionWriteSerializer(allow_empty=False, many=True)
+
+    class Meta(ProductColorSerializer.Meta):
         list_serializer_class = ProductColorListSerializer
 
     def validate(self, attrs):
@@ -581,20 +590,6 @@ class ProductColorSerializer(ModelSerializer):
         if stored_option_length + create_option_len - delete_option_len <= 0:
             raise ValidationError('The product color must have at least one option.')
 
-    def to_representation(self, instance):
-        result = super().to_representation(instance)
-        
-        result['image_url'] = BASE_IMAGE_URL + result['image_url']
-
-        return result
-
-
-
-class ProductModelSerializer(DynamicFieldsModelSerializer):
-    class Meta:
-        model = Product
-        fields = '__all__'
-
 
 class ProductSerializer(DynamicFieldsSerializer):
     id = IntegerField(read_only=True)
@@ -604,7 +599,6 @@ class ProductSerializer(DynamicFieldsSerializer):
     base_discount_rate = IntegerField(default=0)
     base_discounted_price = IntegerField(read_only=True)
     materials = ProductMaterialSerializer(allow_empty=False, many=True)
-    colors = ProductColorSerializer(allow_empty=False, many=True)
     images = ProductImageSerializer(allow_empty=False, many=True, source='related_images')
     manufacturing_country = CharField(max_length=20)
     
@@ -626,6 +620,7 @@ class ProductSerializer(DynamicFieldsSerializer):
 class ProductReadSerializer(ProductSerializer):
     main_category = MainCategorySerializer(read_only=True, source='sub_category.main_category', exclude_fields=('sub_categories',))
     sub_category = SubCategorySerializer(read_only=True)
+    colors = ProductColorSerializer(many=True)
     style = SettingItemSerializer(read_only=True)
     target_age_group = SettingItemSerializer(read_only=True)
     tags = TagSerializer(read_only=True, many=True)
@@ -667,6 +662,7 @@ class ProductReadSerializer(ProductSerializer):
 
 class ProductWriteSerializer(ProductSerializer):
     sub_category = PrimaryKeyRelatedField(queryset=SubCategory.objects.select_related('main_category').all())
+    colors = ProductColorWriteSerializer(allow_empty=False, many=True)
     style = PrimaryKeyRelatedField(queryset=SettingItem.objects.filter(group__main_key='style'))
     target_age_group = PrimaryKeyRelatedField(queryset=SettingItem.objects.filter(group__main_key='target_age_group'))
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all(), required=False)

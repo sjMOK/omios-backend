@@ -209,7 +209,7 @@ class CartSerializer(ModelSerializer):
     product_name = CharField(read_only=True, source='option.product_color.product.name')
     base_discounted_price = IntegerField(read_only=True, source='option.product_color.product.base_discounted_price')
     display_color_name = CharField(read_only=True, source='option.product_color.display_color_name')
-    size = CharField(read_only=True, source='option.size')
+    size = CharField(read_only=True, source='option.size.name')
     product_id = IntegerField(read_only=True, source='option.product_color.product.id')
 
     class Meta:

@@ -217,7 +217,7 @@ class CartSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(self.__cart, {
             'id': self.__cart.id,
             'display_color_name': self.__cart.option.product_color.display_color_name,
-            'size': self.__cart.option.size,
+            'size': self.__cart.option.size.name,
             'count': self.__cart.count,
             'option': self.__cart.option.id,
             'product_id': self.__cart.option.product_color.product.id,
@@ -233,7 +233,7 @@ class CartSerializerTestCase(SerializerTestCase):
         self._test_model_instance_serialization(cart, {
             'id': cart.id,
             'display_color_name': cart.option.product_color.display_color_name,
-            'size': cart.option.size,
+            'size': cart.option.size.name,
             'count': cart.count,
             'option': cart.option.id,
             'product_id': cart.option.product_color.product.id,
@@ -275,7 +275,7 @@ class CartListSerializerTestCase(ListSerializerTestCase):
                         'id': cart.id,
                         'base_discounted_price': cart.option.product_color.product.base_discounted_price * cart.count,
                         'display_color_name': cart.option.product_color.display_color_name,
-                        'size': cart.option.size,
+                        'size': cart.option.size.name,
                         'count': cart.count,
                         'option': cart.option.id,
                     } for cart in self.__shopper.carts.filter(option__product_color__product=product)
