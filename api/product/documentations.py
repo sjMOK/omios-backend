@@ -10,7 +10,7 @@ from common.documentations import Image, get_response
 from common.serializers import SettingGroupSerializer
 from .serializers import (
     SubCategorySerializer, MainCategorySerializer, ColorSerializer,ProductAdditionalInformationSerializer,
-    TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionSerializer, 
+    TagSerializer, ProductImageSerializer, ProductMaterialSerializer, OptionWriteSerializer, 
     ProductColorSerializer, ProductReadSerializer, ProductWriteSerializer, ProductQuestionAnswerSerializer,
     ProductQuestionAnswerClassificationSerializer, ProductRegistrationSerializer
 )
@@ -50,20 +50,16 @@ class ProductCreateRequest(ProductWriteSerializer):
     class ProductMaterialCreateRequest(ProductMaterialSerializer):
         id = None  
 
-
     class ProductImageCreateRequest(ProductImageSerializer):
         id = None
 
-
-    class OptionCreateRequest(OptionSerializer):
-        id = None
-
-
     class ProductColorCreateRequest(ProductColorSerializer):
+        class OptionCreateRequest(OptionWriteSerializer):
+            id = None
+        
         id = None
-
-
-    options = OptionCreateRequest()
+        options = OptionCreateRequest(many=True)
+    
     images = ProductImageCreateRequest()
     materials = ProductMaterialCreateRequest()
     colors = ProductColorCreateRequest()
